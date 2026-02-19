@@ -30,7 +30,10 @@ pub struct JjAdapter {
 impl JjAdapter {
     pub fn new() -> Result<Self> {
         let cwd = std::env::current_dir().context("Failed to get current working directory")?;
+        Self::load_at(cwd)
+    }
 
+    fn load_at(cwd: std::path::PathBuf) -> Result<Self> {
         let mut config = StackedConfig::with_defaults();
 
         // Layer 1: Judo Fallbacks (Lowest priority above library defaults)
@@ -449,6 +452,30 @@ impl VcsFacade for JjAdapter {
         mut_repo.rebase_descendants()?;
 
         tx.commit("abandon revision")?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jj_adapter_new() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        // Initialize a simple workspace
+        Workspace::init_simple(&user_settings, path)?;
+
+        // Instantiate JjAdapter using the temp dir
+        let adapter = JjAdapter::load_at(path.to_path_buf());
+
+        assert!(adapter.is_ok(), "JjAdapter should be initialized successfully");
+
         Ok(())
     }
 }
