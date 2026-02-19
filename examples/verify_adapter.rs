@@ -1,6 +1,6 @@
-use judo::infrastructure::jj_adapter::JjAdapter;
-use judo::domain::vcs::VcsFacade;
 use anyhow::Result;
+use judo::domain::vcs::VcsFacade;
+use judo::infrastructure::jj_adapter::JjAdapter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -13,9 +13,12 @@ async fn main() -> Result<()> {
     println!("Operation ID: {}", log.operation_id);
     println!("Working Copy ID: {}", log.working_copy_id);
     println!("Graph has {} entries.", log.graph.len());
-    
+
     for entry in &log.graph {
-        println!("Checking diff for {} - {}", entry.commit_id, entry.description);
+        println!(
+            "Checking diff for {} - {}",
+            entry.commit_id, entry.description
+        );
         let diff = adapter.get_commit_diff(&entry.commit_id).await?;
         if diff != "(No changes or diff not implemented)" && !diff.contains("Root commit") {
             println!("SUCCESS: Found non-empty diff!");

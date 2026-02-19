@@ -3,7 +3,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState, Widget},
+    widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState},
 };
 
 pub struct RevisionGraph<'a> {
@@ -51,7 +51,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             ],
         )
         .block(Block::default().title("Graph").borders(Borders::ALL))
-        .highlight_style(
+        .row_highlight_style(
             Style::default()
                 .bg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD),

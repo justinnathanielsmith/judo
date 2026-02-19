@@ -6,7 +6,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 
-use judo::app::{state::AppState, r#loop::run_loop};
+use judo::app::{r#loop::run_loop, state::AppState};
 use judo::infrastructure;
 
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     // Run app
     let app_state = AppState::default();
-    
+
     // Initialize adapter to verify repo context
     // We'll pass this down eventually, but for now just fail fast if no repo
     let _adapter = infrastructure::jj_adapter::JjAdapter::new()?;

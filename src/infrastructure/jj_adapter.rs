@@ -1,25 +1,27 @@
-use crate::domain::{vcs::VcsFacade, models::{RepoStatus, CommitId, GraphRow}};
-use anyhow::{Context, Result, anyhow};
+use crate::domain::{
+    models::{CommitId, GraphRow, RepoStatus},
+    vcs::VcsFacade,
+};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use jj_lib::{
     backend::CommitId as JjCommitId,
-    repo::{Repo, StoreFactories}, 
-    settings::{UserSettings},
-    workspace::{Workspace},
-    object_id::ObjectId,
-    working_copy::WorkingCopyFactory,
     config::{ConfigLayer, ConfigSource, StackedConfig},
     local_working_copy::LocalWorkingCopyFactory,
+    object_id::ObjectId,
+    repo::{Repo, StoreFactories},
+    settings::UserSettings,
+    working_copy::WorkingCopyFactory,
+    workspace::Workspace,
 };
 
 use jj_lib::gitignore::GitIgnoreFile;
 
-
+use futures::StreamExt;
 use jj_lib::matchers::{EverythingMatcher, NothingMatcher};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use std::collections::{HashMap, HashSet, VecDeque};
-use futures::StreamExt; 
 
 pub struct JjAdapter {
     workspace: Arc<Mutex<Workspace>>,
@@ -28,9 +30,9 @@ pub struct JjAdapter {
 impl JjAdapter {
     pub fn new() -> Result<Self> {
         let cwd = std::env::current_dir().context("Failed to get current working directory")?;
-        
-        let mut config = StackedConfig::empty(); 
-        
+
+        let mut config = StackedConfig::empty();
+
         // Layer 1: Internal Defaults (Lowest priority fallback)
         // This prevents initialization failures when mandatory jj config is missing.
         let default_config_str = r#"
@@ -71,40 +73,43 @@ impl JjAdapter {
             [experimental]
             record-predecessors-in-commit = true
         "#;
-        
+
         if let Ok(layer) = ConfigLayer::parse(ConfigSource::Default, default_config_str) {
             config.add_layer(layer);
         }
 
         // Layer 2: User Config (Higher priority)
         if let Ok(home) = std::env::var("HOME") {
-             let paths = [
-                 std::path::PathBuf::from(&home).join(".jj/config.toml"),
-                 std::path::PathBuf::from(&home).join(".config/jj/config.toml"),
-             ];
-             for path in paths {
-                 if path.exists() {
-                     if let Ok(text) = std::fs::read_to_string(&path) {
-                         if let Ok(layer) = ConfigLayer::parse(
-                             ConfigSource::User, 
-                             &text
-                         ) {
-                              config.add_layer(layer);
-                         }
-                     }
-                 }
-             }
+            let paths = [
+                std::path::PathBuf::from(&home).join(".jj/config.toml"),
+                std::path::PathBuf::from(&home).join(".config/jj/config.toml"),
+            ];
+            for path in paths {
+                if path.exists() {
+                    if let Ok(text) = std::fs::read_to_string(&path) {
+                        if let Ok(layer) = ConfigLayer::parse(ConfigSource::User, &text) {
+                            config.add_layer(layer);
+                        }
+                    }
+                }
+            }
         }
 
         let user_settings = UserSettings::from_config(config)?;
-        
+
         let store_factories = StoreFactories::default();
-        let mut working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>> = HashMap::new();
+        let mut working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>> =
+            HashMap::new();
         working_copy_factories.insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
-        
-        let workspace = Workspace::load(&user_settings, &cwd, &store_factories, &working_copy_factories)
-            .context("Failed to load workspace")?;
-        
+
+        let workspace = Workspace::load(
+            &user_settings,
+            &cwd,
+            &store_factories,
+            &working_copy_factories,
+        )
+        .context("Failed to load workspace")?;
+
         Ok(Self {
             workspace: Arc::new(Mutex::new(workspace)),
         })
@@ -119,67 +124,77 @@ impl VcsFacade for JjAdapter {
             let ws = self.workspace.lock().await;
             ws.repo_loader().load_at_head()?
         };
-        
+
         // operation() returns &Operation. id() returns &OperationId.
         let op_id = repo.operation().id().clone().hex();
-        
+
         // Find workspace_id from repo view (first available)
         // wc_commit_ids() returns &BTreeMap<WorkspaceId, CommitId>
-        let (workspace_id, _) = repo.view().wc_commit_ids().iter().next()
-             .ok_or_else(|| anyhow!("No working copy found in view"))?;
+        let (workspace_id, _) = repo
+            .view()
+            .wc_commit_ids()
+            .iter()
+            .next()
+            .ok_or_else(|| anyhow!("No working copy found in view"))?;
         let workspace_id = workspace_id.clone();
-        
+
         // Manual Simple Walk (BFS)
         let mut graph_rows = Vec::new();
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
-        
+
         // Start from heads
         for head_id in repo.view().heads() {
             queue.push_back(head_id.clone());
         }
 
-        // Also add working copy parent? 
+        // Also add working copy parent?
         // For now just heads is enough to see something.
-        
+
         while let Some(id) = queue.pop_front() {
-            if visited.contains(&id) { continue; }
+            if visited.contains(&id) {
+                continue;
+            }
             visited.insert(id.clone());
-            
-            if graph_rows.len() >= 100 { break; } // Hard limit for MVP
-            
+
+            if graph_rows.len() >= 100 {
+                break;
+            } // Hard limit for MVP
+
             let commit = repo.store().get_commit(&id)?;
-            
-            for parent in commit.parents() {
-                // commit.parents() yields Result<Commit>
-                if let Ok(parent) = parent {
-                     queue.push_back(parent.id().clone());
-                }
+
+            for parent in commit.parents().flatten() {
+                queue.push_back(parent.id().clone());
             }
 
-            let description = commit.description().lines().next().unwrap_or("").to_string();
-            let change_id = commit.change_id().hex(); 
+            let description = commit
+                .description()
+                .lines()
+                .next()
+                .unwrap_or("")
+                .to_string();
+            let change_id = commit.change_id().hex();
             let author = commit.author().email.clone();
             // Timestamp fix: timestamp struct -> timestamp field -> 0 (millis)
-            let timestamp = commit.author().timestamp.timestamp.0.to_string(); 
-            
+            let timestamp = commit.author().timestamp.timestamp.0.to_string();
+
             graph_rows.push(GraphRow {
                 commit_id: CommitId(id.hex()),
                 change_id,
                 description,
                 author,
                 timestamp,
-                is_working_copy: false, 
+                is_working_copy: false,
             });
         }
-        
+
         // Sort by timestamp desc or similar? BFS might be mixed.
         // For MVP, raw list is fine.
 
         // Get working copy ID
         let wc_id = match repo.view().get_wc_commit_id(&workspace_id) {
-             Some(id) => CommitId(id.hex()),
-             None => CommitId("".to_string()),
+            Some(id) => CommitId(id.hex()),
+            None => CommitId("".to_string()),
         };
 
         Ok(RepoStatus {
@@ -194,51 +209,56 @@ impl VcsFacade for JjAdapter {
             let ws = self.workspace.lock().await;
             ws.repo_loader().load_at_head()?
         };
-        
-        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+
+        let id =
+            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
         let mut parents = commit.parents();
-        
+
         let parent_tree = if let Some(parent) = parents.next() {
             parent?.tree()
         } else {
-             return Ok("Root commit - diff not supported yet".to_string());
+            return Ok("Root commit - diff not supported yet".to_string());
         };
-        
+
         let tree = commit.tree();
-        
+
         let mut output = String::new();
         output.push_str(&format!("Diff for commit {}\n\n", commit_id.0));
-        
+
         let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
         while let Some(entry) = stream.next().await {
             let path_str = entry.path.as_internal_file_string();
             let mut file_diff = String::new();
 
             let diff = entry.values?;
-            
+
             // Helper to read content
-            // We can't easily make an async closure that captures `repo` without some pain, 
+            // We can't easily make an async closure that captures `repo` without some pain,
             // so we'll just duplicate the simple read logic or loop.
-            
+
             let mut old_content = Vec::new();
-            if let Ok(Some(tree_value)) = diff.before.into_resolved() {
-                if let jj_lib::backend::TreeValue::File { id, .. } = tree_value {
-                    let mut reader = repo.store().read_file(&entry.path, &id).await?;
-                    tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut old_content).await?;
-                }
+            if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
+                diff.before.into_resolved()
+            {
+                let mut reader = repo.store().read_file(&entry.path, &id).await?;
+                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut old_content).await?;
             }
 
             let mut new_content = Vec::new();
-            if let Ok(Some(tree_value)) = diff.after.into_resolved() {
-                 if let jj_lib::backend::TreeValue::File { id, .. } = tree_value {
-                    let mut reader = repo.store().read_file(&entry.path, &id).await?;
-                    tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut new_content).await?;
-                }
+            if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
+                diff.after.into_resolved()
+            {
+                let mut reader = repo.store().read_file(&entry.path, &id).await?;
+                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut new_content).await?;
             }
 
             // Simple binary check: check for null bytes in the first 1KB
-            let is_binary = old_content.iter().chain(new_content.iter()).take(1024).any(|&b| b == 0);
+            let is_binary = old_content
+                .iter()
+                .chain(new_content.iter())
+                .take(1024)
+                .any(|&b| b == 0);
 
             if is_binary {
                 file_diff.push_str(&format!("Binary file {}\n\n", path_str));
@@ -249,11 +269,11 @@ impl VcsFacade for JjAdapter {
                 use similar::{ChangeTag, TextDiff};
 
                 let diff = TextDiff::from_lines(&old_text, &new_text);
-                
+
                 if diff.ratio() < 1.0 || old_text != new_text {
-                     file_diff.push_str(&format!("--- a/{}\n+++ b/{}\n", path_str, path_str));
-                     
-                     for group in diff.grouped_ops(3) {
+                    file_diff.push_str(&format!("--- a/{}\n+++ b/{}\n", path_str, path_str));
+
+                    for group in diff.grouped_ops(3) {
                         for op in group {
                             for change in diff.iter_changes(&op) {
                                 let (sign, _) = match change.tag() {
@@ -267,27 +287,26 @@ impl VcsFacade for JjAdapter {
                     }
                 } else if old_content.is_empty() && !new_content.is_empty() {
                     // New file
-                     file_diff.push_str(&format!("--- /dev/null\n+++ b/{}\n", path_str));
-                      for line in new_text.lines() {
-                          file_diff.push_str(&format!("+{}\n", line));
-                      }
+                    file_diff.push_str(&format!("--- /dev/null\n+++ b/{}\n", path_str));
+                    for line in new_text.lines() {
+                        file_diff.push_str(&format!("+{}\n", line));
+                    }
                 } else if !old_content.is_empty() && new_content.is_empty() {
                     // Deleted file
-                     file_diff.push_str(&format!("--- a/{}\n+++ /dev/null\n", path_str));
-                     for line in old_text.lines() {
-                          file_diff.push_str(&format!("-{}\n", line));
-                      }
+                    file_diff.push_str(&format!("--- a/{}\n+++ /dev/null\n", path_str));
+                    for line in old_text.lines() {
+                        file_diff.push_str(&format!("-{}\n", line));
+                    }
                 }
             }
-            
-            output.push_str(&file_diff);
-            
 
-            output.push_str("\n");
+            output.push_str(&file_diff);
+
+            output.push('\n');
         }
-        
+
         if output.trim().is_empty() {
-             Ok("(No changes found)".to_string())
+            Ok("(No changes found)".to_string())
         } else {
             Ok(output)
         }
@@ -296,36 +315,36 @@ impl VcsFacade for JjAdapter {
     async fn describe_revision(&self, change_id: &str, message: &str) -> Result<()> {
         let workspace = self.workspace.lock().await;
         let repo = workspace.repo_loader().load_at_head()?;
-        
+
         // Assume change_id param is actually a Commit ID hex for now.
-        let commit_id = JjCommitId::try_from_hex(change_id)
-            .ok_or_else(|| anyhow!("Invalid commit ID"))?;
-            
+        let commit_id =
+            JjCommitId::try_from_hex(change_id).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+
         let commit = repo.store().get_commit(&commit_id)?;
 
         let mut tx = repo.start_transaction();
         let mut_repo = tx.repo_mut();
-        
+
         mut_repo
             .rewrite_commit(&commit)
             .set_description(message)
             .write()?;
-            
+
         mut_repo.rebase_descendants()?;
-        
+
         tx.commit("describe revision")?;
-        
+
         Ok(())
     }
 
     async fn snapshot(&self) -> Result<String> {
         let mut workspace = self.workspace.lock().await;
-        
+
         let repo = workspace.repo_loader().load_at_head()?;
         let op_id = repo.operation().id().clone();
-        
+
         let mut locked_ws = workspace.start_working_copy_mutation()?;
-        
+
         let options = jj_lib::working_copy::SnapshotOptions {
             base_ignores: GitIgnoreFile::empty(),
             progress: None,
@@ -335,7 +354,7 @@ impl VcsFacade for JjAdapter {
         };
 
         let (_tree, _stats) = locked_ws.locked_wc().snapshot(&options).await?;
-        
+
         locked_ws.finish(op_id)?;
 
         Ok("Snapshot created".to_string())

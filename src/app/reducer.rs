@@ -15,9 +15,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
             let i = match state.log_list_state.selected() {
                 Some(i) => {
                     if let Some(repo) = &state.repo {
-                        if repo.graph.is_empty() {
-                            0
-                        } else if i >= repo.graph.len() - 1 {
+                        if repo.graph.is_empty() || i >= repo.graph.len() - 1 {
                             0
                         } else {
                             i + 1
