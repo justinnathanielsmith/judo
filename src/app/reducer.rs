@@ -1,5 +1,7 @@
-use super::{action::Action, state::{AppMode, AppState}};
-
+use super::{
+    action::Action,
+    state::{AppMode, AppState},
+};
 
 pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
     // Return an optional "Follow-up Action" (though strictly in TEA, side-effects go to the loop)
@@ -16,11 +18,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
                         if repo.graph.is_empty() {
                             0
                         } else if i >= repo.graph.len() - 1 {
-                            0 
-                        } else { 
-                            i + 1 
+                            0
+                        } else {
+                            i + 1
                         }
-                    } else { 0 }
+                    } else {
+                        0
+                    }
                 }
                 None => 0,
             };
@@ -34,12 +38,14 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
                     if let Some(repo) = &state.repo {
                         if repo.graph.is_empty() {
                             0
-                        } else if i == 0 { 
-                            repo.graph.len() - 1 
-                        } else { 
-                            i - 1 
+                        } else if i == 0 {
+                            repo.graph.len() - 1
+                        } else {
+                            i - 1
                         }
-                    } else { 0 }
+                    } else {
+                        0
+                    }
                 }
                 None => 0,
             };
@@ -71,6 +77,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
             if state.log_list_state.selected().is_none() {
                 state.log_list_state.select(Some(0));
             }
+            state.is_loading_diff = true;
         }
         Action::DiffLoaded(diff) => {
             state.current_diff = Some(diff);
@@ -86,10 +93,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
                 Err(err) => state.last_error = Some(err),
             }
             if state.mode == AppMode::Loading {
-                 state.mode = AppMode::Normal;
+                state.mode = AppMode::Normal;
             }
         }
-        
+
         _ => {}
     }
     None

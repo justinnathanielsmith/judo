@@ -202,9 +202,6 @@ impl VcsFacade for JjAdapter {
         let parent_tree = if let Some(parent) = parents.next() {
             parent?.tree()
         } else {
-             // Handle root commit (empty tree)
-             // simplified: just return empty tree or handle specially
-             // For safety in this MVP, we'll error or return empty
              return Ok("Root commit - diff not supported yet".to_string());
         };
         
@@ -216,24 +213,76 @@ impl VcsFacade for JjAdapter {
         let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
         while let Some(entry) = stream.next().await {
             let path_str = entry.path.as_internal_file_string();
-            // Simple status detection based on debug output structure
-            // We can't easily match on the specific enum types without importing them, 
-            // so we'll inspect the debug string for MVP or rely on `is_absent()` if available.
-            // Actually, let's try to just print the raw change for now but with correct direction.
-            // But we can add a prefix based on "Resolved(None)" presence if we want.
+            let mut file_diff = String::new();
+
+            let diff = entry.values?;
             
-            let status = format!("{:?}", entry.values);
-            let prefix = if status.contains("after: Resolved(None)") {
-                 "Removed"
-            } else if status.contains("before: Resolved(None)") {
-                 "Added"
+            // Helper to read content
+            // We can't easily make an async closure that captures `repo` without some pain, 
+            // so we'll just duplicate the simple read logic or loop.
+            
+            let mut old_content = Vec::new();
+            if let Ok(Some(tree_value)) = diff.before.into_resolved() {
+                if let jj_lib::backend::TreeValue::File { id, .. } = tree_value {
+                    let mut reader = repo.store().read_file(&entry.path, &id).await?;
+                    tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut old_content).await?;
+                }
+            }
+
+            let mut new_content = Vec::new();
+            if let Ok(Some(tree_value)) = diff.after.into_resolved() {
+                 if let jj_lib::backend::TreeValue::File { id, .. } = tree_value {
+                    let mut reader = repo.store().read_file(&entry.path, &id).await?;
+                    tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut new_content).await?;
+                }
+            }
+
+            // Simple binary check: check for null bytes in the first 1KB
+            let is_binary = old_content.iter().chain(new_content.iter()).take(1024).any(|&b| b == 0);
+
+            if is_binary {
+                file_diff.push_str(&format!("Binary file {}\n\n", path_str));
             } else {
-                 "Modified"
-            };
+                let old_text = String::from_utf8_lossy(&old_content);
+                let new_text = String::from_utf8_lossy(&new_content);
+
+                use similar::{ChangeTag, TextDiff};
+
+                let diff = TextDiff::from_lines(&old_text, &new_text);
+                
+                if diff.ratio() < 1.0 || old_text != new_text {
+                     file_diff.push_str(&format!("--- a/{}\n+++ b/{}\n", path_str, path_str));
+                     
+                     for group in diff.grouped_ops(3) {
+                        for op in group {
+                            for change in diff.iter_changes(&op) {
+                                let (sign, _) = match change.tag() {
+                                    ChangeTag::Delete => ("-", "-"),
+                                    ChangeTag::Insert => ("+", "+"),
+                                    ChangeTag::Equal => (" ", " "),
+                                };
+                                file_diff.push_str(&format!("{}{}", sign, change));
+                            }
+                        }
+                    }
+                } else if old_content.is_empty() && !new_content.is_empty() {
+                    // New file
+                     file_diff.push_str(&format!("--- /dev/null\n+++ b/{}\n", path_str));
+                      for line in new_text.lines() {
+                          file_diff.push_str(&format!("+{}\n", line));
+                      }
+                } else if !old_content.is_empty() && new_content.is_empty() {
+                    // Deleted file
+                     file_diff.push_str(&format!("--- a/{}\n+++ /dev/null\n", path_str));
+                     for line in old_text.lines() {
+                          file_diff.push_str(&format!("-{}\n", line));
+                      }
+                }
+            }
             
-            output.push_str(&format!("{} {}\n", prefix, path_str)); 
-            // We will still print the debug info for details until we implement full content diff
-            // output.push_str(&format!("  Debug: {}\n", status)); 
+            output.push_str(&file_diff);
+            
+
             output.push_str("\n");
         }
         

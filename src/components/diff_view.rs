@@ -13,7 +13,17 @@ impl<'a> Widget for DiffView<'a> {
 
         let mut lines = Vec::new();
         for line in content.lines() {
-            let style = if line.starts_with('+') {
+            let style = if line.starts_with("diff ") || line.starts_with("index ") {
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(ratatui::style::Modifier::BOLD)
+            } else if line.starts_with("--- ") || line.starts_with("+++ ") {
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(ratatui::style::Modifier::BOLD)
+            } else if line.starts_with("@@") {
+                Style::default().fg(Color::Cyan)
+            } else if line.starts_with('+') {
                 Style::default().fg(Color::Green)
             } else if line.starts_with('-') {
                 Style::default().fg(Color::Red)
