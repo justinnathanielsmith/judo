@@ -1,14 +1,10 @@
 use super::{
     action::Action,
+    command::Command,
     state::{AppMode, AppState},
 };
 
-pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
-    // Return an optional "Follow-up Action" (though strictly in TEA, side-effects go to the loop)
-    // For now, we update state. If the loop needs to know about side-effects, it can check the state
-    // or we can return a Command enum. Here we stick to simple state mutation.
-    // The Action enum has "Async Results" which are fed back in.
-
+pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
     match action {
         // --- Navigation ---
         Action::SelectNext => {
@@ -29,6 +25,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
             state.log_list_state.select(Some(i));
             state.current_diff = None; // Invalidate cache
             state.is_loading_diff = true; // Optimistic loading state
+
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    return Some(Command::LoadDiff(row.commit_id.clone()));
+                }
+            }
         }
         Action::SelectPrev => {
             let i = match state.log_list_state.selected() {
@@ -50,6 +52,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
             state.log_list_state.select(Some(i));
             state.current_diff = None;
             state.is_loading_diff = true;
+
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    return Some(Command::LoadDiff(row.commit_id.clone()));
+                }
+            }
         }
 
         // --- Mode Switching ---
@@ -76,6 +84,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Action> {
                 state.log_list_state.select(Some(0));
             }
             state.is_loading_diff = true;
+
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    return Some(Command::LoadDiff(row.commit_id.clone()));
+                }
+            }
         }
         Action::DiffLoaded(diff) => {
             state.current_diff = Some(diff);

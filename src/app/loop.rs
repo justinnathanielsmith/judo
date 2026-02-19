@@ -1,4 +1,4 @@
-use crate::app::{action::Action, reducer, state::AppState};
+use crate::app::{action::Action, command::Command, reducer, state::AppState};
 use crate::components::diff_view::DiffView;
 use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
@@ -26,19 +26,7 @@ pub async fn run_loop<B: Backend>(
     let mut interval = interval(Duration::from_millis(250));
 
     // Initial fetch
-    let tx = action_tx.clone();
-    let initial_adapter = adapter.clone();
-    tokio::spawn(async move {
-        match initial_adapter.get_operation_log().await {
-            Ok(repo) => {
-                let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-            }
-            Err(e) => {
-                // Send error action? For now just log/ignore or print
-                eprintln!("Failed to load repo log: {}", e);
-            }
-        }
-    });
+    handle_command(Command::LoadRepo, adapter.clone(), action_tx.clone()).await?;
 
     loop {
         // --- 1. Render ---
@@ -107,44 +95,81 @@ pub async fn run_loop<B: Backend>(
                 break;
             }
 
-            // Side-effect detectors
-            let prev_selection = app_state.log_list_state.selected();
-
             // Run reducer
-            reducer::update(&mut app_state, action.clone());
+            let command = reducer::update(&mut app_state, action.clone());
 
             // Post-reducer side effects (Runtime logic)
             if app_state.should_quit {
                 break;
             }
 
-            // Example: Selection changed -> fetch diff
-            if app_state.log_list_state.selected() != prev_selection && app_state.is_loading_diff {
-                if let (Some(repo), Some(idx)) =
-                    (&app_state.repo, app_state.log_list_state.selected())
-                {
-                    if let Some(row) = repo.graph.get(idx) {
-                        let commit_id = row.commit_id.clone();
-                        let tx = action_tx.clone();
-                        let adapter_clone = adapter.clone();
-                        tokio::spawn(async move {
-                            match adapter_clone.get_commit_diff(&commit_id).await {
-                                Ok(diff) => {
-                                    let _ = tx.send(Action::DiffLoaded(diff)).await;
-                                }
-                                Err(e) => {
-                                    let _ = tx
-                                        .send(Action::DiffLoaded(format!("Error: {}", e)))
-                                        .await;
-                                }
-                            }
-                        });
-                    }
-                }
+            if let Some(cmd) = command {
+                handle_command(cmd, adapter.clone(), action_tx.clone()).await?;
             }
         }
     }
 
     Ok(())
 }
+
+async fn handle_command(
+    command: Command,
+    adapter: Arc<dyn VcsFacade>,
+    tx: mpsc::Sender<Action>,
+) -> Result<()> {
+    match command {
+        Command::LoadRepo => {
+            tokio::spawn(async move {
+                match adapter.get_operation_log().await {
+                    Ok(repo) => {
+                        let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to load repo log: {}", e);
+                    }
+                }
+            });
+        }
+        Command::LoadDiff(commit_id) => {
+            tokio::spawn(async move {
+                match adapter.get_commit_diff(&commit_id).await {
+                    Ok(diff) => {
+                        let _ = tx.send(Action::DiffLoaded(diff)).await;
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::DiffLoaded(format!("Error: {}", e))).await;
+                    }
+                }
+            });
+        }
+        Command::DescribeRevision(commit_id, message) => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Describing {}...",
+                        commit_id
+                    )))
+                    .await;
+                match adapter.describe_revision(&commit_id.0, &message).await {
+                    Ok(_) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok("Described".to_string())))
+                            .await;
+                        // Reload repo after operation
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
+                    }
+                }
+            });
+        }
+    }
+    Ok(())
+}
+
 
