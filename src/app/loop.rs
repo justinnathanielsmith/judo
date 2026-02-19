@@ -15,14 +15,30 @@ pub async fn run_loop<B: Backend>(terminal: &mut Terminal<B>, mut app_state: App
     let mut interval = interval(Duration::from_millis(250));
     
     // Initialize adapter
-    let _adapter = JjAdapter::new(); // In real app, maybe shared via Arc
+    // let _adapter = JjAdapter::new(); // In real app, maybe shared via Arc
     
     // Initial fetch
     let tx = action_tx.clone();
-    let adapter_clone = JjAdapter::new(); // Stub clone
+    // Move adapter creation to the async block or Arc it. 
+    // Since JjAdapter is not Clone/Send/Sync by default (depends on fields), 
+    // we'll try initializing it inside the task for this MVP.
     tokio::spawn(async move {
-        if let Ok(repo) = adapter_clone.get_operation_log().await {
-            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+        // We use a fresh adapter here for the background task
+        match JjAdapter::new() {
+             Ok(adapter) => {
+                 match adapter.get_operation_log().await {
+                     Ok(repo) => {
+                         let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                     },
+                     Err(e) => {
+                         // Send error action? For now just log/ignore or print
+                         eprintln!("Failed to load repo log: {}", e);
+                     }
+                 }
+             },
+             Err(e) => {
+                 eprintln!("Failed to init adapter in bg: {}", e);
+             }
         }
     });
 

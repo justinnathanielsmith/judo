@@ -1,4 +1,4 @@
-use crate::domain::models::{CommitId, RepoStatus};
+use crate::domain::models::RepoStatus;
 use ratatui::widgets::TableState;
 use tui_textarea::TextArea;
 
@@ -28,7 +28,6 @@ pub struct AppState<'a> {
     // --- UI State (Selection, Scroll) ---
     // We keep this separate so it persists even if `repo` data refreshes.
     pub log_list_state: TableState, 
-    pub selected_revision: Option<CommitId>,
 
     // --- Derived/Cached Data ---
     // Data fetched lazily based on selection (the "Debounced" content)
@@ -48,7 +47,6 @@ impl<'a> Default for AppState<'a> {
             status_message: None,
             repo: None,
             log_list_state: TableState::default(),
-            selected_revision: None,
             current_diff: None,
             is_loading_diff: false,
             text_area: TextArea::default(),
