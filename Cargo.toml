@@ -13,3 +13,6 @@ anyhow = "1.0.93"
 futures = "0.3.31"
 async-trait = "0.1.89"
 similar = { version = "2.7.0", features = ["inline"] }
+
+[dev-dependencies]
+tempfile = "3.10"

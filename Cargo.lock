@@ -1569,6 +1569,7 @@ dependencies = [
  "jj-lib",
  "ratatui",
  "similar",
+ "tempfile",
  "tokio",
  "tui-textarea",
 ]
