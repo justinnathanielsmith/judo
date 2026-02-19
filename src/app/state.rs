@@ -1,5 +1,6 @@
-use crate::domain::models::RepoStatus;
+use crate::domain::models::{CommitId, RepoStatus};
 use ratatui::widgets::TableState;
+use std::collections::HashMap;
 use tui_textarea::TextArea;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,6 +34,7 @@ pub struct AppState<'a> {
     // Data fetched lazily based on selection (the "Debounced" content)
     pub current_diff: Option<String>,
     pub is_loading_diff: bool,
+    pub diff_cache: HashMap<CommitId, String>,
 
     // --- Input Handling ---
     pub text_area: TextArea<'a>,
@@ -49,6 +51,7 @@ impl<'a> Default for AppState<'a> {
             log_list_state: TableState::default(),
             current_diff: None,
             is_loading_diff: false,
+            diff_cache: HashMap::new(),
             text_area: TextArea::default(),
         }
     }

@@ -63,6 +63,16 @@ pub async fn run_loop<B: Backend>(
                     .split(f.area())[1];
                 f.render_widget(status, area);
             }
+
+            // Error Bar
+            if let Some(err) = &app_state.last_error {
+                let error_bar = Paragraph::new(format!("Error: {}", err))
+                    .style(ratatui::style::Style::default().fg(ratatui::style::Color::Red));
+                let area = Layout::default()
+                    .constraints([Constraint::Min(0), Constraint::Length(1)])
+                    .split(f.area())[1];
+                f.render_widget(error_bar, area);
+            }
         })?;
 
         // --- 2. Event Handling (TEA Runtime) ---
@@ -125,19 +135,22 @@ async fn handle_command(
                         let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                     }
                     Err(e) => {
-                        eprintln!("Failed to load repo log: {}", e);
+                        let _ = tx.send(Action::ErrorOccurred(format!("Failed to load repo: {}", e))).await;
                     }
                 }
             });
         }
         Command::LoadDiff(commit_id) => {
+            let commit_id_clone = commit_id.clone();
             tokio::spawn(async move {
                 match adapter.get_commit_diff(&commit_id).await {
                     Ok(diff) => {
-                        let _ = tx.send(Action::DiffLoaded(diff)).await;
+                        let _ = tx.send(Action::DiffLoaded(commit_id_clone, diff)).await;
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::DiffLoaded(format!("Error: {}", e))).await;
+                        let _ = tx
+                            .send(Action::DiffLoaded(commit_id_clone, format!("Error: {}", e)))
+                            .await;
                     }
                 }
             });

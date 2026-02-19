@@ -23,14 +23,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 None => 0,
             };
             state.log_list_state.select(Some(i));
-            state.current_diff = None; // Invalidate cache
-            state.is_loading_diff = true; // Optimistic loading state
-
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
-                if let Some(row) = repo.graph.get(idx) {
-                    return Some(Command::LoadDiff(row.commit_id.clone()));
-                }
-            }
+            return handle_selection(state);
         }
         Action::SelectPrev => {
             let i = match state.log_list_state.selected() {
@@ -50,14 +43,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 None => 0,
             };
             state.log_list_state.select(Some(i));
-            state.current_diff = None;
-            state.is_loading_diff = true;
-
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
-                if let Some(row) = repo.graph.get(idx) {
-                    return Some(Command::LoadDiff(row.commit_id.clone()));
-                }
-            }
+            return handle_selection(state);
         }
 
         // --- Mode Switching ---
@@ -83,17 +69,19 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             if state.log_list_state.selected().is_none() {
                 state.log_list_state.select(Some(0));
             }
-            state.is_loading_diff = true;
-
+            return handle_selection(state);
+        }
+        Action::DiffLoaded(commit_id, diff) => {
+            state.diff_cache.insert(commit_id, diff.clone());
+            // Only update current_diff if it matches the current selection
             if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
-                    return Some(Command::LoadDiff(row.commit_id.clone()));
+                    if row.commit_id == *state.diff_cache.keys().find(|k| **k == row.commit_id).unwrap_or(&row.commit_id) {
+                         state.current_diff = Some(diff);
+                         state.is_loading_diff = false;
+                    }
                 }
             }
-        }
-        Action::DiffLoaded(diff) => {
-            state.current_diff = Some(diff);
-            state.is_loading_diff = false;
         }
         Action::OperationStarted(msg) => {
             state.status_message = Some(msg);
@@ -107,9 +95,36 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             if state.mode == AppMode::Loading {
                 state.mode = AppMode::Normal;
             }
+            // Clear cache after operations that might change history?
+            // For now, keep it simple.
+        }
+        Action::ErrorOccurred(err) => {
+            state.last_error = Some(err);
+            if state.mode == AppMode::Loading {
+                state.mode = AppMode::Normal;
+            }
         }
 
         _ => {}
     }
     None
 }
+
+fn handle_selection(state: &mut AppState) -> Option<Command> {
+    if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+        if let Some(row) = repo.graph.get(idx) {
+            let commit_id = row.commit_id.clone();
+            if let Some(cached_diff) = state.diff_cache.get(&commit_id) {
+                state.current_diff = Some(cached_diff.clone());
+                state.is_loading_diff = false;
+                return None;
+            } else {
+                state.current_diff = None;
+                state.is_loading_diff = true;
+                return Some(Command::LoadDiff(commit_id));
+            }
+        }
+    }
+    None
+}
+
