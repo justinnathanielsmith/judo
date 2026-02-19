@@ -25,6 +25,24 @@ pub async fn run_loop<B: Backend>(
     let (action_tx, mut action_rx) = mpsc::channel(100);
     let mut interval = interval(Duration::from_millis(250));
 
+    // User input channel
+    let (event_tx, mut event_rx) = mpsc::channel(100);
+    tokio::task::spawn_blocking(move || {
+        loop {
+            match event::read() {
+                Ok(evt) => {
+                    if event_tx.blocking_send(Ok(evt)).is_err() {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    let _ = event_tx.blocking_send(Err(e));
+                    break;
+                }
+            }
+        }
+    });
+
     // Initial fetch
     handle_command(Command::LoadRepo, adapter.clone(), action_tx.clone()).await?;
 
@@ -88,7 +106,11 @@ pub async fn run_loop<B: Backend>(
             _ = interval.tick() => Some(Action::Tick),
 
             // User Input
-            event = async { event::read().unwrap() } => {
+            Some(res) = event_rx.recv() => {
+                let event = match res {
+                    Ok(e) => e,
+                    Err(e) => return Err(e.into()),
+                };
                 match app_state.mode {
                     crate::app::state::AppMode::Input => {
                         match event {
