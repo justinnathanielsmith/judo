@@ -67,6 +67,7 @@ pub async fn run_loop<B: Backend>(
             // Right: Diff View
             let diff_view = DiffView {
                 diff_content: app_state.current_diff.as_deref(),
+                scroll_offset: app_state.diff_scroll,
             };
             let right_block = Block::default().title("Diff").borders(Borders::ALL);
             let inner_area = right_block.inner(chunks[1]);
@@ -163,6 +164,8 @@ pub async fn run_loop<B: Backend>(
                                         } else { None }
                                     },
                                     KeyCode::Char('d') => Some(Action::DescribeRevisionIntent),
+                                    KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
+                                    KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                                     _ => None,
                                 }
                             },

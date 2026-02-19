@@ -34,6 +34,7 @@ pub struct AppState<'a> {
     // Data fetched lazily based on selection (the "Debounced" content)
     pub current_diff: Option<String>,
     pub is_loading_diff: bool,
+    pub diff_scroll: u16,
     pub diff_cache: HashMap<CommitId, String>,
 
     // --- Input Handling ---
@@ -51,6 +52,7 @@ impl<'a> Default for AppState<'a> {
             log_list_state: TableState::default(),
             current_diff: None,
             is_loading_diff: false,
+            diff_scroll: 0,
             diff_cache: HashMap::new(),
             text_area: TextArea::default(),
         }

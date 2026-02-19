@@ -2,6 +2,7 @@ use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 
 pub struct DiffView<'a> {
     pub diff_content: Option<&'a str>,
+    pub scroll_offset: u16,
 }
 
 impl<'a> Widget for DiffView<'a> {
@@ -41,6 +42,7 @@ impl<'a> Widget for DiffView<'a> {
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
+            .scroll((self.scroll_offset, 0))
             .render(area, buf);
     }
 }

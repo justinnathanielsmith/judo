@@ -45,6 +45,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log_list_state.select(Some(i));
             return handle_selection(state);
         }
+        Action::ScrollDiffDown(amount) => {
+            state.diff_scroll = state.diff_scroll.saturating_add(amount);
+        }
+        Action::ScrollDiffUp(amount) => {
+            state.diff_scroll = state.diff_scroll.saturating_sub(amount);
+        }
 
         // --- Mode Switching ---
         Action::EnterSquashMode => {
@@ -107,9 +113,15 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             // Only update current_diff if it matches the current selection
             if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
-                    if row.commit_id == *state.diff_cache.keys().find(|k| **k == row.commit_id).unwrap_or(&row.commit_id) {
-                         state.current_diff = Some(diff);
-                         state.is_loading_diff = false;
+                    if row.commit_id
+                        == *state
+                            .diff_cache
+                            .keys()
+                            .find(|k| **k == row.commit_id)
+                            .unwrap_or(&row.commit_id)
+                    {
+                        state.current_diff = Some(diff);
+                        state.is_loading_diff = false;
                     }
                 }
             }
@@ -145,6 +157,7 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
     if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
         if let Some(row) = repo.graph.get(idx) {
             let commit_id = row.commit_id.clone();
+            state.diff_scroll = 0; // Reset scroll on selection change
             if let Some(cached_diff) = state.diff_cache.get(&commit_id) {
                 state.current_diff = Some(cached_diff.clone());
                 state.is_loading_diff = false;
@@ -158,4 +171,3 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
     }
     None
 }
-
