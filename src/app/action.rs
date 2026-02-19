@@ -20,6 +20,7 @@ pub enum Action {
     EditRevision(CommitId),             // `jj edit <rev>`
     SquashRevision(CommitId),           // `jj squash -r <rev>`
     NewRevision(CommitId),              // `jj new <rev>` (create child)
+    DescribeRevisionIntent,             // Start describing the selected revision
     DescribeRevision(CommitId, String), // `jj describe <rev> -m "msg"`
     AbandonRevision(CommitId),          // `jj abandon <rev>`
 

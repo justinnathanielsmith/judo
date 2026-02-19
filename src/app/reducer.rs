@@ -62,6 +62,37 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.should_quit = true;
         }
 
+        // --- JJ Intents ---
+        Action::SnapshotWorkingCopy => {
+            return Some(Command::Snapshot);
+        }
+        Action::EditRevision(commit_id) => {
+            return Some(Command::Edit(commit_id));
+        }
+        Action::SquashRevision(commit_id) => {
+            return Some(Command::Squash(commit_id));
+        }
+        Action::NewRevision(commit_id) => {
+            return Some(Command::New(commit_id));
+        }
+        Action::AbandonRevision(commit_id) => {
+            return Some(Command::Abandon(commit_id));
+        }
+        Action::DescribeRevisionIntent => {
+            state.mode = AppMode::Input;
+            state.text_area = tui_textarea::TextArea::default();
+            // Pre-fill with existing description if possible?
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    state.text_area.insert_str(&row.description);
+                }
+            }
+        }
+        Action::DescribeRevision(commit_id, message) => {
+            state.mode = AppMode::Normal;
+            return Some(Command::DescribeRevision(commit_id, message));
+        }
+
         // --- Async Results ---
         Action::RepoLoaded(repo_status) => {
             state.repo = Some(*repo_status);

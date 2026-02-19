@@ -73,6 +73,14 @@ pub async fn run_loop<B: Backend>(
                     .split(f.area())[1];
                 f.render_widget(error_bar, area);
             }
+
+            // Input Modal
+            if app_state.mode == crate::app::state::AppMode::Input {
+                use ratatui::widgets::Clear;
+                let area = centered_rect(60, 20, f.area());
+                f.render_widget(Clear, area);
+                f.render_widget(&app_state.text_area, area);
+            }
         })?;
 
         // --- 2. Event Handling (TEA Runtime) ---
@@ -81,17 +89,64 @@ pub async fn run_loop<B: Backend>(
 
             // User Input
             event = async { event::read().unwrap() } => {
-                match event {
-                    Event::Key(key) => {
-                        match key.code {
-                            KeyCode::Char('q') => Some(Action::Quit),
-                            KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
-                            KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrev),
-                            // ... other mappings
+                match app_state.mode {
+                    crate::app::state::AppMode::Input => {
+                        match event {
+                            Event::Key(key) => {
+                                match key.code {
+                                    KeyCode::Esc => Some(Action::CancelMode),
+                                    KeyCode::Enter => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                Some(Action::DescribeRevision(row.commit_id.clone(), app_state.text_area.lines().join("\n")))
+                                            } else { None }
+                                        } else { None }
+                                    },
+                                    _ => {
+                                        app_state.text_area.input(key);
+                                        None
+                                    }
+                                }
+                            },
                             _ => None,
                         }
                     },
-                    _ => None,
+                    _ => {
+                        match event {
+                            Event::Key(key) => {
+                                match key.code {
+                                    KeyCode::Char('q') => Some(Action::Quit),
+                                    KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
+                                    KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrev),
+                                    KeyCode::Char('s') => Some(Action::SnapshotWorkingCopy),
+                                    KeyCode::Char('e') => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                Some(Action::EditRevision(row.commit_id.clone()))
+                                            } else { None }
+                                        } else { None }
+                                    },
+                                    KeyCode::Char('n') => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                Some(Action::NewRevision(row.commit_id.clone()))
+                                            } else { None }
+                                        } else { None }
+                                    },
+                                    KeyCode::Char('a') => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                Some(Action::AbandonRevision(row.commit_id.clone()))
+                                            } else { None }
+                                        } else { None }
+                                    },
+                                    KeyCode::Char('d') => Some(Action::DescribeRevisionIntent),
+                                    _ => None,
+                                }
+                            },
+                            _ => None,
+                        }
+                    }
                 }
             },
 
@@ -120,6 +175,26 @@ pub async fn run_loop<B: Backend>(
     }
 
     Ok(())
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
 
 async fn handle_command(
@@ -177,6 +252,86 @@ async fn handle_command(
                         let _ = tx
                             .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
                             .await;
+                    }
+                }
+            });
+        }
+        Command::Snapshot => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted("Snapshotting...".to_string())).await;
+                match adapter.snapshot().await {
+                    Ok(msg) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok(msg))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::Edit(commit_id) => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted(format!("Editing {}...", commit_id))).await;
+                match adapter.edit(&commit_id).await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok("Edit successful".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::Squash(commit_id) => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted(format!("Squashing {}...", commit_id))).await;
+                match adapter.squash(&commit_id).await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok("Squash successful".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::New(commit_id) => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted(format!("Creating child of {}...", commit_id))).await;
+                match adapter.new_child(&commit_id).await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok("New revision created".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::Abandon(commit_id) => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted(format!("Abandoning {}...", commit_id))).await;
+                match adapter.abandon(&commit_id).await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok("Revision abandoned".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
                     }
                 }
             });

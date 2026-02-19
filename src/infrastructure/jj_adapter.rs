@@ -31,58 +31,33 @@ impl JjAdapter {
     pub fn new() -> Result<Self> {
         let cwd = std::env::current_dir().context("Failed to get current working directory")?;
 
-        let mut config = StackedConfig::empty();
+        let mut config = StackedConfig::with_defaults();
 
-        // Layer 1: Internal Defaults (Lowest priority fallback)
-        // This prevents initialization failures when mandatory jj config is missing.
-        let default_config_str = r#"
-            [fsmonitor]
-            backend = "none"
-            [fsmonitor.watchman]
-            register-snapshot-trigger = false
-            [git]
-            abandon-unreachable-commits = true
-            auto-local-bookmark = false
-            executable-path = "git"
-            write-change-id-header = true
-            [merge]
-            hunk-level = "line"
-            same-change = "accept"
-            [operation]
-            hostname = "judo-host"
-            username = "judo-user"
-            [signing]
-            backend = "none"
-            behavior = "own"
-            [signing.backends.gpg]
-            allow-expired-keys = false
-            program = "gpg"
-            [signing.backends.gpgsm]
-            allow-expired-keys = false
-            program = "gpgsm"
-            [signing.backends.ssh]
-            program = "ssh-keygen"
-            [ui]
-            conflict-marker-style = "diff"
+        // Layer 1: Judo Fallbacks (Lowest priority above library defaults)
+        // These provide sensible defaults for TUI performance and prevent crashes
+        // if the user hasn't configured basic identity yet.
+        let fallback_config_str = r#"
             [user]
             name = "Judo User"
             email = "judo@example.com"
-            [working-copy]
-            eol-conversion = "none"
-            exec-bit-change = "auto"
-            [experimental]
-            record-predecessors-in-commit = true
+            [operation]
+            hostname = "judo-host"
+            username = "judo-user"
+            [fsmonitor]
+            backend = "none"
         "#;
 
-        if let Ok(layer) = ConfigLayer::parse(ConfigSource::Default, default_config_str) {
+        if let Ok(layer) = ConfigLayer::parse(ConfigSource::Default, fallback_config_str) {
             config.add_layer(layer);
         }
 
         // Layer 2: User Config (Higher priority)
-        if let Ok(home) = std::env::var("HOME") {
+        let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
+        if let Ok(home_dir) = home {
             let paths = [
-                std::path::PathBuf::from(&home).join(".jj/config.toml"),
-                std::path::PathBuf::from(&home).join(".config/jj/config.toml"),
+                std::path::PathBuf::from(&home_dir).join(".jjconfig"),
+                std::path::PathBuf::from(&home_dir).join(".jj/config.toml"),
+                std::path::PathBuf::from(&home_dir).join(".config/jj/config.toml"),
             ];
             for path in paths {
                 if path.exists() {
@@ -93,6 +68,24 @@ impl JjAdapter {
                     }
                 }
             }
+        }
+
+        // Layer 3: Repo Config
+        // Walk up from CWD to find the .jj directory and load repo-level config
+        let mut current = Some(cwd.as_path());
+        while let Some(path) = current {
+            let jj_repo_config = path.join(".jj").join("repo").join("config.toml");
+            if jj_repo_config.is_file() {
+                if let Ok(text) = std::fs::read_to_string(&jj_repo_config) {
+                    // Using ConfigSource::User for repo config as a safe fallback
+                    // if ConfigSource::Repo is not available in this version.
+                    if let Ok(layer) = ConfigLayer::parse(ConfigSource::User, &text) {
+                        config.add_layer(layer);
+                    }
+                }
+                break;
+            }
+            current = path.parent();
         }
 
         let user_settings = UserSettings::from_config(config)?;
@@ -358,5 +351,104 @@ impl VcsFacade for JjAdapter {
         locked_ws.finish(op_id)?;
 
         Ok("Snapshot created".to_string())
+    }
+
+    async fn edit(&self, commit_id: &CommitId) -> Result<()> {
+        let workspace = self.workspace.lock().await;
+        let repo = workspace.repo_loader().load_at_head()?;
+
+        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let commit = repo.store().get_commit(&id)?;
+
+        let mut tx = repo.start_transaction();
+        let mut_repo = tx.repo_mut();
+
+        // In jj, "editing" a commit means making it the working copy
+        // Find workspace_id from repo view
+        let (workspace_id, _) = repo
+            .view()
+            .wc_commit_ids()
+            .iter()
+            .next()
+            .ok_or_else(|| anyhow!("No working copy found in view"))?;
+        
+        mut_repo.set_wc_commit(workspace_id.clone(), commit.id().clone())?;
+
+        tx.commit("edit revision")?;
+        Ok(())
+    }
+
+    async fn squash(&self, commit_id: &CommitId) -> Result<()> {
+        let workspace = self.workspace.lock().await;
+        let repo = workspace.repo_loader().load_at_head()?;
+
+        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let commit = repo.store().get_commit(&id)?;
+
+        let mut parents = commit.parents();
+        let parent = parents.next().ok_or_else(|| anyhow!("Cannot squash root commit"))??;
+
+        let mut tx = repo.start_transaction();
+        let mut_repo = tx.repo_mut();
+
+        // Resolve tree
+        let tree = jj_lib::merged_tree::MergedTree::new(
+            repo.store().clone(),
+            commit.tree_ids().clone(),
+            jj_lib::conflict_labels::ConflictLabels::unlabeled(),
+        );
+
+        // Squash commit into its parent
+        let parent_commit = repo.store().get_commit(parent.id())?;
+        mut_repo.rewrite_commit(&parent_commit)
+            .set_tree(tree)
+            .write()?;
+
+        mut_repo.rebase_descendants()?;
+        // Abandon the squashed commit
+        mut_repo.record_abandoned_commit(&commit);
+
+        tx.commit("squash revision")?;
+        Ok(())
+    }
+
+    async fn new_child(&self, commit_id: &CommitId) -> Result<()> {
+        let workspace = self.workspace.lock().await;
+        let repo = workspace.repo_loader().load_at_head()?;
+
+        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let commit = repo.store().get_commit(&id)?;
+
+        let mut tx = repo.start_transaction();
+        let mut_repo = tx.repo_mut();
+
+        // Resolve tree
+        let tree = jj_lib::merged_tree::MergedTree::new(
+            repo.store().clone(),
+            commit.tree_ids().clone(),
+            jj_lib::conflict_labels::ConflictLabels::unlabeled(),
+        );
+
+        mut_repo.new_commit(vec![id], tree).write()?;
+
+        tx.commit("new revision")?;
+        Ok(())
+    }
+
+    async fn abandon(&self, commit_id: &CommitId) -> Result<()> {
+        let workspace = self.workspace.lock().await;
+        let repo = workspace.repo_loader().load_at_head()?;
+
+        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let commit = repo.store().get_commit(&id)?;
+
+        let mut tx = repo.start_transaction();
+        let mut_repo = tx.repo_mut();
+
+        mut_repo.record_abandoned_commit(&commit);
+        mut_repo.rebase_descendants()?;
+
+        tx.commit("abandon revision")?;
+        Ok(())
     }
 }

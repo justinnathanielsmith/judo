@@ -5,5 +5,9 @@ pub enum Command {
     LoadRepo,
     LoadDiff(CommitId),
     DescribeRevision(CommitId, String),
-    // ... we can add more as we implement them
+    Snapshot,
+    Edit(CommitId),
+    Squash(CommitId),
+    New(CommitId),
+    Abandon(CommitId),
 }
