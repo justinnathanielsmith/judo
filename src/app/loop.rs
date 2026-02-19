@@ -2,7 +2,6 @@ use crate::app::{action::Action, reducer, state::AppState};
 use crate::components::diff_view::DiffView;
 use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
-use crate::infrastructure::jj_adapter::JjAdapter;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode};
@@ -16,37 +15,27 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::interval;
 
+use std::sync::Arc;
+
 pub async fn run_loop<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app_state: AppState<'_>,
+    adapter: Arc<dyn VcsFacade>,
 ) -> Result<()> {
     let (action_tx, mut action_rx) = mpsc::channel(100);
     let mut interval = interval(Duration::from_millis(250));
 
-    // Initialize adapter
-    // let _adapter = JjAdapter::new(); // In real app, maybe shared via Arc
-
     // Initial fetch
     let tx = action_tx.clone();
-    // Move adapter creation to the async block or Arc it.
-    // Since JjAdapter is not Clone/Send/Sync by default (depends on fields),
-    // we'll try initializing it inside the task for this MVP.
+    let initial_adapter = adapter.clone();
     tokio::spawn(async move {
-        // We use a fresh adapter here for the background task
-        match JjAdapter::new() {
-            Ok(adapter) => {
-                match adapter.get_operation_log().await {
-                    Ok(repo) => {
-                        let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                    }
-                    Err(e) => {
-                        // Send error action? For now just log/ignore or print
-                        eprintln!("Failed to load repo log: {}", e);
-                    }
-                }
+        match initial_adapter.get_operation_log().await {
+            Ok(repo) => {
+                let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
             }
             Err(e) => {
-                eprintln!("Failed to init adapter in bg: {}", e);
+                // Send error action? For now just log/ignore or print
+                eprintln!("Failed to load repo log: {}", e);
             }
         }
     });
@@ -137,21 +126,15 @@ pub async fn run_loop<B: Backend>(
                     if let Some(row) = repo.graph.get(idx) {
                         let commit_id = row.commit_id.clone();
                         let tx = action_tx.clone();
+                        let adapter_clone = adapter.clone();
                         tokio::spawn(async move {
-                            match JjAdapter::new() {
-                                Ok(adapter) => match adapter.get_commit_diff(&commit_id).await {
-                                    Ok(diff) => {
-                                        let _ = tx.send(Action::DiffLoaded(diff)).await;
-                                    }
-                                    Err(e) => {
-                                        let _ = tx
-                                            .send(Action::DiffLoaded(format!("Error: {}", e)))
-                                            .await;
-                                    }
-                                },
+                            match adapter_clone.get_commit_diff(&commit_id).await {
+                                Ok(diff) => {
+                                    let _ = tx.send(Action::DiffLoaded(diff)).await;
+                                }
                                 Err(e) => {
                                     let _ = tx
-                                        .send(Action::DiffLoaded(format!("Adapter Error: {}", e)))
+                                        .send(Action::DiffLoaded(format!("Error: {}", e)))
                                         .await;
                                 }
                             }
@@ -164,3 +147,4 @@ pub async fn run_loop<B: Backend>(
 
     Ok(())
 }
+

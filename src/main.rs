@@ -22,10 +22,9 @@ async fn main() -> Result<()> {
     let app_state = AppState::default();
 
     // Initialize adapter to verify repo context
-    // We'll pass this down eventually, but for now just fail fast if no repo
-    let _adapter = infrastructure::jj_adapter::JjAdapter::new()?;
+    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?) as std::sync::Arc<dyn judo::domain::vcs::VcsFacade>;
 
-    let res = run_loop(&mut terminal, app_state).await;
+    let res = run_loop(&mut terminal, app_state, adapter).await;
 
     // Restore terminal
     disable_raw_mode()?;
