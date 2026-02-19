@@ -1,6 +1,7 @@
 use crate::app::{action::Action, state::AppState, reducer};
 use crate::infrastructure::jj_adapter::JjAdapter;
 use crate::components::diff_view::DiffView;
+use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
 
 use anyhow::Result;
@@ -51,9 +52,14 @@ pub async fn run_loop<B: Backend>(terminal: &mut Terminal<B>, mut app_state: App
                 .split(f.area());
 
             // Left: Revision Graph
-            // (In real app, we'd impl StatefulWidget for RevisionGraph and pass list state)
-            let graph = Block::default().title("Graph").borders(Borders::ALL);
-            f.render_widget(graph, chunks[0]);
+            if let Some(repo) = &app_state.repo {
+                let graph = RevisionGraph { repo };
+                f.render_stateful_widget(graph, chunks[0], &mut app_state.log_list_state);
+            } else {
+                let loading = Paragraph::new("Loading repo...")
+                    .block(Block::default().title("Graph").borders(Borders::ALL));
+                f.render_widget(loading, chunks[0]);
+            }
 
             // Right: Diff View
             let diff_view = DiffView { diff_content: app_state.current_diff.as_deref() };
@@ -113,13 +119,23 @@ pub async fn run_loop<B: Backend>(terminal: &mut Terminal<B>, mut app_state: App
             
             // Example: Selection changed -> fetch diff
             if app_state.log_list_state.selected() != prev_selection && app_state.is_loading_diff {
-                 let tx = action_tx.clone();
-                 // Cancel previous token here in real impl
-                 tokio::spawn(async move {
-                    // simulate fetch
-                    tokio::time::sleep(Duration::from_millis(100)).await; 
-                    let _ = tx.send(Action::DiffLoaded("Diff loaded!".to_string())).await;
-                 });
+                  if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                      if let Some(row) = repo.graph.get(idx) {
+                          let commit_id = row.commit_id.clone();
+                          let tx = action_tx.clone();
+                          tokio::spawn(async move {
+                              match JjAdapter::new() {
+                                  Ok(adapter) => {
+                                      match adapter.get_commit_diff(&commit_id).await {
+                                          Ok(diff) => { let _ = tx.send(Action::DiffLoaded(diff)).await; }
+                                          Err(e) => { let _ = tx.send(Action::DiffLoaded(format!("Error: {}", e))).await; }
+                                      }
+                                  }
+                                  Err(e) => { let _ = tx.send(Action::DiffLoaded(format!("Adapter Error: {}", e))).await; }
+                              }
+                          });
+                      }
+                  }
             }
         }
     }

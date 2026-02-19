@@ -7,13 +7,14 @@ use jj_lib::{
     settings::{UserSettings},
     workspace::{Workspace},
     object_id::ObjectId,
-    merged_tree::MergedTree,
-    config::{StackedConfig, ConfigLayer, ConfigSource}, 
-    local_working_copy::LocalWorkingCopyFactory,
     working_copy::WorkingCopyFactory,
+    config::{ConfigLayer, ConfigSource, StackedConfig},
+    local_working_copy::LocalWorkingCopyFactory,
 };
 
 use jj_lib::gitignore::GitIgnoreFile;
+
+
 use jj_lib::matchers::{EverythingMatcher, NothingMatcher};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -199,29 +200,45 @@ impl VcsFacade for JjAdapter {
         let mut parents = commit.parents();
         
         let parent_tree = if let Some(parent) = parents.next() {
-            // parent is Result<Commit>
-            parent?.tree() // Infallible MergedTree
+            parent?.tree()
         } else {
-             return Ok("Root commit (no parent)".to_string());
+             // Handle root commit (empty tree)
+             // simplified: just return empty tree or handle specially
+             // For safety in this MVP, we'll error or return empty
+             return Ok("Root commit - diff not supported yet".to_string());
         };
         
-        let tree: MergedTree = commit.tree(); // Infallible
+        let tree = commit.tree();
         
         let mut output = String::new();
+        output.push_str(&format!("Diff for commit {}\n\n", commit_id.0));
         
-        // try diff_stream
-        let mut stream = tree.diff_stream(&parent_tree, &jj_lib::matchers::EverythingMatcher);
-        while let Some(chunk) = stream.next().await {
-             // chunk is (Vec<PathNode>, DiffNode)? 
-             // We'll debug print it content for now
-             // Or format it.
-             // chunk is Result usually?
-             // Since I can't check, I'll use format!("{:?}", chunk)
-             output.push_str(&format!("{:?}\n", chunk));
+        let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
+        while let Some(entry) = stream.next().await {
+            let path_str = entry.path.as_internal_file_string();
+            // Simple status detection based on debug output structure
+            // We can't easily match on the specific enum types without importing them, 
+            // so we'll inspect the debug string for MVP or rely on `is_absent()` if available.
+            // Actually, let's try to just print the raw change for now but with correct direction.
+            // But we can add a prefix based on "Resolved(None)" presence if we want.
+            
+            let status = format!("{:?}", entry.values);
+            let prefix = if status.contains("after: Resolved(None)") {
+                 "Removed"
+            } else if status.contains("before: Resolved(None)") {
+                 "Added"
+            } else {
+                 "Modified"
+            };
+            
+            output.push_str(&format!("{} {}\n", prefix, path_str)); 
+            // We will still print the debug info for details until we implement full content diff
+            // output.push_str(&format!("  Debug: {}\n", status)); 
+            output.push_str("\n");
         }
         
-        if output.is_empty() {
-             Ok("(No changes or diff not implemented)".to_string())
+        if output.trim().is_empty() {
+             Ok("(No changes found)".to_string())
         } else {
             Ok(output)
         }
