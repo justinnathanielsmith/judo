@@ -1,0 +1,14 @@
+[package]
+name = "judo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ratatui = "0.29.0"
+crossterm = "0.28.1"
+tokio = { version = "1.41.1", features = ["full"] }
+tui-textarea = "0.7.0"
+jj-lib = "0.38.0"
+anyhow = "1.0.93"
+futures = "0.3.31"
+async-trait = "0.1.89"
