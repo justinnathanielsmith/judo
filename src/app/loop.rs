@@ -5,6 +5,7 @@ use crate::app::{
     state::{AppMode, AppState},
 };
 use crate::components::diff_view::DiffView;
+use crate::components::footer::Footer;
 use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
 use crate::theme::Theme;
@@ -140,7 +141,7 @@ pub async fn run_loop<B: Backend>(
                 let spinner =
                     spin_chars[(app_state.frame_count % spin_chars.len() as u64) as usize];
 
-                let logo_ascii = vec![
+                let logo_ascii = [
                     "   _ _   _ ___   ___ ",
                     "  | | | | |   \\ / _ \\",
                     " _| | |_| | |) | (_) |",
@@ -165,7 +166,7 @@ pub async fn run_loop<B: Backend>(
                     x: area.x,
                     y: area.y + area.height / 2 - (logo_height / 2),
                     width: area.width,
-                    height: logo_height as u16,
+                    height: logo_height,
                 };
                 f.render_widget(loading, centered_area);
             }
@@ -205,34 +206,10 @@ pub async fn run_loop<B: Backend>(
             }
 
             // --- Footer ---
-            let status_content = if let Some(err) = &app_state.last_error {
-                Span::styled(format!(" Error: {} ", err), theme.status_error)
-            } else if let Some(msg) = &app_state.status_message {
-                Span::styled(format!(" {} ", msg), theme.status_info)
-            } else {
-                Span::styled(" Ready ", theme.status_ready)
+            let footer = Footer {
+                state: &app_state,
+                theme: &theme,
             };
-
-            let help_legend = Line::from(vec![
-                status_content,
-                Span::styled(" ENTER ", theme.footer_segment_key),
-                Span::styled(" toggle diff ", theme.footer_segment_val),
-                Span::styled(" j/k ", theme.footer_segment_key),
-                Span::styled(" move ", theme.footer_segment_val),
-                Span::styled(" d ", theme.footer_segment_key),
-                Span::styled(" desc ", theme.footer_segment_val),
-                Span::styled(" n ", theme.footer_segment_key),
-                Span::styled(" new ", theme.footer_segment_val),
-                Span::styled(" a ", theme.footer_segment_key),
-                Span::styled(" abdn ", theme.footer_segment_val),
-                Span::styled(" b ", theme.footer_segment_key),
-                Span::styled(" bkmk ", theme.footer_segment_val),
-                Span::styled(" u/U ", theme.footer_segment_key),
-                Span::styled(" undo/redo ", theme.footer_segment_val),
-                Span::styled(" q ", theme.footer_segment_key),
-                Span::styled(" quit ", theme.footer_segment_val),
-            ]);
-            let footer = Paragraph::new(help_legend).style(theme.footer);
             f.render_widget(footer, main_chunks[2]);
 
             // --- Input Modal ---
@@ -340,9 +317,7 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Char('j') | KeyCode::Down => Some(Action::SelectContextMenuNext),
                                     KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectContextMenuPrev),
                                     KeyCode::Enter => {
-                                        if let Some(menu) = &app_state.context_menu {
-                                            Some(Action::SelectContextMenuAction(menu.selected_index))
-                                        } else { None }
+                                        app_state.context_menu.as_ref().map(|menu| Action::SelectContextMenuAction(menu.selected_index))
                                     },
                                     _ => None,
                                 }
@@ -364,7 +339,7 @@ pub async fn run_loop<B: Backend>(
                                             }
 
                                             if mouse.column >= x && mouse.column < x + menu_width
-                                                && mouse.row >= y + 1 && mouse.row < y + menu_height - 1
+                                                && mouse.row > y && mouse.row < y + menu_height - 1
                                             {
                                                 let clicked_idx = (mouse.row - (y + 1)) as usize;
                                                 Some(Action::SelectContextMenuAction(clicked_idx))
@@ -402,7 +377,7 @@ pub async fn run_loop<B: Backend>(
                                     MouseEventKind::ScrollDown => Some(Action::ScrollDiffDown(1)),
                                     MouseEventKind::Down(MouseButton::Left) => {
                                         let now = Instant::now();
-                                        let is_double_click = app_state.last_click_time.map_or(false, |t| now.duration_since(t).as_millis() < 500)
+                                        let is_double_click = app_state.last_click_time.is_some_and(|t| now.duration_since(t).as_millis() < 500)
                                             && app_state.last_click_pos == Some((mouse.column, mouse.row));
                                         app_state.last_click_time = Some(now);
                                         app_state.last_click_pos = Some((mouse.column, mouse.row));
@@ -428,8 +403,8 @@ pub async fn run_loop<B: Backend>(
 
                                         // Revision Graph Area
                                         let graph_area = body_chunks[0];
-                                        if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
-                                            && mouse.row >= graph_area.y + 1 && mouse.row < graph_area.y + graph_area.height - 1
+                                        if mouse.column > graph_area.x && mouse.column < graph_area.x + graph_area.width - 1
+                                            && mouse.row > graph_area.y && mouse.row < graph_area.y + graph_area.height - 1
                                         {
                                             if is_double_click {
                                                 Some(Action::ToggleDiffs)
@@ -442,7 +417,7 @@ pub async fn run_loop<B: Backend>(
                                                     for i in offset..repo.graph.len() {
                                                         let row = &repo.graph[i];
                                                         let is_selected = app_state.log_list_state.selected() == Some(i);
-                                                        let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
+                                                        let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() } else { 0 };
 
                                                         if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                             result = Some(Action::SelectIndex(i));
@@ -478,30 +453,22 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Char('s') => Some(Action::SnapshotWorkingCopy),
                                     KeyCode::Char('S') => {
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
-                                            if let Some(row) = repo.graph.get(idx) {
-                                                Some(Action::SquashRevision(row.commit_id.clone()))
-                                            } else { None }
+                                            repo.graph.get(idx).map(|row| Action::SquashRevision(row.commit_id.clone()))
                                         } else { None }
                                     },
                                     KeyCode::Char('e') => {
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
-                                            if let Some(row) = repo.graph.get(idx) {
-                                                Some(Action::EditRevision(row.commit_id.clone()))
-                                            } else { None }
+                                            repo.graph.get(idx).map(|row| Action::EditRevision(row.commit_id.clone()))
                                         } else { None }
                                     },
                                     KeyCode::Char('n') => {
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
-                                            if let Some(row) = repo.graph.get(idx) {
-                                                Some(Action::NewRevision(row.commit_id.clone()))
-                                            } else { None }
+                                            repo.graph.get(idx).map(|row| Action::NewRevision(row.commit_id.clone()))
                                         } else { None }
                                     },
                                     KeyCode::Char('a') => {
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
-                                            if let Some(row) = repo.graph.get(idx) {
-                                                Some(Action::AbandonRevision(row.commit_id.clone()))
-                                            } else { None }
+                                            repo.graph.get(idx).map(|row| Action::AbandonRevision(row.commit_id.clone()))
                                         } else { None }
                                     },
                                     KeyCode::Char('b') => Some(Action::SetBookmarkIntent),
@@ -509,9 +476,7 @@ pub async fn run_loop<B: Backend>(
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
                                             if let Some(row) = repo.graph.get(idx) {
                                                 // For now, delete the first bookmark if exists
-                                                if let Some(bookmark) = row.bookmarks.first() {
-                                                    Some(Action::DeleteBookmark(bookmark.clone()))
-                                                } else { None }
+                                                row.bookmarks.first().map(|bookmark| Action::DeleteBookmark(bookmark.clone()))
                                             } else { None }
                                         } else { None }
                                     },
@@ -565,7 +530,7 @@ pub async fn run_loop<B: Backend>(
                                     }
                                     MouseEventKind::Down(MouseButton::Left) => {
                                         let now = Instant::now();
-                                        let is_double_click = app_state.last_click_time.map_or(false, |t| now.duration_since(t).as_millis() < 500)
+                                        let is_double_click = app_state.last_click_time.is_some_and(|t| now.duration_since(t).as_millis() < 500)
                                             && app_state.last_click_pos == Some((mouse.column, mouse.row));
                                         app_state.last_click_time = Some(now);
                                         app_state.last_click_pos = Some((mouse.column, mouse.row));
@@ -573,8 +538,8 @@ pub async fn run_loop<B: Backend>(
                                         // Double click anywhere toggles the diff panel
                                         if is_double_click {
                                             Some(Action::ToggleDiffs)
-                                        } else if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
-                                            && mouse.row >= graph_area.y + 1 && mouse.row < graph_area.y + graph_area.height - 1
+                                        } else if mouse.column > graph_area.x && mouse.column < graph_area.x + graph_area.width - 1
+                                            && mouse.row > graph_area.y && mouse.row < graph_area.y + graph_area.height - 1
                                         {
                                             let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
                                             let offset = app_state.log_list_state.offset();
@@ -584,7 +549,7 @@ pub async fn run_loop<B: Backend>(
                                                 for i in offset..repo.graph.len() {
                                                     let row = &repo.graph[i];
                                                     let is_selected = app_state.log_list_state.selected() == Some(i);
-                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
+                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() } else { 0 };
 
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                         result = Some(Action::SelectIndex(i));
@@ -604,8 +569,8 @@ pub async fn run_loop<B: Backend>(
                                         }
                                     }
                                     MouseEventKind::Down(MouseButton::Right) => {
-                                        if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
-                                            && mouse.row >= graph_area.y + 1 && mouse.row < graph_area.y + graph_area.height - 1
+                                        if mouse.column > graph_area.x && mouse.column < graph_area.x + graph_area.width - 1
+                                            && mouse.row > graph_area.y && mouse.row < graph_area.y + graph_area.height - 1
                                         {
                                             let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
                                             let offset = app_state.log_list_state.offset();
@@ -615,7 +580,7 @@ pub async fn run_loop<B: Backend>(
                                                 for i in offset..repo.graph.len() {
                                                     let row = &repo.graph[i];
                                                     let is_selected = app_state.log_list_state.selected() == Some(i);
-                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
+                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() } else { 0 };
 
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                         // Selection happens on right click too

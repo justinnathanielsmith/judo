@@ -29,13 +29,8 @@ pub struct ContextMenuState {
     pub actions: Vec<(String, Action)>,
 }
 
+#[derive(Default)]
 pub struct AppTextArea<'a>(pub TextArea<'a>);
-
-impl<'a> Default for AppTextArea<'a> {
-    fn default() -> Self {
-        Self(TextArea::default())
-    }
-}
 
 impl<'a> Clone for AppTextArea<'a> {
     fn clone(&self) -> Self {
