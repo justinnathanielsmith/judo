@@ -5,8 +5,8 @@ use ratatui::layout::Rect;
 use ratatui::widgets::{TableState, Widget};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use tui_textarea::{CursorMove, TextArea};
 use std::time::Instant;
+use tui_textarea::{CursorMove, TextArea};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AppMode {

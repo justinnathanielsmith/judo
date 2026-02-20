@@ -27,11 +27,11 @@ pub struct Theme {
     pub header_logo: Style,
     pub header_item: Style,
     pub header: Style,
-    
+
     pub footer_segment_key: Style,
     pub footer_segment_val: Style,
     pub footer: Style,
-    
+
     pub status_ready: Style,
     pub status_info: Style,
     pub status_error: Style,
@@ -54,7 +54,7 @@ impl Default for Theme {
                 .fg(Color::Rgb(203, 166, 247)) // Mauve
                 .add_modifier(Modifier::BOLD),
             graph_node_immutable: Style::default().fg(Color::Rgb(137, 180, 250)), // Blue
-            graph_line: Style::default().fg(Color::Rgb(108, 112, 134)), // Surface
+            graph_line: Style::default().fg(Color::Rgb(108, 112, 134)),           // Surface
 
             change_id_mutable: Style::default().fg(Color::Rgb(203, 166, 247)),
             change_id_immutable: Style::default().fg(Color::Rgb(137, 180, 250)),
@@ -70,7 +70,7 @@ impl Default for Theme {
                 .add_modifier(Modifier::BOLD),
             diff_add: Style::default().fg(Color::Rgb(166, 227, 161)),
             diff_remove: Style::default().fg(Color::Rgb(243, 139, 168)), // Red
-            diff_hunk: Style::default().fg(Color::Rgb(148, 226, 213)), // Teal
+            diff_hunk: Style::default().fg(Color::Rgb(148, 226, 213)),   // Teal
             diff_context: Style::default().fg(Color::Rgb(205, 214, 244)), // Text
             diff_modify: Style::default().fg(Color::Rgb(249, 226, 175)),
 
@@ -84,7 +84,7 @@ impl Default for Theme {
             header: Style::default()
                 .bg(Color::Rgb(30, 30, 46)) // Base
                 .fg(Color::Rgb(205, 214, 244)),
-            
+
             footer_segment_key: Style::default()
                 .bg(Color::Rgb(49, 50, 68))
                 .fg(Color::Rgb(137, 180, 250))
@@ -95,7 +95,7 @@ impl Default for Theme {
             footer: Style::default()
                 .bg(Color::Rgb(17, 17, 27))
                 .fg(Color::Rgb(166, 173, 200)),
-            
+
             status_ready: Style::default().fg(Color::Rgb(166, 227, 161)),
             status_info: Style::default().fg(Color::Rgb(137, 180, 250)),
             status_error: Style::default()

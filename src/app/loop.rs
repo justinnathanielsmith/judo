@@ -1,4 +1,9 @@
-use crate::app::{action::Action, command::Command, reducer, state::{AppMode, AppState}};
+use crate::app::{
+    action::Action,
+    command::Command,
+    reducer,
+    state::{AppMode, AppState},
+};
 use crate::components::diff_view::DiffView;
 use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
@@ -66,13 +71,16 @@ pub async fn run_loop<B: Backend>(
                 let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
                 (
                     &repo.operation_id[..8.min(repo.operation_id.len())],
-                    format!(" WC: {} ", &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())]),
-                    format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count)
+                    format!(
+                        " WC: {} ",
+                        &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())]
+                    ),
+                    format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count),
                 )
             } else {
                 ("........", " Loading... ".to_string(), "".to_string())
             };
-            
+
             let header = Paragraph::new(Line::from(vec![
                 Span::styled(" JUDO ", theme.header_logo),
                 Span::styled(format!(" Op: {} ", op_id), theme.header_item),
@@ -117,29 +125,40 @@ pub async fn run_loop<B: Backend>(
                 .border_style(graph_border);
 
             if let Some(repo) = &app_state.repo {
-                let graph = RevisionGraph { repo, theme: &theme, show_diffs: app_state.show_diffs };
-                f.render_stateful_widget(graph, graph_block.inner(body_chunks[0]), &mut app_state.log_list_state);
+                let graph = RevisionGraph {
+                    repo,
+                    theme: &theme,
+                    show_diffs: app_state.show_diffs,
+                };
+                f.render_stateful_widget(
+                    graph,
+                    graph_block.inner(body_chunks[0]),
+                    &mut app_state.log_list_state,
+                );
             } else {
                 let spin_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-                let spinner = spin_chars[(app_state.frame_count % spin_chars.len() as u64) as usize];
-                
+                let spinner =
+                    spin_chars[(app_state.frame_count % spin_chars.len() as u64) as usize];
+
                 let logo_ascii = vec![
                     "   _ _   _ ___   ___ ",
                     "  | | | | |   \\ / _ \\",
                     " _| | |_| | |) | (_) |",
                     "|___|_____|___/ \\___/ ",
                 ];
-                
-                let mut lines: Vec<Line> = logo_ascii.iter().map(|l| Line::from(Span::styled(*l, theme.header_logo))).collect();
+
+                let mut lines: Vec<Line> = logo_ascii
+                    .iter()
+                    .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
+                    .collect();
                 lines.push(Line::from(""));
                 lines.push(Line::from(vec![
                     Span::styled(spinner, theme.header_logo),
                     Span::raw(" Loading Jujutsu Repository... "),
                 ]));
 
-                let loading = Paragraph::new(lines)
-                    .alignment(ratatui::layout::Alignment::Center);
-                
+                let loading = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
+
                 let area = body_chunks[0];
                 let logo_height = 6;
                 let centered_area = Rect {
@@ -217,7 +236,9 @@ pub async fn run_loop<B: Backend>(
             f.render_widget(footer, main_chunks[2]);
 
             // --- Input Modal ---
-            if app_state.mode == crate::app::state::AppMode::Input || app_state.mode == crate::app::state::AppMode::BookmarkInput {
+            if app_state.mode == crate::app::state::AppMode::Input
+                || app_state.mode == crate::app::state::AppMode::BookmarkInput
+            {
                 let area = centered_rect(60, 20, f.area());
                 f.render_widget(Clear, area);
                 let title = if app_state.mode == crate::app::state::AppMode::BookmarkInput {
@@ -238,7 +259,7 @@ pub async fn run_loop<B: Backend>(
             if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
                 let menu_width = 20;
                 let menu_height = menu.actions.len() as u16 + 2;
-                
+
                 // Position adjustment to keep menu on screen
                 let mut x = menu.x;
                 let mut y = menu.y;
@@ -248,23 +269,29 @@ pub async fn run_loop<B: Backend>(
                 if y + menu_height > f.area().height {
                     y = f.area().height.saturating_sub(menu_height);
                 }
-                
+
                 let area = ratatui::layout::Rect::new(x, y, menu_width, menu_height);
                 f.render_widget(Clear, area);
-                
-                let items: Vec<ListItem> = menu.actions.iter().enumerate().map(|(i, (name, _))| {
-                    if i == menu.selected_index {
-                        ListItem::new(format!("> {}", name)).style(theme.list_selected)
-                    } else {
-                        ListItem::new(format!("  {}", name)).style(theme.list_item)
-                    }
-                }).collect();
-                
-                let list = List::new(items)
-                    .block(Block::default()
+
+                let items: Vec<ListItem> = menu
+                    .actions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (name, _))| {
+                        if i == menu.selected_index {
+                            ListItem::new(format!("> {}", name)).style(theme.list_selected)
+                        } else {
+                            ListItem::new(format!("  {}", name)).style(theme.list_item)
+                        }
+                    })
+                    .collect();
+
+                let list = List::new(items).block(
+                    Block::default()
                         .borders(Borders::ALL)
                         .border_type(BorderType::Rounded)
-                        .border_style(theme.border_focus));
+                        .border_style(theme.border_focus),
+                );
                 f.render_widget(list, area);
             }
         })?;
@@ -326,7 +353,7 @@ pub async fn run_loop<B: Backend>(
                                         if let Some(menu) = &app_state.context_menu {
                                             let menu_width = 20;
                                             let menu_height = menu.actions.len() as u16 + 2;
-                                            
+
                                             let mut x = menu.x;
                                             let mut y = menu.y;
                                             if x + menu_width > terminal.size()?.width {
@@ -398,7 +425,7 @@ pub async fn run_loop<B: Backend>(
                                                 [Constraint::Percentage(100), Constraint::Percentage(0)]
                                             })
                                             .split(main_chunks[1]);
-                                        
+
                                         // Revision Graph Area
                                         let graph_area = body_chunks[0];
                                         if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
@@ -416,7 +443,7 @@ pub async fn run_loop<B: Backend>(
                                                         let row = &repo.graph[i];
                                                         let is_selected = app_state.log_list_state.selected() == Some(i);
                                                         let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
-                                                        
+
                                                         if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                             result = Some(Action::SelectIndex(i));
                                                             break;
@@ -558,7 +585,7 @@ pub async fn run_loop<B: Backend>(
                                                     let row = &repo.graph[i];
                                                     let is_selected = app_state.log_list_state.selected() == Some(i);
                                                     let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
-                                                    
+
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                         result = Some(Action::SelectIndex(i));
                                                         break;
@@ -589,7 +616,7 @@ pub async fn run_loop<B: Backend>(
                                                     let row = &repo.graph[i];
                                                     let is_selected = app_state.log_list_state.selected() == Some(i);
                                                     let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
-                                                    
+
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                         // Selection happens on right click too
                                                         action_tx.try_send(Action::SelectIndex(i)).ok();
@@ -643,7 +670,11 @@ pub async fn run_loop<B: Backend>(
     Ok(())
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: ratatui::layout::Rect) -> ratatui::layout::Rect {
+fn centered_rect(
+    percent_x: u16,
+    percent_y: u16,
+    r: ratatui::layout::Rect,
+) -> ratatui::layout::Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -676,7 +707,9 @@ async fn handle_command(
                         let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::ErrorOccurred(format!("Failed to load repo: {}", e))).await;
+                        let _ = tx
+                            .send(Action::ErrorOccurred(format!("Failed to load repo: {}", e)))
+                            .await;
                     }
                 }
             });
@@ -711,7 +744,7 @@ async fn handle_command(
                             .await;
                         // Reload repo after operation
                         if let Ok(repo) = adapter.get_operation_log().await {
-                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
@@ -724,7 +757,9 @@ async fn handle_command(
         }
         Command::Snapshot => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted("Snapshotting...".to_string())).await;
+                let _ = tx
+                    .send(Action::OperationStarted("Snapshotting...".to_string()))
+                    .await;
                 match adapter.snapshot().await {
                     Ok(msg) => {
                         let _ = tx.send(Action::OperationCompleted(Ok(msg))).await;
@@ -733,135 +768,221 @@ async fn handle_command(
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::Edit(commit_id) => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted(format!("Editing {}...", commit_id))).await;
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Editing {}...",
+                        commit_id
+                    )))
+                    .await;
                 match adapter.edit(&commit_id).await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok("Edit successful".to_string()))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(
+                                Ok("Edit successful".to_string()),
+                            ))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::Squash(commit_id) => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted(format!("Squashing {}...", commit_id))).await;
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Squashing {}...",
+                        commit_id
+                    )))
+                    .await;
                 match adapter.squash(&commit_id).await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok("Squash successful".to_string()))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Squash successful".to_string()
+                            )))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::New(commit_id) => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted(format!("Creating child of {}...", commit_id))).await;
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Creating child of {}...",
+                        commit_id
+                    )))
+                    .await;
                 match adapter.new_child(&commit_id).await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok("New revision created".to_string()))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "New revision created".to_string()
+                            )))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::Abandon(commit_id) => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted(format!("Abandoning {}...", commit_id))).await;
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Abandoning {}...",
+                        commit_id
+                    )))
+                    .await;
                 match adapter.abandon(&commit_id).await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok("Revision abandoned".to_string()))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Revision abandoned".to_string()
+                            )))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::SetBookmark(commit_id, name) => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted(format!("Setting bookmark {}...", name))).await;
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Setting bookmark {}...",
+                        name
+                    )))
+                    .await;
                 match adapter.set_bookmark(&commit_id, &name).await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok(format!("Bookmark {} set", name)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(format!(
+                                "Bookmark {} set",
+                                name
+                            ))))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::DeleteBookmark(name) => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted(format!("Deleting bookmark {}...", name))).await;
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Deleting bookmark {}...",
+                        name
+                    )))
+                    .await;
                 match adapter.delete_bookmark(&name).await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok(format!("Bookmark {} deleted", name)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(format!(
+                                "Bookmark {} deleted",
+                                name
+                            ))))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::Undo => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted("Undoing...".to_string())).await;
+                let _ = tx
+                    .send(Action::OperationStarted("Undoing...".to_string()))
+                    .await;
                 match adapter.undo().await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok("Undo successful".to_string()))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(
+                                Ok("Undo successful".to_string()),
+                            ))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
         }
         Command::Redo => {
             tokio::spawn(async move {
-                let _ = tx.send(Action::OperationStarted("Redoing...".to_string())).await;
+                let _ = tx
+                    .send(Action::OperationStarted("Redoing...".to_string()))
+                    .await;
                 match adapter.redo().await {
                     Ok(_) => {
-                        let _ = tx.send(Action::OperationCompleted(Ok("Redo successful".to_string()))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(
+                                Ok("Redo successful".to_string()),
+                            ))
+                            .await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
                     }
                 }
             });
@@ -869,5 +990,3 @@ async fn handle_command(
     }
     Ok(())
 }
-
-

@@ -23,7 +23,8 @@ async fn main() -> Result<()> {
     let app_state = AppState::default();
 
     // Initialize adapter to verify repo context
-    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?) as std::sync::Arc<dyn judo::domain::vcs::VcsFacade>;
+    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?)
+        as std::sync::Arc<dyn judo::domain::vcs::VcsFacade>;
 
     let res = run_loop(&mut terminal, app_state, adapter).await;
 

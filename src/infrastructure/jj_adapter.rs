@@ -110,18 +110,15 @@ impl JjAdapter {
 
 #[async_trait]
 impl VcsFacade for JjAdapter {
-    async fn get_operation_log(&self) -> Result<RepoStatus> {
+ async fn get_operation_log(&self) -> Result<RepoStatus> {
         // Workspace is !Sync, so we lock it to access loader
         let repo = {
             let ws = self.workspace.lock().await;
             ws.repo_loader().load_at_head()?
         };
 
-        // operation() returns &Operation. id() returns &OperationId.
         let op_id = repo.operation().id().clone().hex();
 
-        // Find workspace_id from repo view (first available)
-        // wc_commit_ids() returns &BTreeMap<WorkspaceId, CommitId>
         let (workspace_id, _) = repo
             .view()
             .wc_commit_ids()
@@ -133,7 +130,7 @@ impl VcsFacade for JjAdapter {
         let repo_arc = repo.clone();
         let ws_id_clone = workspace_id.clone();
 
-        // Phase 1: Blocking Graph Traversal
+        // Phase 1: Blocking Graph Traversal (Pre-loading objects)
         let commit_infos = tokio::task::spawn_blocking(move || {
             let mut visited = HashSet::new();
             let mut queue = VecDeque::new();
@@ -144,33 +141,26 @@ impl VcsFacade for JjAdapter {
             }
 
             while let Some(id) = queue.pop_front() {
-                if visited.contains(&id) {
+                if visited.contains(&id) || results.len() >= 100 {
                     continue;
                 }
                 visited.insert(id.clone());
 
-                if results.len() >= 100 {
-                    break;
-                }
-
                 let commit = repo_arc.store().get_commit(&id)?;
-
-                // Collect parents for queue and for result
                 let mut parent_ids_domain = Vec::new();
                 for parent_id in commit.parent_ids() {
                      parent_ids_domain.push(CommitId(parent_id.hex()));
-                     // Add to queue
                      queue.push_back(parent_id.clone());
                 }
 
-                // Fetch first parent for diffing (blocking IO)
                 let first_parent = commit.parents().next().transpose()?;
-
-                // Pre-load trees to ensure no blocking in async phase
+                
+                // Pre-load trees and metadata needed for Phase 2
                 let tree = commit.tree();
                 let parent_tree = first_parent.as_ref().map(|p| p.tree());
-
                 let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
+                
+                // Logic from refactor: heads or root commits are immutable
                 let is_immutable = repo_arc.view().heads().contains(&id) || commit.parents().next().is_none();
 
                 let bookmarks = repo_arc
@@ -185,7 +175,7 @@ impl VcsFacade for JjAdapter {
             Ok::<_, anyhow::Error>(results)
         }).await??;
 
-        // Phase 2: Async Detail Expansion (Parallel)
+        // Phase 2: Async Detail Expansion (Parallel Diffing)
         let graph_rows = futures::stream::iter(commit_infos)
             .map(|(commit, tree, parent_tree, parent_ids, is_working_copy, is_immutable, bookmarks)| async move {
                  let description = commit.description().to_string();
@@ -233,11 +223,10 @@ impl VcsFacade for JjAdapter {
                     changed_files,
                 }
             })
-            .buffered(50)
+            .buffered(50) 
             .collect::<Vec<_>>()
             .await;
 
-        // Get working copy ID
         let wc_id = match repo.view().get_wc_commit_id(&workspace_id) {
             Some(id) => CommitId(id.hex()),
             None => CommitId("".to_string()),
@@ -304,7 +293,11 @@ impl VcsFacade for JjAdapter {
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
                 diff.before.into_resolved()
             {
-                let mut reader = repo.store().read_file(&entry.path, &id).await?.take(MAX_DIFF_SIZE + 1);
+                let mut reader = repo
+                    .store()
+                    .read_file(&entry.path, &id)
+                    .await?
+                    .take(MAX_DIFF_SIZE + 1);
                 reader.read_to_end(&mut old_content).await?;
                 if old_content.len() as u64 > MAX_DIFF_SIZE {
                     output.push_str(&format!("File {} is too large to diff\n\n", path_str));
@@ -316,7 +309,11 @@ impl VcsFacade for JjAdapter {
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
                 diff.after.into_resolved()
             {
-                let mut reader = repo.store().read_file(&entry.path, &id).await?.take(MAX_DIFF_SIZE + 1);
+                let mut reader = repo
+                    .store()
+                    .read_file(&entry.path, &id)
+                    .await?
+                    .take(MAX_DIFF_SIZE + 1);
                 reader.read_to_end(&mut new_content).await?;
                 if new_content.len() as u64 > MAX_DIFF_SIZE {
                     output.push_str(&format!("File {} is too large to diff\n\n", path_str));
@@ -451,7 +448,8 @@ impl VcsFacade for JjAdapter {
         let workspace = self.workspace.lock().await;
         let repo = workspace.repo_loader().load_at_head()?;
 
-        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let id =
+            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
 
         let mut tx = repo.start_transaction();
@@ -465,7 +463,7 @@ impl VcsFacade for JjAdapter {
             .iter()
             .next()
             .ok_or_else(|| anyhow!("No working copy found in view"))?;
-        
+
         mut_repo.set_wc_commit(workspace_id.clone(), commit.id().clone())?;
 
         tx.commit("edit revision")?;
@@ -476,26 +474,28 @@ impl VcsFacade for JjAdapter {
         let workspace = self.workspace.lock().await;
         let repo = workspace.repo_loader().load_at_head()?;
 
-        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let id =
+            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
 
         let mut parents = commit.parents();
-        let parent = parents.next().ok_or_else(|| anyhow!("Cannot squash root commit"))??;
+        let parent = parents
+            .next()
+            .ok_or_else(|| anyhow!("Cannot squash root commit"))??;
 
         // Merge the trees
         let merged_tree = {
             let parent_commit = repo.store().get_commit(parent.id())?;
             let parent_tree = parent_commit.tree();
             let commit_tree = commit.tree();
-            jj_lib::merged_tree::MergedTree::merge(
-                jj_lib::merge::Merge::from_removes_adds(
-                    vec![(parent_tree.clone(), "".to_string())],
-                    vec![
-                        (parent_tree.clone(), "".to_string()),
-                        (commit_tree.clone(), "".to_string()),
-                    ],
-                )
-            ).await?
+            jj_lib::merged_tree::MergedTree::merge(jj_lib::merge::Merge::from_removes_adds(
+                vec![(parent_tree.clone(), "".to_string())],
+                vec![
+                    (parent_tree.clone(), "".to_string()),
+                    (commit_tree.clone(), "".to_string()),
+                ],
+            ))
+            .await?
         };
 
         let mut tx = repo.start_transaction();
@@ -503,7 +503,7 @@ impl VcsFacade for JjAdapter {
 
         // Squash commit into its parent
         let parent_commit = repo.store().get_commit(parent.id())?;
-        
+
         // Combine descriptions
         let mut new_description = parent_commit.description().to_string();
         if !new_description.ends_with('\n') && !new_description.is_empty() {
@@ -511,7 +511,8 @@ impl VcsFacade for JjAdapter {
         }
         new_description.push_str(commit.description());
 
-        mut_repo.rewrite_commit(&parent_commit)
+        mut_repo
+            .rewrite_commit(&parent_commit)
             .set_tree(merged_tree)
             .set_description(new_description)
             .write()?;
@@ -528,7 +529,8 @@ impl VcsFacade for JjAdapter {
         let workspace = self.workspace.lock().await;
         let repo = workspace.repo_loader().load_at_head()?;
 
-        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let id =
+            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
 
         let mut tx = repo.start_transaction();
@@ -551,7 +553,8 @@ impl VcsFacade for JjAdapter {
         let workspace = self.workspace.lock().await;
         let repo = workspace.repo_loader().load_at_head()?;
 
-        let id = JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let id =
+            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
 
         let mut tx = repo.start_transaction();
@@ -605,7 +608,10 @@ mod tests {
         // Instantiate JjAdapter using the temp dir
         let adapter = JjAdapter::load_at(path.to_path_buf());
 
-        assert!(adapter.is_ok(), "JjAdapter should be initialized successfully");
+        assert!(
+            adapter.is_ok(),
+            "JjAdapter should be initialized successfully"
+        );
 
         Ok(())
     }
