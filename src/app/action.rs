@@ -1,6 +1,6 @@
 use crate::domain::models::{CommitId, RepoStatus};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     // --- System / Terminal ---
     Tick,
