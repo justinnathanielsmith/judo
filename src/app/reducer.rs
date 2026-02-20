@@ -51,6 +51,27 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::ScrollDiffUp(amount) => {
             state.diff_scroll = state.diff_scroll.saturating_sub(amount);
         }
+        Action::NextHunk => {
+            if let Some(diff) = &state.current_diff {
+                let current_line = state.diff_scroll as usize;
+                let mut lines = diff.lines().enumerate().skip(current_line + 1);
+                if let Some((idx, _)) = lines.find(|(_, line)| line.starts_with("@@")) {
+                    state.diff_scroll = idx as u16;
+                }
+            }
+        }
+        Action::PrevHunk => {
+            if let Some(diff) = &state.current_diff {
+                let current_line = state.diff_scroll as usize;
+                let lines: Vec<_> = diff.lines().enumerate().collect();
+                if current_line > 0 {
+                    let mut prev_lines = lines[..current_line].iter().rev();
+                    if let Some((idx, _)) = prev_lines.find(|(_, line)| line.starts_with("@@")) {
+                        state.diff_scroll = *idx as u16;
+                    }
+                }
+            }
+        }
 
         // --- Mode Switching ---
         Action::EnterSquashMode => {

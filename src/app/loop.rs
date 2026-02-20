@@ -168,6 +168,8 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Char('U') => Some(Action::Redo),
                                     KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
+                                    KeyCode::Char('[') => Some(Action::PrevHunk),
+                                    KeyCode::Char(']') => Some(Action::NextHunk),
                                     _ => None,
                                 }
                             },
