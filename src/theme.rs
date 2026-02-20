@@ -25,9 +25,14 @@ pub struct Theme {
     pub commit_id_dim: Style,
 
     pub header_logo: Style,
+    pub header_item: Style,
     pub header: Style,
+    
+    pub footer_segment_key: Style,
+    pub footer_segment_val: Style,
     pub footer: Style,
-    pub key_binding: Style,
+    
+    pub status_ready: Style,
     pub status_info: Style,
     pub status_error: Style,
 
@@ -39,58 +44,72 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            border: Style::default().fg(Color::Rgb(80, 80, 80)),
-            border_focus: Style::default().fg(Color::Cyan),
+            border: Style::default().fg(Color::Rgb(60, 60, 60)),
+            border_focus: Style::default().fg(Color::Rgb(137, 180, 250)), // Mauve/Lavender-ish
 
             graph_node_wc: Style::default()
-                .fg(Color::Yellow)
+                .fg(Color::Rgb(249, 226, 175)) // Yellow
                 .add_modifier(Modifier::BOLD),
             graph_node_mutable: Style::default()
-                .fg(Color::Magenta)
+                .fg(Color::Rgb(203, 166, 247)) // Mauve
                 .add_modifier(Modifier::BOLD),
-            graph_node_immutable: Style::default().fg(Color::Blue),
-            graph_line: Style::default().fg(Color::Rgb(100, 100, 100)),
+            graph_node_immutable: Style::default().fg(Color::Rgb(137, 180, 250)), // Blue
+            graph_line: Style::default().fg(Color::Rgb(108, 112, 134)), // Surface
 
-            change_id_mutable: Style::default().fg(Color::Magenta),
-            change_id_immutable: Style::default().fg(Color::Blue),
+            change_id_mutable: Style::default().fg(Color::Rgb(203, 166, 247)),
+            change_id_immutable: Style::default().fg(Color::Rgb(137, 180, 250)),
             bookmark: Style::default()
-                .fg(Color::Green)
+                .fg(Color::Rgb(166, 227, 161)) // Green
                 .add_modifier(Modifier::BOLD),
-            author: Style::default().fg(Color::Rgb(200, 150, 100)), // Warm tan/orange
-            timestamp: Style::default().fg(Color::Rgb(130, 130, 130)),
-            commit_id_dim: Style::default().fg(Color::Rgb(80, 80, 80)),
+            author: Style::default().fg(Color::Rgb(250, 179, 135)), // Peach
+            timestamp: Style::default().fg(Color::Rgb(166, 173, 200)), // Subtext
+            commit_id_dim: Style::default().fg(Color::Rgb(88, 91, 112)), // Surface
 
             diff_header: Style::default()
-                .fg(Color::Blue)
+                .fg(Color::Rgb(137, 180, 250))
                 .add_modifier(Modifier::BOLD),
-            diff_add: Style::default().fg(Color::Green),
-            diff_remove: Style::default().fg(Color::Red),
-            diff_hunk: Style::default().fg(Color::Cyan),
-            diff_context: Style::default().fg(Color::Rgb(180, 180, 180)),
-            diff_modify: Style::default().fg(Color::Yellow),
+            diff_add: Style::default().fg(Color::Rgb(166, 227, 161)),
+            diff_remove: Style::default().fg(Color::Rgb(243, 139, 168)), // Red
+            diff_hunk: Style::default().fg(Color::Rgb(148, 226, 213)), // Teal
+            diff_context: Style::default().fg(Color::Rgb(205, 214, 244)), // Text
+            diff_modify: Style::default().fg(Color::Rgb(249, 226, 175)),
 
             header_logo: Style::default()
-                .bg(Color::Cyan)
-                .fg(Color::Black)
+                .bg(Color::Rgb(137, 180, 250))
+                .fg(Color::Rgb(17, 17, 27)) // Crust
                 .add_modifier(Modifier::BOLD),
-            header: Style::default().bg(Color::Rgb(40, 40, 40)).fg(Color::White),
+            header_item: Style::default()
+                .bg(Color::Rgb(49, 50, 68)) // Surface
+                .fg(Color::Rgb(205, 214, 244)),
+            header: Style::default()
+                .bg(Color::Rgb(30, 30, 46)) // Base
+                .fg(Color::Rgb(205, 214, 244)),
+            
+            footer_segment_key: Style::default()
+                .bg(Color::Rgb(49, 50, 68))
+                .fg(Color::Rgb(137, 180, 250))
+                .add_modifier(Modifier::BOLD),
+            footer_segment_val: Style::default()
+                .bg(Color::Rgb(30, 30, 46))
+                .fg(Color::Rgb(205, 214, 244)),
             footer: Style::default()
-                .bg(Color::Rgb(30, 30, 30))
-                .fg(Color::Rgb(150, 150, 150)),
-            key_binding: Style::default()
-                .fg(Color::Yellow)
+                .bg(Color::Rgb(17, 17, 27))
+                .fg(Color::Rgb(166, 173, 200)),
+            
+            status_ready: Style::default().fg(Color::Rgb(166, 227, 161)),
+            status_info: Style::default().fg(Color::Rgb(137, 180, 250)),
+            status_error: Style::default()
+                .fg(Color::Rgb(243, 139, 168))
                 .add_modifier(Modifier::BOLD),
-            status_info: Style::default().fg(Color::Green),
-            status_error: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
 
             highlight: Style::default()
-                .bg(Color::Rgb(50, 50, 50))
+                .bg(Color::Rgb(49, 50, 68))
                 .add_modifier(Modifier::BOLD),
             list_selected: Style::default()
-                .bg(Color::Cyan)
-                .fg(Color::Black)
+                .bg(Color::Rgb(137, 180, 250))
+                .fg(Color::Rgb(17, 17, 27))
                 .add_modifier(Modifier::BOLD),
-            list_item: Style::default().fg(Color::White),
+            list_item: Style::default().fg(Color::Rgb(205, 214, 244)),
         }
     }
 }

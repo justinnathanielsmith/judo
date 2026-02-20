@@ -164,7 +164,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
         }
 
         let table = Table::new(rows, [Constraint::Length(12), Constraint::Min(0)])
-            .row_highlight_style(self.theme.highlight);
+            .row_highlight_style(self.theme.highlight)
+            .highlight_symbol(">> ");
 
         StatefulWidget::render(table, area, buf, state);
     }

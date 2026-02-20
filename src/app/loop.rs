@@ -8,7 +8,7 @@ use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, MouseButton, MouseEventKind};
 use ratatui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
@@ -60,14 +60,24 @@ pub async fn run_loop<B: Backend>(
                 .split(f.area());
 
             // --- Header ---
-            let repo_info = if let Some(repo) = &app_state.repo {
-                format!(" JJ | Operation: {} ", &repo.operation_id[..8])
+            let (op_id, wc_info, stats) = if let Some(repo) = &app_state.repo {
+                let mutable_count = repo.graph.iter().filter(|r| !r.is_immutable).count();
+                let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
+                (
+                    &repo.operation_id[..8.min(repo.operation_id.len())],
+                    format!(" WC: {} ", &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())]),
+                    format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count)
+                )
             } else {
-                " JJ | Loading... ".to_string()
+                ("........", " Loading... ".to_string(), "".to_string())
             };
+            
             let header = Paragraph::new(Line::from(vec![
                 Span::styled(" JUDO ", theme.header_logo),
-                Span::styled(format!("{} ", repo_info), theme.header),
+                Span::styled(format!(" Op: {} ", op_id), theme.header_item),
+                Span::styled(wc_info, theme.header_item),
+                Span::styled(stats, theme.header),
+                Span::styled(" ".repeat(f.area().width as usize), theme.header),
             ]))
             .style(theme.header);
             f.render_widget(header, main_chunks[0]);
@@ -89,7 +99,18 @@ pub async fn run_loop<B: Backend>(
                 theme.border
             };
             let graph_block = Block::default()
-                .title(" Revision Graph ")
+                .title(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled("REVISION GRAPH", theme.header_logo),
+                    Span::raw(" "),
+                ]))
+                .title_bottom(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled("j/k", theme.footer_segment_key),
+                    Span::raw(": navigate "),
+                    Span::styled("d", theme.footer_segment_key),
+                    Span::raw(": describe "),
+                ]))
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(graph_border);
@@ -98,8 +119,35 @@ pub async fn run_loop<B: Backend>(
                 let graph = RevisionGraph { repo, theme: &theme, show_diffs: app_state.show_diffs };
                 f.render_stateful_widget(graph, graph_block.inner(body_chunks[0]), &mut app_state.log_list_state);
             } else {
-                let loading = Paragraph::new("Loading repo...").style(Style::default());
-                f.render_widget(loading, graph_block.inner(body_chunks[0]));
+                let spin_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+                let spinner = spin_chars[(app_state.frame_count % spin_chars.len() as u64) as usize];
+                
+                let logo_ascii = vec![
+                    "   _ _   _ ___   ___ ",
+                    "  | | | | |   \\ / _ \\",
+                    " _| | |_| | |) | (_) |",
+                    "|___|_____|___/ \\___/ ",
+                ];
+                
+                let mut lines: Vec<Line> = logo_ascii.iter().map(|l| Line::from(Span::styled(*l, theme.header_logo))).collect();
+                lines.push(Line::from(""));
+                lines.push(Line::from(vec![
+                    Span::styled(spinner, theme.header_logo),
+                    Span::raw(" Loading Jujutsu Repository... "),
+                ]));
+
+                let loading = Paragraph::new(lines)
+                    .alignment(ratatui::layout::Alignment::Center);
+                
+                let area = body_chunks[0];
+                let logo_height = 6;
+                let centered_area = Rect {
+                    x: area.x,
+                    y: area.y + area.height / 2 - (logo_height / 2),
+                    width: area.width,
+                    height: logo_height as u16,
+                };
+                f.render_widget(loading, centered_area);
             }
             f.render_widget(graph_block, body_chunks[0]);
 
@@ -111,7 +159,18 @@ pub async fn run_loop<B: Backend>(
                     theme.border
                 };
                 let diff_block = Block::default()
-                    .title(" Diff ")
+                    .title(Line::from(vec![
+                        Span::raw(" "),
+                        Span::styled("DIFF VIEW", theme.header_logo),
+                        Span::raw(" "),
+                    ]))
+                    .title_bottom(Line::from(vec![
+                        Span::raw(" "),
+                        Span::styled("PgUp/PgDn", theme.footer_segment_key),
+                        Span::raw(": scroll "),
+                        Span::styled("[/]", theme.footer_segment_key),
+                        Span::raw(": hunks "),
+                    ]))
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
                     .border_style(diff_border);
@@ -131,28 +190,27 @@ pub async fn run_loop<B: Backend>(
             } else if let Some(msg) = &app_state.status_message {
                 Span::styled(format!(" {} ", msg), theme.status_info)
             } else {
-                Span::raw(" Ready ")
+                Span::styled(" Ready ", theme.status_ready)
             };
 
             let help_legend = Line::from(vec![
                 status_content,
-                Span::raw(" | "),
-                Span::styled("Enter", theme.key_binding),
-                Span::raw(" toggle diffs "),
-                Span::styled("j/k", theme.key_binding),
-                Span::raw(" move "),
-                Span::styled("d", theme.key_binding),
-                Span::raw(" desc "),
-                Span::styled("n", theme.key_binding),
-                Span::raw(" new "),
-                Span::styled("a", theme.key_binding),
-                Span::raw(" abdn "),
-                Span::styled("b", theme.key_binding),
-                Span::raw(" bkmk "),
-                Span::styled("u/U", theme.key_binding),
-                Span::raw(" undo/redo "),
-                Span::styled("q", theme.key_binding),
-                Span::raw(" quit"),
+                Span::styled(" ENTER ", theme.footer_segment_key),
+                Span::styled(" toggle diff ", theme.footer_segment_val),
+                Span::styled(" j/k ", theme.footer_segment_key),
+                Span::styled(" move ", theme.footer_segment_val),
+                Span::styled(" d ", theme.footer_segment_key),
+                Span::styled(" desc ", theme.footer_segment_val),
+                Span::styled(" n ", theme.footer_segment_key),
+                Span::styled(" new ", theme.footer_segment_val),
+                Span::styled(" a ", theme.footer_segment_key),
+                Span::styled(" abdn ", theme.footer_segment_val),
+                Span::styled(" b ", theme.footer_segment_key),
+                Span::styled(" bkmk ", theme.footer_segment_val),
+                Span::styled(" u/U ", theme.footer_segment_key),
+                Span::styled(" undo/redo ", theme.footer_segment_val),
+                Span::styled(" q ", theme.footer_segment_key),
+                Span::styled(" quit ", theme.footer_segment_val),
             ]);
             let footer = Paragraph::new(help_legend).style(theme.footer);
             f.render_widget(footer, main_chunks[2]);

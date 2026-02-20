@@ -268,6 +268,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
 
+        Action::Tick => {
+            state.frame_count = state.frame_count.wrapping_add(1);
+        }
+
         _ => {}
     }
     None

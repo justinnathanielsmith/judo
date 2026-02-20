@@ -61,6 +61,9 @@ pub struct AppState<'a> {
 
     // --- Context Menu ---
     pub context_menu: Option<ContextMenuState>,
+
+    // --- Animation ---
+    pub frame_count: u64,
 }
 
 impl<'a> Default for AppState<'a> {
@@ -81,6 +84,7 @@ impl<'a> Default for AppState<'a> {
             last_click_time: None,
             last_click_pos: None,
             context_menu: None,
+            frame_count: 0,
         }
     }
 }
