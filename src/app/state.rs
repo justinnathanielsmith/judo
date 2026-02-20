@@ -5,9 +5,8 @@ use ratatui::layout::Rect;
 use ratatui::widgets::{TableState, Widget};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use tui_textarea::{CursorMove, TextArea};
 use std::time::Instant;
-use tui_textarea::TextArea;
+use tui_textarea::{CursorMove, TextArea};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AppMode {
@@ -21,7 +20,7 @@ pub enum AppMode {
     ContextMenu,   // Right-click menu for actions
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContextMenuState {
     pub commit_id: CommitId,
     pub x: u16,

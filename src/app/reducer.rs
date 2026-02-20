@@ -8,42 +8,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
     match action {
         // --- Navigation ---
         Action::SelectNext => {
-            let i = match state.log_list_state.selected() {
-                Some(i) => {
-                    if let Some(repo) = &state.repo {
-                        if repo.graph.is_empty() || i >= repo.graph.len() - 1 {
-                            0
-                        } else {
-                            i + 1
-                        }
-                    } else {
-                        0
-                    }
-                }
-                None => 0,
-            };
-            state.log_list_state.select(Some(i));
-            return handle_selection(state);
+            return move_selection(state, 1);
         }
         Action::SelectPrev => {
-            let i = match state.log_list_state.selected() {
-                Some(i) => {
-                    if let Some(repo) = &state.repo {
-                        if repo.graph.is_empty() {
-                            0
-                        } else if i == 0 {
-                            repo.graph.len() - 1
-                        } else {
-                            i - 1
-                        }
-                    } else {
-                        0
-                    }
-                }
-                None => 0,
-            };
-            state.log_list_state.select(Some(i));
-            return handle_selection(state);
+            return move_selection(state, -1);
         }
         Action::SelectIndex(i) => {
             state.log_list_state.select(Some(i));
@@ -149,7 +117,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::SetBookmarkIntent => {
             state.mode = AppMode::BookmarkInput;
-            state.text_area = tui_textarea::TextArea::default();
+            state.text_area = AppTextArea::default();
         }
         Action::SetBookmark(commit_id, name) => {
             state.mode = AppMode::Normal;
@@ -277,6 +245,21 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
     None
 }
 
+fn move_selection(state: &mut AppState, delta: isize) -> Option<Command> {
+    let len = state.repo.as_ref().map(|r| r.graph.len()).unwrap_or(0);
+    if len == 0 {
+        state.log_list_state.select(Some(0));
+        return handle_selection(state);
+    }
+
+    let new_index = match state.log_list_state.selected() {
+        Some(i) => (i as isize + delta).rem_euclid(len as isize) as usize,
+        None => 0,
+    };
+    state.log_list_state.select(Some(new_index));
+    handle_selection(state)
+}
+
 fn handle_selection(state: &mut AppState) -> Option<Command> {
     if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
         if let Some(row) = repo.graph.get(idx) {
@@ -299,6 +282,76 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::models::{CommitId, GraphRow, RepoStatus};
+
+    fn create_dummy_repo(count: usize) -> RepoStatus {
+        let mut graph = Vec::new();
+        for i in 0..count {
+            graph.push(GraphRow {
+                commit_id: CommitId(format!("commit-{}", i)),
+                change_id: format!("change-{}", i),
+                description: "desc".to_string(),
+                author: "author".to_string(),
+                timestamp: "time".to_string(),
+                is_working_copy: false,
+                is_immutable: false,
+                parents: vec![],
+                bookmarks: vec![],
+                changed_files: vec![],
+            });
+        }
+        RepoStatus {
+            operation_id: "op".to_string(),
+            working_copy_id: CommitId("wc".to_string()),
+            graph,
+        }
+    }
+
+    #[test]
+    fn test_navigation() {
+        let mut state = AppState::default();
+
+        // 1. Empty Repo
+        state.repo = Some(create_dummy_repo(0));
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        // 2. Repo with 3 items
+        state.repo = Some(create_dummy_repo(3));
+        state.log_list_state.select(None); // Reset
+
+        // Initial Next from None -> 0
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        // Next -> 1
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(1));
+
+        // Next -> 2
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(2));
+
+        // Next (Wrap) -> 0
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        // Prev (Wrap) -> 2
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(2));
+
+        // Prev -> 1
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(1));
+
+        // Test None selection behavior for Prev
+        state.log_list_state.select(None);
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+    }
 
     #[test]
     fn test_scroll_diff() {
