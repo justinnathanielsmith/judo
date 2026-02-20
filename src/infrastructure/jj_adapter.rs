@@ -144,9 +144,6 @@ impl VcsFacade for JjAdapter {
             queue.push_back(head_id.clone());
         }
 
-        // Also add working copy parent?
-        // For now just heads is enough to see something.
-
         while let Some(id) = queue.pop_front() {
             if visited.contains(&id) {
                 continue;
@@ -155,21 +152,23 @@ impl VcsFacade for JjAdapter {
 
             if graph_rows.len() >= 100 {
                 break;
-            } // Hard limit for MVP
+            }
 
             let commit = repo.store().get_commit(&id)?;
 
+            let mut parents = Vec::new();
             for parent in commit.parents().flatten() {
+                parents.push(CommitId(parent.id().clone().hex()));
                 queue.push_back(parent.id().clone());
             }
 
             let description = commit.description().to_string();
             let change_id = commit.change_id().hex();
             let author = commit.author().email.clone();
-            // Timestamp fix: timestamp struct -> timestamp field -> 0 (millis)
             let timestamp = commit.author().timestamp.timestamp.0.to_string();
 
             let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
+            let is_immutable = commit.parents().next().is_none(); // Simple stub: only root is immutable for now
 
             graph_rows.push(GraphRow {
                 commit_id: CommitId(id.hex()),
@@ -178,6 +177,8 @@ impl VcsFacade for JjAdapter {
                 author,
                 timestamp,
                 is_working_copy,
+                is_immutable,
+                parents,
             });
         }
 

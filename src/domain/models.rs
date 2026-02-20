@@ -17,7 +17,8 @@ pub struct GraphRow {
     pub author: String,
     pub timestamp: String,
     pub is_working_copy: bool,
-    // For graph rendering: parents, children, etc.
+    pub is_immutable: bool,
+    pub parents: Vec<CommitId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
