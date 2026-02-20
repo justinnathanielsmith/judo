@@ -8,6 +8,7 @@ pub enum AppMode {
     Normal,       // Navigating the log
     Command,      // Typing a command like ":q" or ":new"
     SquashSelect, // Selecting a target to squash into
+    BookmarkInput, // Inputting a bookmark name
     Input,        // A generic text input modal (e.g., for commit messages)
     Loading,      // Blocking interaction (optional, often better handled with a flag)
 }

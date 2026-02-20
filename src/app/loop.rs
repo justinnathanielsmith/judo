@@ -94,10 +94,17 @@ pub async fn run_loop<B: Backend>(
             }
 
             // Input Modal
-            if app_state.mode == crate::app::state::AppMode::Input {
+            if app_state.mode == crate::app::state::AppMode::Input || app_state.mode == crate::app::state::AppMode::BookmarkInput {
                 use ratatui::widgets::Clear;
                 let area = centered_rect(60, 20, f.area());
                 f.render_widget(Clear, area);
+                let title = if app_state.mode == crate::app::state::AppMode::BookmarkInput {
+                    "Set Bookmark"
+                } else {
+                    "Describe Revision"
+                };
+                let block = Block::default().title(title).borders(Borders::ALL);
+                app_state.text_area.set_block(block);
                 f.render_widget(&app_state.text_area, area);
             }
         })?;
@@ -113,7 +120,7 @@ pub async fn run_loop<B: Backend>(
                     Err(e) => return Err(e.into()),
                 };
                 match app_state.mode {
-                    crate::app::state::AppMode::Input => {
+                    crate::app::state::AppMode::Input | crate::app::state::AppMode::BookmarkInput => {
                         match event {
                             Event::Key(key) => {
                                 match key.code {
@@ -121,7 +128,11 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Enter => {
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
                                             if let Some(row) = repo.graph.get(idx) {
-                                                Some(Action::DescribeRevision(row.commit_id.clone(), app_state.text_area.lines().join("\n")))
+                                                if app_state.mode == crate::app::state::AppMode::BookmarkInput {
+                                                    Some(Action::SetBookmark(row.commit_id.clone(), app_state.text_area.lines().join("")))
+                                                } else {
+                                                    Some(Action::DescribeRevision(row.commit_id.clone(), app_state.text_area.lines().join("\n")))
+                                                }
                                             } else { None }
                                         } else { None }
                                     },
@@ -160,6 +171,17 @@ pub async fn run_loop<B: Backend>(
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
                                             if let Some(row) = repo.graph.get(idx) {
                                                 Some(Action::AbandonRevision(row.commit_id.clone()))
+                                            } else { None }
+                                        } else { None }
+                                    },
+                                    KeyCode::Char('b') => Some(Action::SetBookmarkIntent),
+                                    KeyCode::Char('B') => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                // For now, delete the first bookmark if exists
+                                                if let Some(bookmark) = row.bookmarks.first() {
+                                                    Some(Action::DeleteBookmark(bookmark.clone()))
+                                                } else { None }
                                             } else { None }
                                         } else { None }
                                     },
@@ -355,6 +377,38 @@ async fn handle_command(
                 match adapter.abandon(&commit_id).await {
                     Ok(_) => {
                         let _ = tx.send(Action::OperationCompleted(Ok("Revision abandoned".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::SetBookmark(commit_id, name) => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted(format!("Setting bookmark {}...", name))).await;
+                match adapter.set_bookmark(&commit_id, &name).await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok(format!("Bookmark {} set", name)))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::DeleteBookmark(name) => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted(format!("Deleting bookmark {}...", name))).await;
+                match adapter.delete_bookmark(&name).await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok(format!("Bookmark {} deleted", name)))).await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }

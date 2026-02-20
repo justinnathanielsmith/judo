@@ -3,6 +3,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState},
 };
 
@@ -80,6 +81,22 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
 
             let change_id_style = Style::default().fg(Color::Cyan);
 
+            let mut description_cells = vec![Span::raw(
+                row.description.lines().next().unwrap_or("").to_string(),
+            )];
+
+            for bookmark in &row.bookmarks {
+                description_cells.push(Span::raw(" "));
+                description_cells.push(
+                    Span::styled(
+                        format!("({})", bookmark),
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                );
+            }
+
             rows.push(
                 Row::new(vec![
                     Cell::from(graph_col).style(Style::default().fg(Color::White)),
@@ -90,7 +107,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                             .to_string(),
                     )
                     .style(change_id_style),
-                    Cell::from(row.description.lines().next().unwrap_or("").to_string()),
+                    Cell::from(Line::from(description_cells)),
                     Cell::from(row.author.clone()),
                 ])
                 .style(style),

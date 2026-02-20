@@ -19,6 +19,7 @@ pub struct GraphRow {
     pub is_working_copy: bool,
     pub is_immutable: bool,
     pub parents: Vec<CommitId>,
+    pub bookmarks: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

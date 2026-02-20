@@ -50,6 +50,8 @@ cargo run
 | `n` | Create new child from selected revision    |
 | `d` | Describe selected revision (opens input)   |
 | `a` | Abandon selected revision                  |
+| `b` | Set bookmark on selected revision (opens input) |
+| `B` | Delete first bookmark on selected revision |
 | `u` | Undo last operation                        |
 | `U` | Redo last operation                        |
 | `Esc` | Cancel current mode / Clear errors       |

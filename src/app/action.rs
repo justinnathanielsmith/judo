@@ -25,6 +25,9 @@ pub enum Action {
     DescribeRevisionIntent,             // Start describing the selected revision
     DescribeRevision(CommitId, String), // `jj describe <rev> -m "msg"`
     AbandonRevision(CommitId),          // `jj abandon <rev>`
+    SetBookmarkIntent,                  // Start setting a bookmark
+    SetBookmark(CommitId, String),      // `jj bookmark set <name> -r <rev>`
+    DeleteBookmark(String),             // `jj bookmark delete <name>`
     Undo,                               // `jj undo`
     Redo,                               // `jj redo`
 

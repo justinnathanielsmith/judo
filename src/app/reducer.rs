@@ -125,6 +125,17 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.mode = AppMode::Normal;
             return Some(Command::DescribeRevision(commit_id, message));
         }
+        Action::SetBookmarkIntent => {
+            state.mode = AppMode::BookmarkInput;
+            state.text_area = tui_textarea::TextArea::default();
+        }
+        Action::SetBookmark(commit_id, name) => {
+            state.mode = AppMode::Normal;
+            return Some(Command::SetBookmark(commit_id, name));
+        }
+        Action::DeleteBookmark(name) => {
+            return Some(Command::DeleteBookmark(name));
+        }
 
         // --- Async Results ---
         Action::RepoLoaded(repo_status) => {

@@ -170,6 +170,13 @@ impl VcsFacade for JjAdapter {
             let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
             let is_immutable = commit.parents().next().is_none(); // Simple stub: only root is immutable for now
 
+            let bookmarks = repo
+                .view()
+                .local_bookmarks()
+                .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
+                .map(|(name, _)| name.as_str().to_string())
+                .collect::<Vec<_>>();
+
             graph_rows.push(GraphRow {
                 commit_id: CommitId(id.hex()),
                 change_id,
@@ -179,6 +186,7 @@ impl VcsFacade for JjAdapter {
                 is_working_copy,
                 is_immutable,
                 parents,
+                bookmarks,
             });
         }
 
@@ -450,6 +458,18 @@ impl VcsFacade for JjAdapter {
         mut_repo.rebase_descendants()?;
 
         tx.commit("abandon revision")?;
+        Ok(())
+    }
+
+    async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
+        let _ = (commit_id, name);
+        // Implementation would go here
+        Ok(())
+    }
+
+    async fn delete_bookmark(&self, name: &str) -> Result<()> {
+        let _ = name;
+        // Implementation would go here
         Ok(())
     }
 
