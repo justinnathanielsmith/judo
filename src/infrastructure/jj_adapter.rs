@@ -42,18 +42,10 @@ impl JjAdapter {
         // Layer 1: Judo Fallbacks (Lowest priority above library defaults)
         // These provide sensible defaults for TUI performance and prevent crashes
         // if the user hasn't configured basic identity yet.
-        let fallback_config_str = r#"
-            [user]
-            name = "Judo User"
-            email = "judo@example.com"
-            [operation]
-            hostname = "judo-host"
-            username = "judo-user"
-            [fsmonitor]
-            backend = "none"
-        "#;
-
-        if let Ok(layer) = ConfigLayer::parse(ConfigSource::Default, fallback_config_str) {
+        if let Ok(layer) = ConfigLayer::parse(
+            ConfigSource::Default,
+            crate::infrastructure::defaults::DEFAULT_FALLBACK_CONFIG,
+        ) {
             config.add_layer(layer);
         }
 
