@@ -83,6 +83,14 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::EnterCommandMode => {
             state.mode = AppMode::Command;
         }
+        Action::FocusDiff => {
+            if state.show_diffs {
+                state.mode = AppMode::Diff;
+            }
+        }
+        Action::FocusGraph => {
+            state.mode = AppMode::Normal;
+        }
         Action::CancelMode => {
             state.mode = AppMode::Normal;
             state.last_error = None;

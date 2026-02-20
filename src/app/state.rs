@@ -11,6 +11,7 @@ pub enum AppMode {
     BookmarkInput, // Inputting a bookmark name
     Input,         // A generic text input modal (e.g., for commit messages)
     Loading,       // Blocking interaction (optional, often better handled with a flag)
+    Diff,          // Focusing the diff window for scrolling
 }
 
 // Cannot derive Debug/Clone/PartialEq easily because TextArea doesn't support them all or is heavy

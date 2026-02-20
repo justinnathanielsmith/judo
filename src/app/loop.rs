@@ -83,11 +83,16 @@ pub async fn run_loop<B: Backend>(
                 .split(main_chunks[1]);
 
             // Left: Revision Graph
+            let graph_border = if app_state.mode == crate::app::state::AppMode::Normal {
+                theme.border_focus
+            } else {
+                theme.border
+            };
             let graph_block = Block::default()
                 .title(" Revision Graph ")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .border_style(theme.border);
+                .border_style(graph_border);
 
             if let Some(repo) = &app_state.repo {
                 let graph = RevisionGraph { repo, theme: &theme, show_diffs: app_state.show_diffs };
@@ -100,11 +105,16 @@ pub async fn run_loop<B: Backend>(
 
             // Right: Diff View
             if app_state.show_diffs {
+                let diff_border = if app_state.mode == crate::app::state::AppMode::Diff {
+                    theme.border_focus
+                } else {
+                    theme.border
+                };
                 let diff_block = Block::default()
                     .title(" Diff ")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(theme.border);
+                    .border_style(diff_border);
 
                 let diff_view = DiffView {
                     diff_content: app_state.current_diff.as_deref(),
@@ -202,12 +212,31 @@ pub async fn run_loop<B: Backend>(
                             _ => None,
                         }
                     },
+                    crate::app::state::AppMode::Diff => {
+                        match event {
+                            Event::Key(key) => {
+                                match key.code {
+                                    KeyCode::Esc | KeyCode::Char('q') => Some(Action::Quit),
+                                    KeyCode::Char('h') | KeyCode::Tab => Some(Action::FocusGraph),
+                                    KeyCode::Down | KeyCode::Char('j') => Some(Action::ScrollDiffDown(1)),
+                                    KeyCode::Up | KeyCode::Char('k') => Some(Action::ScrollDiffUp(1)),
+                                    KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
+                                    KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
+                                    KeyCode::Char('[') => Some(Action::PrevHunk),
+                                    KeyCode::Char(']') => Some(Action::NextHunk),
+                                    _ => None,
+                                }
+                            }
+                            _ => None,
+                        }
+                    }
                     _ => {
                         match event {
                             Event::Key(key) => {
                                 match key.code {
                                     KeyCode::Char('q') => Some(Action::Quit),
                                     KeyCode::Enter => Some(Action::ToggleDiffs),
+                                    KeyCode::Tab | KeyCode::Char('l') => Some(Action::FocusDiff),
                                     KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
                                     KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrev),
                                     KeyCode::Char('s') => Some(Action::SnapshotWorkingCopy),

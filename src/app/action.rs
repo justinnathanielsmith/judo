@@ -35,6 +35,8 @@ pub enum Action {
     // --- UI Mode Transitions ---
     EnterCommandMode, // Open command palette (:)
     EnterSquashMode,  // Open squash selection modal
+    FocusDiff,        // Switch focus to diff window
+    FocusGraph,       // Switch focus to revision graph
     CancelMode,       // ESC key (close modal/mode)
 
     // --- Async Results (The "Callback") ---
