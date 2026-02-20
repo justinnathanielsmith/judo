@@ -610,19 +610,50 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-<<<<<<< fix-unbounded-snapshot-size-16493992590699636813
-    async fn test_snapshot_normal_file() -> Result<()> {
-=======
-    async fn test_get_operation_log_capped() -> Result<()> {
->>>>>>> main
+#[tokio::test]
+    async fn test_new_child() -> Result<()> {
         let temp_dir = tempfile::tempdir()?;
         let path = temp_dir.path();
 
         let config = StackedConfig::with_defaults();
         let user_settings = UserSettings::from_config(config)?;
 
-<<<<<<< fix-unbounded-snapshot-size-16493992590699636813
+        // Initialize a simple workspace
+        Workspace::init_simple(&user_settings, path)?;
+
+        // Instantiate JjAdapter using the temp dir
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        // Get initial state
+        let status = adapter.get_operation_log().await?;
+
+        let parent_commit = status.graph.first().ok_or_else(|| anyhow!("Graph is empty"))?;
+        let parent_id = parent_commit.commit_id.clone();
+
+        // Create new child
+        adapter.new_child(&parent_id).await?;
+
+        // Verify
+        let new_status = adapter.get_operation_log().await?;
+
+        // Find a commit that has parent_id as parent
+        let child_commit = new_status.graph.iter().find(|row| {
+             row.parents.contains(&parent_id)
+        });
+
+        assert!(child_commit.is_some(), "Should have created a child commit of {}", parent_id);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_normal_file() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
         Workspace::init_simple(&user_settings, path)?;
         let adapter = JjAdapter::load_at(path.to_path_buf())?;
 
@@ -633,7 +664,18 @@ mod tests {
         // Snapshot
         let result = adapter.snapshot().await;
         assert!(result.is_ok(), "Snapshot should succeed for normal file");
-=======
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_operation_log_capped() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
         // Initialize a simple workspace
         Workspace::init_simple(&user_settings, path)?;
 
@@ -660,9 +702,7 @@ mod tests {
                 parent_id = commit.id().clone();
             }
 
-            // Update working copy to the last commit to make it visible/reachable easily
-            // Find workspace_id
-             let (workspace_id, _) = repo
+            let (workspace_id, _) = repo
                 .view()
                 .wc_commit_ids()
                 .iter()
@@ -677,7 +717,6 @@ mod tests {
         let log = adapter.get_operation_log().await?;
 
         assert_eq!(log.graph.len(), 100, "Should return 100 commits (capped)");
->>>>>>> main
 
         Ok(())
     }
