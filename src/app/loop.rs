@@ -19,8 +19,6 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 
-use std::sync::Arc;
-
 const TICK_RATE: Duration = Duration::from_millis(250);
 
 pub async fn run_loop<B: Backend>(

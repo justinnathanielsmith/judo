@@ -29,6 +29,7 @@ pub struct JjAdapter {
 }
 
 const MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
+const MAX_NEW_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
 
 impl JjAdapter {
     pub fn new() -> Result<Self> {
@@ -427,7 +428,7 @@ impl VcsFacade for JjAdapter {
             progress: None,
             start_tracking_matcher: &EverythingMatcher,
             force_tracking_matcher: &NothingMatcher,
-            max_new_file_size: u64::MAX,
+            max_new_file_size: MAX_NEW_FILE_SIZE,
         };
 
         let (_tree, _stats) = locked_ws.locked_wc().snapshot(&options).await?;
@@ -596,6 +597,28 @@ mod tests {
         let adapter = JjAdapter::load_at(path.to_path_buf());
 
         assert!(adapter.is_ok(), "JjAdapter should be initialized successfully");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_normal_file() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        Workspace::init_simple(&user_settings, path)?;
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        // Create a normal file
+        let file_path = path.join("normal.txt");
+        tokio::fs::write(&file_path, "Hello World").await?;
+
+        // Snapshot
+        let result = adapter.snapshot().await;
+        assert!(result.is_ok(), "Snapshot should succeed for normal file");
 
         Ok(())
     }
