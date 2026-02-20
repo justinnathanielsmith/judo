@@ -106,11 +106,11 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             let mut line_1_details = vec![
                 Span::styled(change_id_short.to_string(), self.theme.change_id),
                 Span::raw(" "),
-                Span::raw(row.author.clone()),
+                Span::styled(row.author.clone(), self.theme.author),
                 Span::raw(" "),
-                Span::raw(row.timestamp.clone()),
+                Span::styled(row.timestamp.clone(), self.theme.timestamp),
                 Span::raw(" "),
-                Span::styled(commit_id_short.to_string(), self.theme.graph_line), // Dimmed commit ID
+                Span::styled(commit_id_short.to_string(), self.theme.commit_id_dim), // Dimmed commit ID
             ];
 
             // Add bookmarks if any

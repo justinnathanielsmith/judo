@@ -66,9 +66,8 @@ pub async fn run_loop<B: Backend>(
                 " JJ | Loading... ".to_string()
             };
             let header = Paragraph::new(Line::from(vec![
-                Span::styled(" JUDO ", theme.header),
-                Span::raw(" "),
-                Span::raw(repo_info),
+                Span::styled(" JUDO ", theme.header_logo),
+                Span::styled(format!("{} ", repo_info), theme.header),
             ]))
             .style(theme.header);
             f.render_widget(header, main_chunks[0]);

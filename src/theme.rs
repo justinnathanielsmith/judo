@@ -19,6 +19,11 @@ pub struct Theme {
     pub diff_context: Style,
     pub diff_modify: Style,
 
+    pub author: Style,
+    pub timestamp: Style,
+    pub commit_id_dim: Style,
+
+    pub header_logo: Style,
     pub header: Style,
     pub footer: Style,
     pub key_binding: Style,
@@ -47,6 +52,9 @@ impl Default for Theme {
             bookmark: Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),
+            author: Style::default().fg(Color::Rgb(200, 150, 100)), // Warm tan/orange
+            timestamp: Style::default().fg(Color::Rgb(130, 130, 130)),
+            commit_id_dim: Style::default().fg(Color::Rgb(80, 80, 80)),
 
             diff_header: Style::default()
                 .fg(Color::Blue)
@@ -57,10 +65,11 @@ impl Default for Theme {
             diff_context: Style::default().fg(Color::Rgb(180, 180, 180)),
             diff_modify: Style::default().fg(Color::Yellow),
 
-            header: Style::default()
-                .bg(Color::Rgb(30, 30, 30))
-                .fg(Color::White)
+            header_logo: Style::default()
+                .bg(Color::Cyan)
+                .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
+            header: Style::default().bg(Color::Rgb(40, 40, 40)).fg(Color::White),
             footer: Style::default()
                 .bg(Color::Rgb(30, 30, 30))
                 .fg(Color::Rgb(150, 150, 150)),
@@ -71,7 +80,7 @@ impl Default for Theme {
             status_error: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
 
             highlight: Style::default()
-                .bg(Color::Rgb(45, 45, 45))
+                .bg(Color::Rgb(50, 50, 50))
                 .add_modifier(Modifier::BOLD),
         }
     }
