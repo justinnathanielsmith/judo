@@ -19,13 +19,17 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 
+use std::sync::Arc;
+
+const TICK_RATE: Duration = Duration::from_millis(250);
+
 pub async fn run_loop<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app_state: AppState<'_>,
     adapter: Arc<dyn VcsFacade>,
 ) -> Result<()> {
     let (action_tx, mut action_rx) = mpsc::channel(100);
-    let mut interval = interval(Duration::from_millis(250));
+    let mut interval = interval(TICK_RATE);
     let theme = Theme::default();
 
     // User input channel
