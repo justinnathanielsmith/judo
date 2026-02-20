@@ -21,11 +21,14 @@ use futures::StreamExt;
 use jj_lib::matchers::{EverythingMatcher, NothingMatcher};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
 
 pub struct JjAdapter {
     workspace: Arc<Mutex<Workspace>>,
 }
+
+const MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
 
 impl JjAdapter {
     pub fn new() -> Result<Self> {
@@ -235,16 +238,24 @@ impl VcsFacade for JjAdapter {
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
                 diff.before.into_resolved()
             {
-                let mut reader = repo.store().read_file(&entry.path, &id).await?;
-                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut old_content).await?;
+                let mut reader = repo.store().read_file(&entry.path, &id).await?.take(MAX_DIFF_SIZE + 1);
+                reader.read_to_end(&mut old_content).await?;
+                if old_content.len() as u64 > MAX_DIFF_SIZE {
+                    output.push_str(&format!("File {} is too large to diff\n\n", path_str));
+                    continue;
+                }
             }
 
             let mut new_content = Vec::new();
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
                 diff.after.into_resolved()
             {
-                let mut reader = repo.store().read_file(&entry.path, &id).await?;
-                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut new_content).await?;
+                let mut reader = repo.store().read_file(&entry.path, &id).await?.take(MAX_DIFF_SIZE + 1);
+                reader.read_to_end(&mut new_content).await?;
+                if new_content.len() as u64 > MAX_DIFF_SIZE {
+                    output.push_str(&format!("File {} is too large to diff\n\n", path_str));
+                    continue;
+                }
             }
 
             // Simple binary check: check for null bytes in the first 1KB
