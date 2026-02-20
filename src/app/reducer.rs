@@ -295,3 +295,26 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scroll_diff() {
+        let mut state = AppState::default();
+        state.diff_scroll = 10;
+
+        // Test ScrollDiffUp normal
+        update(&mut state, Action::ScrollDiffUp(5));
+        assert_eq!(state.diff_scroll, 5);
+
+        // Test ScrollDiffUp saturating
+        update(&mut state, Action::ScrollDiffUp(10));
+        assert_eq!(state.diff_scroll, 0);
+
+        // Test ScrollDiffDown
+        update(&mut state, Action::ScrollDiffDown(15));
+        assert_eq!(state.diff_scroll, 15);
+    }
+}
