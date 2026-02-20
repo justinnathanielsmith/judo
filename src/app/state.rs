@@ -1,7 +1,10 @@
 use crate::domain::models::{CommitId, RepoStatus};
-use ratatui::widgets::TableState;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::widgets::{TableState, Widget};
 use std::collections::HashMap;
-use tui_textarea::TextArea;
+use std::ops::{Deref, DerefMut};
+use tui_textarea::{CursorMove, TextArea};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppMode {
@@ -12,9 +15,58 @@ pub enum AppMode {
     Loading,      // Blocking interaction (optional, often better handled with a flag)
 }
 
-// Cannot derive Debug/Clone/PartialEq easily because TextArea doesn't support them all or is heavy
-// So we wrap TextArea in a struct or just keep it in AppState and implement Debug manually if needed.
-// For now, we will assume standard usage.
+pub struct AppTextArea<'a>(pub TextArea<'a>);
+
+impl<'a> Default for AppTextArea<'a> {
+    fn default() -> Self {
+        Self(TextArea::default())
+    }
+}
+
+impl<'a> Clone for AppTextArea<'a> {
+    fn clone(&self) -> Self {
+        let mut area = TextArea::new(self.0.lines().iter().map(|s| s.to_string()).collect());
+        let (row, col) = self.0.cursor();
+        area.move_cursor(CursorMove::Jump(row as u16, col as u16));
+        Self(area)
+    }
+}
+
+impl<'a> std::fmt::Debug for AppTextArea<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppTextArea")
+            .field("lines", &self.0.lines())
+            .field("cursor", &self.0.cursor())
+            .finish()
+    }
+}
+
+impl<'a> PartialEq for AppTextArea<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.lines() == other.0.lines() && self.0.cursor() == other.0.cursor()
+    }
+}
+
+impl<'a> Deref for AppTextArea<'a> {
+    type Target = TextArea<'a>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for AppTextArea<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> Widget for &AppTextArea<'a> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        Widget::render(&self.0, area, buf);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AppState<'a> {
     // --- Connectivity & Status ---
     pub should_quit: bool,
@@ -38,7 +90,7 @@ pub struct AppState<'a> {
     pub diff_cache: HashMap<CommitId, String>,
 
     // --- Input Handling ---
-    pub text_area: TextArea<'a>,
+    pub text_area: AppTextArea<'a>,
 }
 
 impl<'a> Default for AppState<'a> {
@@ -54,7 +106,7 @@ impl<'a> Default for AppState<'a> {
             is_loading_diff: false,
             diff_scroll: 0,
             diff_cache: HashMap::new(),
-            text_area: TextArea::default(),
+            text_area: AppTextArea::default(),
         }
     }
 }
