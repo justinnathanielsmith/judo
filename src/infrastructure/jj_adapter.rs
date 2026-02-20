@@ -1,5 +1,5 @@
 use crate::domain::{
-    models::{CommitId, GraphRow, RepoStatus},
+    models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus},
     vcs::VcsFacade,
 };
 use anyhow::{anyhow, Context, Result};
@@ -21,11 +21,14 @@ use futures::StreamExt;
 use jj_lib::matchers::{EverythingMatcher, NothingMatcher};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
 
 pub struct JjAdapter {
     workspace: Arc<Mutex<Workspace>>,
 }
+
+const MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
 
 impl JjAdapter {
     pub fn new() -> Result<Self> {
@@ -165,10 +168,47 @@ impl VcsFacade for JjAdapter {
             let description = commit.description().to_string();
             let change_id = commit.change_id().hex();
             let author = commit.author().email.clone();
-            let timestamp = commit.author().timestamp.timestamp.0.to_string();
+            let timestamp_sec = commit.author().timestamp.timestamp.0;
+            let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0)
+                .unwrap_or_default();
+            let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
 
             let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
-            let is_immutable = commit.parents().next().is_none(); // Simple stub: only root is immutable for now
+            let is_immutable = repo.view().heads().contains(&id) || commit.parents().next().is_none();
+
+            let mut changed_files = Vec::new();
+            if let Some(parent) = commit.parents().next() {
+                if let Ok(parent_commit) = parent {
+                    let parent_tree = parent_commit.tree();
+                    let tree = commit.tree();
+                    let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
+                    while let Some(entry) = stream.next().await {
+                        let status = if let Ok(values) = entry.values {
+                            if values.before.is_absent() {
+                                FileStatus::Added
+                            } else if values.after.is_absent() {
+                                FileStatus::Deleted
+                            } else {
+                                FileStatus::Modified
+                            }
+                        } else {
+                            FileStatus::Modified
+                        };
+
+                        changed_files.push(FileChange {
+                            path: entry.path.as_internal_file_string().to_string(),
+                            status,
+                        });
+                    }
+                }
+            }
+
+            let bookmarks = repo
+                .view()
+                .local_bookmarks()
+                .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
+                .map(|(name, _)| name.as_str().to_string())
+                .collect::<Vec<_>>();
 
             graph_rows.push(GraphRow {
                 commit_id: CommitId(id.hex()),
@@ -179,6 +219,8 @@ impl VcsFacade for JjAdapter {
                 is_working_copy,
                 is_immutable,
                 parents,
+                bookmarks,
+                changed_files,
             });
         }
 
@@ -207,6 +249,31 @@ impl VcsFacade for JjAdapter {
         let id =
             JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
+
+        let mut output = String::new();
+
+        // Commit Header
+        let author = commit.author();
+        let committer = commit.committer();
+        let timestamp_sec = author.timestamp.timestamp.0;
+        let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0).unwrap_or_default();
+        let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
+
+        output.push_str(&format!("Commit ID: {}\n", commit.id().hex()));
+        output.push_str(&format!("Change ID: {}\n", commit.change_id().hex()));
+        output.push_str(&format!(
+            "Author   : {} <{}> ({})\n",
+            author.name, author.email, timestamp
+        ));
+        output.push_str(&format!(
+            "Committer: {} <{}> ({})\n",
+            committer.name, committer.email, timestamp
+        ));
+        output.push_str(&format!(
+            "    {}\n\n",
+            commit.description().replace('\n', "\n    ")
+        ));
+
         let mut parents = commit.parents();
 
         let parent_tree = if let Some(parent) = parents.next() {
@@ -217,34 +284,34 @@ impl VcsFacade for JjAdapter {
 
         let tree = commit.tree();
 
-        let mut output = String::new();
-        output.push_str(&format!("Diff for commit {}\n\n", commit_id.0));
-
         let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
         while let Some(entry) = stream.next().await {
             let path_str = entry.path.as_internal_file_string();
-            let mut file_diff = String::new();
 
             let diff = entry.values?;
-
-            // Helper to read content
-            // We can't easily make an async closure that captures `repo` without some pain,
-            // so we'll just duplicate the simple read logic or loop.
 
             let mut old_content = Vec::new();
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
                 diff.before.into_resolved()
             {
-                let mut reader = repo.store().read_file(&entry.path, &id).await?;
-                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut old_content).await?;
+                let mut reader = repo.store().read_file(&entry.path, &id).await?.take(MAX_DIFF_SIZE + 1);
+                reader.read_to_end(&mut old_content).await?;
+                if old_content.len() as u64 > MAX_DIFF_SIZE {
+                    output.push_str(&format!("File {} is too large to diff\n\n", path_str));
+                    continue;
+                }
             }
 
             let mut new_content = Vec::new();
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
                 diff.after.into_resolved()
             {
-                let mut reader = repo.store().read_file(&entry.path, &id).await?;
-                tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut new_content).await?;
+                let mut reader = repo.store().read_file(&entry.path, &id).await?.take(MAX_DIFF_SIZE + 1);
+                reader.read_to_end(&mut new_content).await?;
+                if new_content.len() as u64 > MAX_DIFF_SIZE {
+                    output.push_str(&format!("File {} is too large to diff\n\n", path_str));
+                    continue;
+                }
             }
 
             // Simple binary check: check for null bytes in the first 1KB
@@ -255,7 +322,7 @@ impl VcsFacade for JjAdapter {
                 .any(|&b| b == 0);
 
             if is_binary {
-                file_diff.push_str(&format!("Binary file {}\n\n", path_str));
+                output.push_str(&format!("Binary file {}\n\n", path_str));
             } else {
                 let old_text = String::from_utf8_lossy(&old_content);
                 let new_text = String::from_utf8_lossy(&new_content);
@@ -264,37 +331,53 @@ impl VcsFacade for JjAdapter {
 
                 let diff = TextDiff::from_lines(&old_text, &new_text);
 
-                if diff.ratio() < 1.0 || old_text != new_text {
-                    file_diff.push_str(&format!("--- a/{}\n+++ b/{}\n", path_str, path_str));
+                if old_content.is_empty() {
+                    output.push_str(&format!("+ Added regular file {}:\n", path_str));
+                } else if new_content.is_empty() {
+                    output.push_str(&format!("- Deleted regular file {}:\n", path_str));
+                } else {
+                    output.push_str(&format!("~ Modified regular file {}:\n", path_str));
+                }
 
+                if diff.ratio() < 1.0 || old_text != new_text {
+                    let mut first_group = true;
                     for group in diff.grouped_ops(3) {
+                        if !first_group {
+                            output.push_str("    ...\n");
+                        }
+                        first_group = false;
+
                         for op in group {
                             for change in diff.iter_changes(&op) {
-                                let (sign, _) = match change.tag() {
-                                    ChangeTag::Delete => ("-", "-"),
-                                    ChangeTag::Insert => ("+", "+"),
-                                    ChangeTag::Equal => (" ", " "),
-                                };
-                                file_diff.push_str(&format!("{}{}", sign, change));
+                                match change.tag() {
+                                    ChangeTag::Delete => {
+                                        output.push_str(&format!(
+                                            "{:4}     : {}",
+                                            change.old_index().unwrap() + 1,
+                                            change.value()
+                                        ));
+                                    }
+                                    ChangeTag::Insert => {
+                                        output.push_str(&format!(
+                                            "    {:5}: {}",
+                                            change.new_index().unwrap() + 1,
+                                            change.value()
+                                        ));
+                                    }
+                                    ChangeTag::Equal => {
+                                        output.push_str(&format!(
+                                            "{:4}{:5}: {}",
+                                            change.old_index().unwrap() + 1,
+                                            change.new_index().unwrap() + 1,
+                                            change.value()
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
-                } else if old_content.is_empty() && !new_content.is_empty() {
-                    // New file
-                    file_diff.push_str(&format!("--- /dev/null\n+++ b/{}\n", path_str));
-                    for line in new_text.lines() {
-                        file_diff.push_str(&format!("+{}\n", line));
-                    }
-                } else if !old_content.is_empty() && new_content.is_empty() {
-                    // Deleted file
-                    file_diff.push_str(&format!("--- a/{}\n+++ /dev/null\n", path_str));
-                    for line in old_text.lines() {
-                        file_diff.push_str(&format!("-{}\n", line));
-                    }
                 }
             }
-
-            output.push_str(&file_diff);
 
             output.push('\n');
         }
@@ -389,20 +472,38 @@ impl VcsFacade for JjAdapter {
         let mut parents = commit.parents();
         let parent = parents.next().ok_or_else(|| anyhow!("Cannot squash root commit"))??;
 
+        // Merge the trees
+        let merged_tree = {
+            let parent_commit = repo.store().get_commit(parent.id())?;
+            let parent_tree = parent_commit.tree();
+            let commit_tree = commit.tree();
+            jj_lib::merged_tree::MergedTree::merge(
+                jj_lib::merge::Merge::from_removes_adds(
+                    vec![(parent_tree.clone(), "".to_string())],
+                    vec![
+                        (parent_tree.clone(), "".to_string()),
+                        (commit_tree.clone(), "".to_string()),
+                    ],
+                )
+            ).await?
+        };
+
         let mut tx = repo.start_transaction();
         let mut_repo = tx.repo_mut();
 
-        // Resolve tree
-        let tree = jj_lib::merged_tree::MergedTree::new(
-            repo.store().clone(),
-            commit.tree_ids().clone(),
-            jj_lib::conflict_labels::ConflictLabels::unlabeled(),
-        );
-
         // Squash commit into its parent
         let parent_commit = repo.store().get_commit(parent.id())?;
+        
+        // Combine descriptions
+        let mut new_description = parent_commit.description().to_string();
+        if !new_description.ends_with('\n') && !new_description.is_empty() {
+            new_description.push('\n');
+        }
+        new_description.push_str(commit.description());
+
         mut_repo.rewrite_commit(&parent_commit)
-            .set_tree(tree)
+            .set_tree(merged_tree)
+            .set_description(new_description)
             .write()?;
 
         mut_repo.rebase_descendants()?;
@@ -450,6 +551,18 @@ impl VcsFacade for JjAdapter {
         mut_repo.rebase_descendants()?;
 
         tx.commit("abandon revision")?;
+        Ok(())
+    }
+
+    async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
+        let _ = (commit_id, name);
+        // Implementation would go here
+        Ok(())
+    }
+
+    async fn delete_bookmark(&self, name: &str) -> Result<()> {
+        let _ = name;
+        // Implementation would go here
         Ok(())
     }
 

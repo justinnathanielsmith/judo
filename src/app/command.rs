@@ -10,6 +10,8 @@ pub enum Command {
     Squash(CommitId),
     New(CommitId),
     Abandon(CommitId),
+    SetBookmark(CommitId, String),
+    DeleteBookmark(String),
     Undo,
     Redo,
 }

@@ -11,10 +11,12 @@ pub enum Action {
     // --- Navigation (Log View) ---
     SelectNext,
     SelectPrev,
+    SelectIndex(usize),
     ScrollDiffUp(u16),
     ScrollDiffDown(u16),
     NextHunk,
     PrevHunk,
+    ToggleDiffs,
 
     // --- JJ Domain Intents ---
     // These trigger async tasks
@@ -25,13 +27,23 @@ pub enum Action {
     DescribeRevisionIntent,             // Start describing the selected revision
     DescribeRevision(CommitId, String), // `jj describe <rev> -m "msg"`
     AbandonRevision(CommitId),          // `jj abandon <rev>`
+    SetBookmarkIntent,                  // Start setting a bookmark
+    SetBookmark(CommitId, String),      // `jj bookmark set <name> -r <rev>`
+    DeleteBookmark(String),             // `jj bookmark delete <name>`
     Undo,                               // `jj undo`
     Redo,                               // `jj redo`
 
     // --- UI Mode Transitions ---
-    EnterCommandMode, // Open command palette (:)
-    EnterSquashMode,  // Open squash selection modal
-    CancelMode,       // ESC key (close modal/mode)
+    EnterCommandMode,                      // Open command palette (:)
+    EnterSquashMode,                       // Open squash selection modal
+    FocusDiff,                             // Switch focus to diff window
+    FocusGraph,                            // Switch focus to revision graph
+    CancelMode,                            // ESC key (close modal/mode)
+    OpenContextMenu(CommitId, (u16, u16)), // Open menu at position
+    SelectContextMenuAction(usize),        // Select action by index
+    SelectContextMenuNext,                 // Next item in menu
+    SelectContextMenuPrev,                 // Prev item in menu
+    CloseContextMenu,                      // Close the menu
 
     // --- Async Results (The "Callback") ---
     // These are dispatched by your async workers back to the main thread

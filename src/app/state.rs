@@ -1,3 +1,4 @@
+use super::action::Action;
 use crate::domain::models::{CommitId, RepoStatus};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -5,14 +6,28 @@ use ratatui::widgets::{TableState, Widget};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use tui_textarea::{CursorMove, TextArea};
+use std::time::Instant;
+use tui_textarea::TextArea;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AppMode {
-    Normal,       // Navigating the log
-    Command,      // Typing a command like ":q" or ":new"
-    SquashSelect, // Selecting a target to squash into
-    Input,        // A generic text input modal (e.g., for commit messages)
-    Loading,      // Blocking interaction (optional, often better handled with a flag)
+    Normal,        // Navigating the log
+    Command,       // Typing a command like ":q" or ":new"
+    SquashSelect,  // Selecting a target to squash into
+    BookmarkInput, // Inputting a bookmark name
+    Input,         // A generic text input modal (e.g., for commit messages)
+    Loading,       // Blocking interaction (optional, often better handled with a flag)
+    Diff,          // Focusing the diff window for scrolling
+    ContextMenu,   // Right-click menu for actions
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextMenuState {
+    pub commit_id: CommitId,
+    pub x: u16,
+    pub y: u16,
+    pub selected_index: usize,
+    pub actions: Vec<(String, Action)>,
 }
 
 pub struct AppTextArea<'a>(pub TextArea<'a>);
@@ -88,9 +103,20 @@ pub struct AppState<'a> {
     pub is_loading_diff: bool,
     pub diff_scroll: u16,
     pub diff_cache: HashMap<CommitId, String>,
+    pub show_diffs: bool,
 
     // --- Input Handling ---
     pub text_area: AppTextArea<'a>,
+
+    // --- Click Tracking ---
+    pub last_click_time: Option<Instant>,
+    pub last_click_pos: Option<(u16, u16)>,
+
+    // --- Context Menu ---
+    pub context_menu: Option<ContextMenuState>,
+
+    // --- Animation ---
+    pub frame_count: u64,
 }
 
 impl<'a> Default for AppState<'a> {
@@ -107,6 +133,11 @@ impl<'a> Default for AppState<'a> {
             diff_scroll: 0,
             diff_cache: HashMap::new(),
             text_area: AppTextArea::default(),
+            show_diffs: false,
+            last_click_time: None,
+            last_click_pos: None,
+            context_menu: None,
+            frame_count: 0,
         }
     }
 }
