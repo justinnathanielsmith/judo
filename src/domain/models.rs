@@ -10,6 +10,19 @@ impl fmt::Display for CommitId {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum FileStatus {
+    Added,
+    Modified,
+    Deleted,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileChange {
+    pub path: String,
+    pub status: FileStatus,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct GraphRow {
     pub commit_id: CommitId,
     pub change_id: String,
@@ -19,6 +32,8 @@ pub struct GraphRow {
     pub is_working_copy: bool,
     pub is_immutable: bool,
     pub parents: Vec<CommitId>,
+    pub bookmarks: Vec<String>,
+    pub changed_files: Vec<FileChange>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
