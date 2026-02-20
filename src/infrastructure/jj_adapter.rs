@@ -171,7 +171,7 @@ impl VcsFacade for JjAdapter {
             let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
 
             let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
-            let is_immutable = commit.parents().next().is_none(); // Simple stub: only root is immutable for now
+            let is_immutable = repo.view().heads().contains(&id) || commit.parents().next().is_none();
 
             let mut changed_files = Vec::new();
             if let Some(parent) = commit.parents().next() {
@@ -246,6 +246,31 @@ impl VcsFacade for JjAdapter {
         let id =
             JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
         let commit = repo.store().get_commit(&id)?;
+
+        let mut output = String::new();
+
+        // Commit Header
+        let author = commit.author();
+        let committer = commit.committer();
+        let timestamp_sec = author.timestamp.timestamp.0;
+        let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0).unwrap_or_default();
+        let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
+
+        output.push_str(&format!("Commit ID: {}\n", commit.id().hex()));
+        output.push_str(&format!("Change ID: {}\n", commit.change_id().hex()));
+        output.push_str(&format!(
+            "Author   : {} <{}> ({})\n",
+            author.name, author.email, timestamp
+        ));
+        output.push_str(&format!(
+            "Committer: {} <{}> ({})\n",
+            committer.name, committer.email, timestamp
+        ));
+        output.push_str(&format!(
+            "    {}\n\n",
+            commit.description().replace('\n', "\n    ")
+        ));
+
         let mut parents = commit.parents();
 
         let parent_tree = if let Some(parent) = parents.next() {
@@ -256,19 +281,11 @@ impl VcsFacade for JjAdapter {
 
         let tree = commit.tree();
 
-        let mut output = String::new();
-        output.push_str(&format!("Diff for commit {}\n\n", commit_id.0));
-
         let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
         while let Some(entry) = stream.next().await {
             let path_str = entry.path.as_internal_file_string();
-            let mut file_diff = String::new();
 
             let diff = entry.values?;
-
-            // Helper to read content
-            // We can't easily make an async closure that captures `repo` without some pain,
-            // so we'll just duplicate the simple read logic or loop.
 
             let mut old_content = Vec::new();
             if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
@@ -294,7 +311,7 @@ impl VcsFacade for JjAdapter {
                 .any(|&b| b == 0);
 
             if is_binary {
-                file_diff.push_str(&format!("Binary file {}\n\n", path_str));
+                output.push_str(&format!("Binary file {}\n\n", path_str));
             } else {
                 let old_text = String::from_utf8_lossy(&old_content);
                 let new_text = String::from_utf8_lossy(&new_content);
@@ -303,37 +320,53 @@ impl VcsFacade for JjAdapter {
 
                 let diff = TextDiff::from_lines(&old_text, &new_text);
 
-                if diff.ratio() < 1.0 || old_text != new_text {
-                    file_diff.push_str(&format!("--- a/{}\n+++ b/{}\n", path_str, path_str));
+                if old_content.is_empty() {
+                    output.push_str(&format!("+ Added regular file {}:\n", path_str));
+                } else if new_content.is_empty() {
+                    output.push_str(&format!("- Deleted regular file {}:\n", path_str));
+                } else {
+                    output.push_str(&format!("~ Modified regular file {}:\n", path_str));
+                }
 
+                if diff.ratio() < 1.0 || old_text != new_text {
+                    let mut first_group = true;
                     for group in diff.grouped_ops(3) {
+                        if !first_group {
+                            output.push_str("    ...\n");
+                        }
+                        first_group = false;
+
                         for op in group {
                             for change in diff.iter_changes(&op) {
-                                let (sign, _) = match change.tag() {
-                                    ChangeTag::Delete => ("-", "-"),
-                                    ChangeTag::Insert => ("+", "+"),
-                                    ChangeTag::Equal => (" ", " "),
-                                };
-                                file_diff.push_str(&format!("{}{}", sign, change));
+                                match change.tag() {
+                                    ChangeTag::Delete => {
+                                        output.push_str(&format!(
+                                            "{:4}     : {}",
+                                            change.old_index().unwrap() + 1,
+                                            change.value()
+                                        ));
+                                    }
+                                    ChangeTag::Insert => {
+                                        output.push_str(&format!(
+                                            "    {:5}: {}",
+                                            change.new_index().unwrap() + 1,
+                                            change.value()
+                                        ));
+                                    }
+                                    ChangeTag::Equal => {
+                                        output.push_str(&format!(
+                                            "{:4}{:5}: {}",
+                                            change.old_index().unwrap() + 1,
+                                            change.new_index().unwrap() + 1,
+                                            change.value()
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
-                } else if old_content.is_empty() && !new_content.is_empty() {
-                    // New file
-                    file_diff.push_str(&format!("--- /dev/null\n+++ b/{}\n", path_str));
-                    for line in new_text.lines() {
-                        file_diff.push_str(&format!("+{}\n", line));
-                    }
-                } else if !old_content.is_empty() && new_content.is_empty() {
-                    // Deleted file
-                    file_diff.push_str(&format!("--- a/{}\n+++ /dev/null\n", path_str));
-                    for line in old_text.lines() {
-                        file_diff.push_str(&format!("-{}\n", line));
-                    }
                 }
             }
-
-            output.push_str(&file_diff);
 
             output.push('\n');
         }

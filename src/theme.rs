@@ -9,7 +9,8 @@ pub struct Theme {
     pub graph_node_immutable: Style,
     pub graph_line: Style,
 
-    pub change_id: Style,
+    pub change_id_mutable: Style,
+    pub change_id_immutable: Style,
     pub bookmark: Style,
 
     pub diff_header: Style,
@@ -47,10 +48,11 @@ impl Default for Theme {
             graph_node_mutable: Style::default()
                 .fg(Color::Magenta)
                 .add_modifier(Modifier::BOLD),
-            graph_node_immutable: Style::default().fg(Color::Rgb(100, 100, 100)),
+            graph_node_immutable: Style::default().fg(Color::Blue),
             graph_line: Style::default().fg(Color::Rgb(100, 100, 100)),
 
-            change_id: Style::default().fg(Color::Cyan),
+            change_id_mutable: Style::default().fg(Color::Magenta),
+            change_id_immutable: Style::default().fg(Color::Blue),
             bookmark: Style::default()
                 .fg(Color::Green)
                 .add_modifier(Modifier::BOLD),

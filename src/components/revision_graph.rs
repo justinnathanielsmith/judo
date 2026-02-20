@@ -56,11 +56,11 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             for (lane_idx, lane_commit) in lanes.iter().enumerate() {
                 if lane_idx == current_lane {
                     let (symbol, style) = if row.is_working_copy {
-                        ("◎", self.theme.graph_node_wc)
+                        ("@", self.theme.graph_node_wc)
                     } else if row.is_immutable {
-                        ("◇", self.theme.graph_node_immutable)
+                        ("◆", self.theme.graph_node_immutable)
                     } else {
-                        ("●", self.theme.graph_node_mutable)
+                        ("○", self.theme.graph_node_mutable)
                     };
                     line_1_graph.push(Span::styled(symbol, style));
                 } else if lane_commit.is_some() {
@@ -106,27 +106,43 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             let change_id_short = row.change_id.get(0..8).unwrap_or(&row.change_id);
             let commit_id_short = row.commit_id.0.get(0..8).unwrap_or(&row.commit_id.0);
 
+            let change_id_style = if row.is_immutable {
+                self.theme.change_id_immutable
+            } else {
+                self.theme.change_id_mutable
+            };
+
             let mut line_1_details = vec![
-                Span::styled(change_id_short.to_string(), self.theme.change_id),
+                Span::styled(change_id_short.to_string(), change_id_style),
                 Span::raw(" "),
                 Span::styled(row.author.clone(), self.theme.author),
                 Span::raw(" "),
                 Span::styled(row.timestamp.clone(), self.theme.timestamp),
                 Span::raw(" "),
-                Span::styled(commit_id_short.to_string(), self.theme.commit_id_dim), // Dimmed commit ID
             ];
 
             // Add bookmarks if any
             for bookmark in &row.bookmarks {
+                line_1_details.push(Span::styled(bookmark.clone(), self.theme.bookmark));
                 line_1_details.push(Span::raw(" "));
-                line_1_details.push(Span::styled(format!("({})", bookmark), self.theme.bookmark));
             }
+
+            line_1_details.push(Span::styled(
+                commit_id_short.to_string(),
+                self.theme.commit_id_dim,
+            ));
             detail_lines.push(Line::from(line_1_details));
 
             // Line 2: Description
-            detail_lines.push(Line::from(Span::raw(
-                row.description.lines().next().unwrap_or("").to_string(),
-            )));
+            let description = row.description.lines().next().unwrap_or("");
+            if description.is_empty() {
+                detail_lines.push(Line::from(Span::styled(
+                    "(no description set)",
+                    self.theme.timestamp,
+                )));
+            } else {
+                detail_lines.push(Line::from(Span::raw(description.to_string())));
+            }
 
             // Line 3+: Files
             if show_files {
@@ -148,8 +164,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
         }
 
         let table = Table::new(rows, [Constraint::Length(12), Constraint::Min(0)])
-            .row_highlight_style(self.theme.highlight)
-            .highlight_symbol(">> ");
+            .row_highlight_style(self.theme.highlight);
 
         StatefulWidget::render(table, area, buf, state);
     }
