@@ -164,6 +164,8 @@ pub async fn run_loop<B: Backend>(
                                         } else { None }
                                     },
                                     KeyCode::Char('d') => Some(Action::DescribeRevisionIntent),
+                                    KeyCode::Char('u') => Some(Action::Undo),
+                                    KeyCode::Char('U') => Some(Action::Redo),
                                     KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                                     _ => None,
@@ -351,6 +353,38 @@ async fn handle_command(
                 match adapter.abandon(&commit_id).await {
                     Ok(_) => {
                         let _ = tx.send(Action::OperationCompleted(Ok("Revision abandoned".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::Undo => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted("Undoing...".to_string())).await;
+                match adapter.undo().await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok("Undo successful".to_string()))).await;
+                        if let Ok(repo) = adapter.get_operation_log().await {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::OperationCompleted(Err(format!("Error: {}", e)))).await;
+                    }
+                }
+            });
+        }
+        Command::Redo => {
+            tokio::spawn(async move {
+                let _ = tx.send(Action::OperationStarted("Redoing...".to_string())).await;
+                match adapter.redo().await {
+                    Ok(_) => {
+                        let _ = tx.send(Action::OperationCompleted(Ok("Redo successful".to_string()))).await;
                         if let Ok(repo) = adapter.get_operation_log().await {
                             let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
                         }

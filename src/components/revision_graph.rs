@@ -35,7 +35,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                             .unwrap_or(&row.change_id)
                             .to_string(),
                     ),
-                    Cell::from(row.description.clone()),
+                    Cell::from(row.description.lines().next().unwrap_or("").to_string()),
                     Cell::from(row.author.clone()),
                 ])
                 .style(style)

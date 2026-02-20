@@ -10,4 +10,6 @@ pub enum Command {
     Squash(CommitId),
     New(CommitId),
     Abandon(CommitId),
+    Undo,
+    Redo,
 }

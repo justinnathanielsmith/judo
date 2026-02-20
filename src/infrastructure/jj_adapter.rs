@@ -163,16 +163,13 @@ impl VcsFacade for JjAdapter {
                 queue.push_back(parent.id().clone());
             }
 
-            let description = commit
-                .description()
-                .lines()
-                .next()
-                .unwrap_or("")
-                .to_string();
+            let description = commit.description().to_string();
             let change_id = commit.change_id().hex();
             let author = commit.author().email.clone();
             // Timestamp fix: timestamp struct -> timestamp field -> 0 (millis)
             let timestamp = commit.author().timestamp.timestamp.0.to_string();
+
+            let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
 
             graph_rows.push(GraphRow {
                 commit_id: CommitId(id.hex()),
@@ -180,7 +177,7 @@ impl VcsFacade for JjAdapter {
                 description,
                 author,
                 timestamp,
-                is_working_copy: false,
+                is_working_copy,
             });
         }
 
@@ -452,6 +449,16 @@ impl VcsFacade for JjAdapter {
         mut_repo.rebase_descendants()?;
 
         tx.commit("abandon revision")?;
+        Ok(())
+    }
+
+    async fn undo(&self) -> Result<()> {
+        // TBD: Implementation of operation undo
+        Ok(())
+    }
+
+    async fn redo(&self) -> Result<()> {
+        // TBD: Implementation of operation redo
         Ok(())
     }
 }

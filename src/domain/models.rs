@@ -13,7 +13,7 @@ impl fmt::Display for CommitId {
 pub struct GraphRow {
     pub commit_id: CommitId,
     pub change_id: String,
-    pub description: String,
+    pub description: String, // Full description now
     pub author: String,
     pub timestamp: String,
     pub is_working_copy: bool,

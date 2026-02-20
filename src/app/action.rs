@@ -23,6 +23,8 @@ pub enum Action {
     DescribeRevisionIntent,             // Start describing the selected revision
     DescribeRevision(CommitId, String), // `jj describe <rev> -m "msg"`
     AbandonRevision(CommitId),          // `jj abandon <rev>`
+    Undo,                               // `jj undo`
+    Redo,                               // `jj redo`
 
     // --- UI Mode Transitions ---
     EnterCommandMode, // Open command palette (:)

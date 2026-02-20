@@ -84,6 +84,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::AbandonRevision(commit_id) => {
             return Some(Command::Abandon(commit_id));
         }
+        Action::Undo => {
+            return Some(Command::Undo);
+        }
+        Action::Redo => {
+            return Some(Command::Redo);
+        }
         Action::DescribeRevisionIntent => {
             state.mode = AppMode::Input;
             state.text_area = tui_textarea::TextArea::default();
@@ -132,14 +138,15 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::OperationCompleted(result) => {
             match result {
-                Ok(msg) => state.status_message = Some(msg),
+                Ok(msg) => {
+                    state.status_message = Some(msg);
+                    state.diff_cache.clear(); // Clear cache as operations might change history
+                }
                 Err(err) => state.last_error = Some(err),
             }
             if state.mode == AppMode::Loading {
                 state.mode = AppMode::Normal;
             }
-            // Clear cache after operations that might change history?
-            // For now, keep it simple.
         }
         Action::ErrorOccurred(err) => {
             state.last_error = Some(err);
