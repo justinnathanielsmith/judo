@@ -1,6 +1,7 @@
 use crate::domain::models::{CommitId, RepoStatus};
 use ratatui::widgets::TableState;
 use std::collections::HashMap;
+use std::time::Instant;
 use tui_textarea::TextArea;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +43,10 @@ pub struct AppState<'a> {
 
     // --- Input Handling ---
     pub text_area: TextArea<'a>,
+
+    // --- Click Tracking ---
+    pub last_click_time: Option<Instant>,
+    pub last_click_pos: Option<(u16, u16)>,
 }
 
 impl<'a> Default for AppState<'a> {
@@ -59,6 +64,8 @@ impl<'a> Default for AppState<'a> {
             diff_cache: HashMap::new(),
             show_diffs: false,
             text_area: TextArea::default(),
+            last_click_time: None,
+            last_click_pos: None,
         }
     }
 }

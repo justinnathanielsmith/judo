@@ -11,6 +11,7 @@ pub enum Action {
     // --- Navigation (Log View) ---
     SelectNext,
     SelectPrev,
+    SelectIndex(usize),
     ScrollDiffUp(u16),
     ScrollDiffDown(u16),
     NextHunk,

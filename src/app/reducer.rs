@@ -45,6 +45,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log_list_state.select(Some(i));
             return handle_selection(state);
         }
+        Action::SelectIndex(i) => {
+            state.log_list_state.select(Some(i));
+            return handle_selection(state);
+        }
         Action::ScrollDiffDown(amount) => {
             state.diff_scroll = state.diff_scroll.saturating_add(amount);
         }

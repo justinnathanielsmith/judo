@@ -5,7 +5,7 @@ use crate::domain::vcs::VcsFacade;
 use crate::theme::Theme;
 
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, MouseButton, MouseEventKind};
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
@@ -15,7 +15,7 @@ use ratatui::{
     Terminal,
 };
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 
@@ -227,6 +227,73 @@ pub async fn run_loop<B: Backend>(
                                     _ => None,
                                 }
                             }
+                            Event::Mouse(mouse) => {
+                                match mouse.kind {
+                                    MouseEventKind::ScrollUp => Some(Action::ScrollDiffUp(1)),
+                                    MouseEventKind::ScrollDown => Some(Action::ScrollDiffDown(1)),
+                                    MouseEventKind::Down(MouseButton::Left) => {
+                                        let now = Instant::now();
+                                        let is_double_click = app_state.last_click_time.map_or(false, |t| now.duration_since(t).as_millis() < 500)
+                                            && app_state.last_click_pos == Some((mouse.column, mouse.row));
+                                        app_state.last_click_time = Some(now);
+                                        app_state.last_click_pos = Some((mouse.column, mouse.row));
+
+                                        let size = terminal.size()?;
+                                        let area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
+                                        let main_chunks = Layout::default()
+                                            .direction(Direction::Vertical)
+                                            .constraints([
+                                                Constraint::Length(1), // Header
+                                                Constraint::Min(0),    // Body
+                                                Constraint::Length(1), // Footer
+                                            ])
+                                            .split(area);
+                                        let body_chunks = Layout::default()
+                                            .direction(Direction::Horizontal)
+                                            .constraints(if app_state.show_diffs {
+                                                [Constraint::Percentage(50), Constraint::Percentage(50)]
+                                            } else {
+                                                [Constraint::Percentage(100), Constraint::Percentage(0)]
+                                            })
+                                            .split(main_chunks[1]);
+                                        
+                                        // Revision Graph Area
+                                        let graph_area = body_chunks[0];
+                                        if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
+                                            && mouse.row >= graph_area.y + 1 && mouse.row < graph_area.y + graph_area.height - 1
+                                        {
+                                            if is_double_click {
+                                                Some(Action::ToggleDiffs)
+                                            } else {
+                                                let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
+                                                let offset = app_state.log_list_state.offset();
+                                                let mut result = None;
+                                                if let Some(repo) = &app_state.repo {
+                                                    let mut current_y = 0;
+                                                    for i in offset..repo.graph.len() {
+                                                        let row = &repo.graph[i];
+                                                        let is_selected = app_state.log_list_state.selected() == Some(i);
+                                                        let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
+                                                        
+                                                        if clicked_row >= current_y && clicked_row < current_y + row_height {
+                                                            result = Some(Action::SelectIndex(i));
+                                                            break;
+                                                        }
+                                                        current_y += row_height;
+                                                        if current_y > graph_area.height as usize {
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                result
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                }
+                            }
                             _ => None,
                         }
                     }
@@ -282,6 +349,87 @@ pub async fn run_loop<B: Backend>(
                                     _ => None,
                                 }
                             },
+                            Event::Mouse(mouse) => {
+                                let size = terminal.size()?;
+                                let area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
+                                let main_chunks = Layout::default()
+                                    .direction(Direction::Vertical)
+                                    .constraints([
+                                        Constraint::Length(1), // Header
+                                        Constraint::Min(0),    // Body
+                                        Constraint::Length(1), // Footer
+                                    ])
+                                    .split(area);
+                                let body_chunks = Layout::default()
+                                    .direction(Direction::Horizontal)
+                                    .constraints(if app_state.show_diffs {
+                                        [Constraint::Percentage(50), Constraint::Percentage(50)]
+                                    } else {
+                                        [Constraint::Percentage(100), Constraint::Percentage(0)]
+                                    })
+                                    .split(main_chunks[1]);
+
+                                let graph_area = body_chunks[0];
+                                let diff_area = body_chunks[1];
+
+                                match mouse.kind {
+                                    MouseEventKind::ScrollUp => {
+                                        if app_state.show_diffs && mouse.column >= diff_area.x && mouse.column < diff_area.x + diff_area.width {
+                                            Some(Action::ScrollDiffUp(1))
+                                        } else {
+                                            Some(Action::SelectPrev)
+                                        }
+                                    }
+                                    MouseEventKind::ScrollDown => {
+                                        if app_state.show_diffs && mouse.column >= diff_area.x && mouse.column < diff_area.x + diff_area.width {
+                                            Some(Action::ScrollDiffDown(1))
+                                        } else {
+                                            Some(Action::SelectNext)
+                                        }
+                                    }
+                                    MouseEventKind::Down(MouseButton::Left) => {
+                                        let now = Instant::now();
+                                        let is_double_click = app_state.last_click_time.map_or(false, |t| now.duration_since(t).as_millis() < 500)
+                                            && app_state.last_click_pos == Some((mouse.column, mouse.row));
+                                        app_state.last_click_time = Some(now);
+                                        app_state.last_click_pos = Some((mouse.column, mouse.row));
+
+                                        // Double click anywhere toggles the diff panel
+                                        if is_double_click {
+                                            Some(Action::ToggleDiffs)
+                                        } else if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
+                                            && mouse.row >= graph_area.y + 1 && mouse.row < graph_area.y + graph_area.height - 1
+                                        {
+                                            let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
+                                            let offset = app_state.log_list_state.offset();
+                                            let mut result = None;
+                                            if let Some(repo) = &app_state.repo {
+                                                let mut current_y = 0;
+                                                for i in offset..repo.graph.len() {
+                                                    let row = &repo.graph[i];
+                                                    let is_selected = app_state.log_list_state.selected() == Some(i);
+                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
+                                                    
+                                                    if clicked_row >= current_y && clicked_row < current_y + row_height {
+                                                        result = Some(Action::SelectIndex(i));
+                                                        break;
+                                                    }
+                                                    current_y += row_height;
+                                                    if current_y > graph_area.height as usize {
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            result
+                                        } else if app_state.show_diffs && mouse.column >= diff_area.x && mouse.column < diff_area.x + diff_area.width {
+                                            Some(Action::FocusDiff)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                }
+                            }
                             _ => None,
                         }
                     }
