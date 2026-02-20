@@ -1,43 +1,39 @@
-use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
+use crate::theme::Theme;
+use ratatui::{
+    buffer::Buffer,
+    layout::Rect,
+    text::{Line, Span},
+    widgets::{Paragraph, Widget, Wrap},
+};
 
 pub struct DiffView<'a> {
     pub diff_content: Option<&'a str>,
     pub scroll_offset: u16,
+    pub theme: &'a Theme,
 }
 
 impl<'a> Widget for DiffView<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        use ratatui::style::{Color, Style};
-        use ratatui::widgets::{Paragraph, Wrap};
-
         let content = self.diff_content.unwrap_or("No diff selected");
 
         let mut lines = Vec::new();
         for line in content.lines() {
-            let style = if line.starts_with("diff ")
-                || line.starts_with("index ")
-                || line.starts_with("--- ")
-                || line.starts_with("+++ ")
-            {
-                Style::default()
-                    .fg(Color::Blue)
-                    .add_modifier(ratatui::style::Modifier::BOLD)
+            let style = if line.starts_with("diff ") || line.starts_with("index ") {
+                self.theme.diff_header
+            } else if line.starts_with("--- ") || line.starts_with("+++ ") {
+                self.theme.diff_header
             } else if line.starts_with("@@") {
-                Style::default().fg(Color::Cyan)
+                self.theme.diff_hunk
             } else if line.starts_with('+') {
-                Style::default().fg(Color::Green)
+                self.theme.diff_add
             } else if line.starts_with('-') {
-                Style::default().fg(Color::Red)
+                self.theme.diff_remove
             } else if line.starts_with("File:") || line.starts_with("Diff for") {
-                Style::default()
-                    .fg(Color::Blue)
-                    .add_modifier(ratatui::style::Modifier::BOLD)
+                self.theme.diff_header
             } else {
-                Style::default()
+                self.theme.diff_context
             };
-            lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
-                line, style,
-            )));
+            lines.push(Line::from(Span::styled(line, style)));
         }
 
         Paragraph::new(lines)

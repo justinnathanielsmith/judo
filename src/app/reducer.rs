@@ -51,6 +51,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::ScrollDiffUp(amount) => {
             state.diff_scroll = state.diff_scroll.saturating_sub(amount);
         }
+        Action::ToggleDiffs => {
+            state.show_diffs = !state.show_diffs;
+        }
         Action::NextHunk => {
             if let Some(diff) = &state.current_diff {
                 let current_line = state.diff_scroll as usize;

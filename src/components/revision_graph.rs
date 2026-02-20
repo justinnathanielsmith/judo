@@ -1,14 +1,17 @@
-use crate::domain::models::RepoStatus;
+use crate::domain::models::{FileStatus, RepoStatus};
+use crate::theme::Theme;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
-    style::{Color, Modifier, Style},
+    style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, StatefulWidget, Table, TableState},
+    widgets::{Cell, Row, StatefulWidget, Table, TableState},
 };
 
 pub struct RevisionGraph<'a> {
     pub repo: &'a RepoStatus,
+    pub theme: &'a Theme,
+    pub show_diffs: bool,
 }
 
 impl<'a> StatefulWidget for RevisionGraph<'a> {
@@ -35,29 +38,40 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     }
                 });
 
-            // Prepare graph column representation
-            let mut graph_col = String::new();
+            let num_files = if row.is_working_copy && self.show_diffs {
+                row.changed_files.len()
+            } else {
+                0
+            };
+            let row_height = 2 + num_files as u16;
+
+            // Prepare Graph Column
+            let mut graph_lines = Vec::new();
+
+            // Graph Line 1: Node symbol and existing pipes
+            let mut line_1_graph = Vec::new();
             for (lane_idx, lane_commit) in lanes.iter().enumerate() {
                 if lane_idx == current_lane {
-                    let symbol = if row.is_working_copy {
-                        "@"
+                    let (symbol, style) = if row.is_working_copy {
+                        ("◎", self.theme.graph_node_wc)
                     } else if row.is_immutable {
-                        "o"
+                        ("◇", self.theme.graph_node_immutable)
                     } else {
-                        "*"
+                        ("●", self.theme.graph_node_mutable)
                     };
-                    graph_col.push_str(symbol);
+                    line_1_graph.push(Span::styled(symbol, style));
                 } else if lane_commit.is_some() {
-                    graph_col.push('|');
+                    line_1_graph.push(Span::styled("│", self.theme.graph_line));
                 } else {
-                    graph_col.push(' ');
+                    line_1_graph.push(Span::raw(" "));
                 }
             }
+            // Add spacing after graph for the "flow" look
+            line_1_graph.push(Span::raw("  "));
+            graph_lines.push(Line::from(line_1_graph));
 
-            // Update lanes for children (next rows)
-            // Remove current commit from its lane
+            // Update lanes for parents
             lanes[current_lane] = None;
-            // Add parents to lanes (if not already there)
             for parent in &row.parents {
                 if !lanes.iter().any(|l| l.as_ref() == Some(&parent.0)) {
                     if let Some(pos) = lanes.iter().position(|l| l.is_none()) {
@@ -68,72 +82,71 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 }
             }
 
-            let is_wc = row.is_working_copy;
-            let style = if is_wc {
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else if row.is_immutable {
-                Style::default().fg(Color::Blue)
-            } else {
-                Style::default().fg(Color::Magenta)
-            };
+            // Subsequent Graph Lines: Connector pipes
+            for _ in 1..row_height {
+                let mut connector_line = Vec::new();
+                for lane_commit in lanes.iter() {
+                    if lane_commit.is_some() {
+                        connector_line.push(Span::styled("│", self.theme.graph_line));
+                    } else {
+                        connector_line.push(Span::raw(" "));
+                    }
+                }
+                connector_line.push(Span::raw("  "));
+                graph_lines.push(Line::from(connector_line));
+            }
 
-            let change_id_style = Style::default().fg(Color::Cyan);
+            // Prepare Details Column
+            let mut detail_lines = Vec::new();
 
-            let mut description_cells = vec![Span::raw(
-                row.description.lines().next().unwrap_or("").to_string(),
-            )];
+            // Line 1: ChangeId Author Timestamp CommitId
+            let change_id_short = row.change_id.get(0..8).unwrap_or(&row.change_id);
+            let commit_id_short = row.commit_id.0.get(0..8).unwrap_or(&row.commit_id.0);
 
+            let mut line_1_details = vec![
+                Span::styled(change_id_short.to_string(), self.theme.change_id),
+                Span::raw(" "),
+                Span::raw(row.author.clone()),
+                Span::raw(" "),
+                Span::raw(row.timestamp.clone()),
+                Span::raw(" "),
+                Span::styled(commit_id_short.to_string(), self.theme.graph_line), // Dimmed commit ID
+            ];
+
+            // Add bookmarks if any
             for bookmark in &row.bookmarks {
-                description_cells.push(Span::raw(" "));
-                description_cells.push(
-                    Span::styled(
-                        format!("({})", bookmark),
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                );
+                line_1_details.push(Span::raw(" "));
+                line_1_details.push(Span::styled(format!("({})", bookmark), self.theme.bookmark));
+            }
+            detail_lines.push(Line::from(line_1_details));
+
+            // Line 2: Description
+            detail_lines.push(Line::from(Span::raw(
+                row.description.lines().next().unwrap_or("").to_string(),
+            )));
+
+            // Line 3+: Files (for WC)
+            if row.is_working_copy && self.show_diffs {
+                for file in &row.changed_files {
+                    let style = match file.status {
+                        FileStatus::Added => self.theme.diff_add,
+                        FileStatus::Modified => self.theme.diff_modify,
+                        FileStatus::Deleted => self.theme.diff_remove,
+                    };
+                    detail_lines.push(Line::from(Span::styled(format!("{}", file.path), style)));
+                }
             }
 
             rows.push(
-                Row::new(vec![
-                    Cell::from(graph_col).style(Style::default().fg(Color::White)),
-                    Cell::from(
-                        row.change_id
-                            .get(0..8)
-                            .unwrap_or(&row.change_id)
-                            .to_string(),
-                    )
-                    .style(change_id_style),
-                    Cell::from(Line::from(description_cells)),
-                    Cell::from(row.author.clone()),
-                ])
-                .style(style),
+                Row::new(vec![Cell::from(graph_lines), Cell::from(detail_lines)])
+                    .height(row_height)
+                    .style(Style::default()),
             );
         }
 
-        let table = Table::new(
-            rows,
-            [
-                Constraint::Length(10),
-                Constraint::Length(10),
-                Constraint::Min(20),
-                Constraint::Length(15),
-            ],
-        )
-        .block(
-            Block::default()
-                .title("Revision Graph")
-                .borders(Borders::ALL),
-        )
-        .row_highlight_style(
-            Style::default()
-                .bg(Color::Rgb(40, 40, 40)) // Subtle highlight
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
+        let table = Table::new(rows, [Constraint::Length(12), Constraint::Min(0)])
+            .row_highlight_style(self.theme.highlight)
+            .highlight_symbol(">> ");
 
         StatefulWidget::render(table, area, buf, state);
     }

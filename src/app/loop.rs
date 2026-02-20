@@ -2,20 +2,22 @@ use crate::app::{action::Action, command::Command, reducer, state::AppState};
 use crate::components::diff_view::DiffView;
 use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
+use crate::theme::Theme;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, Paragraph},
+    style::Style,
+    text::{Line, Span},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph},
     Terminal,
 };
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::interval;
-
-use std::sync::Arc;
 
 pub async fn run_loop<B: Backend>(
     terminal: &mut Terminal<B>,
@@ -24,21 +26,20 @@ pub async fn run_loop<B: Backend>(
 ) -> Result<()> {
     let (action_tx, mut action_rx) = mpsc::channel(100);
     let mut interval = interval(Duration::from_millis(250));
+    let theme = Theme::default();
 
     // User input channel
     let (event_tx, mut event_rx) = mpsc::channel(100);
-    tokio::task::spawn_blocking(move || {
-        loop {
-            match event::read() {
-                Ok(evt) => {
-                    if event_tx.blocking_send(Ok(evt)).is_err() {
-                        break;
-                    }
-                }
-                Err(e) => {
-                    let _ = event_tx.blocking_send(Err(e));
+    tokio::task::spawn_blocking(move || loop {
+        match event::read() {
+            Ok(evt) => {
+                if event_tx.blocking_send(Ok(evt)).is_err() {
                     break;
                 }
+            }
+            Err(e) => {
+                let _ = event_tx.blocking_send(Err(e));
+                break;
             }
         }
     });
@@ -49,61 +50,118 @@ pub async fn run_loop<B: Backend>(
     loop {
         // --- 1. Render ---
         terminal.draw(|f| {
-            let chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            let main_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1), // Header
+                    Constraint::Min(0),    // Body
+                    Constraint::Length(1), // Footer
+                ])
                 .split(f.area());
 
-            // Left: Revision Graph
-            if let Some(repo) = &app_state.repo {
-                let graph = RevisionGraph { repo };
-                f.render_stateful_widget(graph, chunks[0], &mut app_state.log_list_state);
+            // --- Header ---
+            let repo_info = if let Some(repo) = &app_state.repo {
+                format!(" JJ | Operation: {} ", &repo.operation_id[..8])
             } else {
-                let loading = Paragraph::new("Loading repo...")
-                    .block(Block::default().title("Graph").borders(Borders::ALL));
-                f.render_widget(loading, chunks[0]);
+                " JJ | Loading... ".to_string()
+            };
+            let header = Paragraph::new(Line::from(vec![
+                Span::styled(" JUDO ", theme.header),
+                Span::raw(" "),
+                Span::raw(repo_info),
+            ]))
+            .style(theme.header);
+            f.render_widget(header, main_chunks[0]);
+
+            // --- Body ---
+            let body_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(if app_state.show_diffs {
+                    [Constraint::Percentage(50), Constraint::Percentage(50)]
+                } else {
+                    [Constraint::Percentage(100), Constraint::Percentage(0)]
+                })
+                .split(main_chunks[1]);
+
+            // Left: Revision Graph
+            let graph_block = Block::default()
+                .title(" Revision Graph ")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(theme.border);
+
+            if let Some(repo) = &app_state.repo {
+                let graph = RevisionGraph { repo, theme: &theme, show_diffs: app_state.show_diffs };
+                f.render_stateful_widget(graph, graph_block.inner(body_chunks[0]), &mut app_state.log_list_state);
+            } else {
+                let loading = Paragraph::new("Loading repo...").style(Style::default());
+                f.render_widget(loading, graph_block.inner(body_chunks[0]));
             }
+            f.render_widget(graph_block, body_chunks[0]);
 
             // Right: Diff View
-            let diff_view = DiffView {
-                diff_content: app_state.current_diff.as_deref(),
-                scroll_offset: app_state.diff_scroll,
+            if app_state.show_diffs {
+                let diff_block = Block::default()
+                    .title(" Diff ")
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(theme.border);
+
+                let diff_view = DiffView {
+                    diff_content: app_state.current_diff.as_deref(),
+                    scroll_offset: app_state.diff_scroll,
+                    theme: &theme,
+                };
+                f.render_widget(diff_view, diff_block.inner(body_chunks[1]));
+                f.render_widget(diff_block, body_chunks[1]);
+            }
+
+            // --- Footer ---
+            let status_content = if let Some(err) = &app_state.last_error {
+                Span::styled(format!(" Error: {} ", err), theme.status_error)
+            } else if let Some(msg) = &app_state.status_message {
+                Span::styled(format!(" {} ", msg), theme.status_info)
+            } else {
+                Span::raw(" Ready ")
             };
-            let right_block = Block::default().title("Diff").borders(Borders::ALL);
-            let inner_area = right_block.inner(chunks[1]);
-            f.render_widget(right_block, chunks[1]);
-            f.render_widget(diff_view, inner_area);
 
-            // Status Bar (very simple overlay for now)
-            if let Some(msg) = &app_state.status_message {
-                let status = Paragraph::new(msg.as_str());
-                let area = Layout::default()
-                    .constraints([Constraint::Min(0), Constraint::Length(1)])
-                    .split(f.area())[1];
-                f.render_widget(status, area);
-            }
+            let help_legend = Line::from(vec![
+                status_content,
+                Span::raw(" | "),
+                Span::styled("Enter", theme.key_binding),
+                Span::raw(" toggle diffs "),
+                Span::styled("j/k", theme.key_binding),
+                Span::raw(" move "),
+                Span::styled("d", theme.key_binding),
+                Span::raw(" desc "),
+                Span::styled("n", theme.key_binding),
+                Span::raw(" new "),
+                Span::styled("a", theme.key_binding),
+                Span::raw(" abdn "),
+                Span::styled("b", theme.key_binding),
+                Span::raw(" bkmk "),
+                Span::styled("u/U", theme.key_binding),
+                Span::raw(" undo/redo "),
+                Span::styled("q", theme.key_binding),
+                Span::raw(" quit"),
+            ]);
+            let footer = Paragraph::new(help_legend).style(theme.footer);
+            f.render_widget(footer, main_chunks[2]);
 
-            // Error Bar
-            if let Some(err) = &app_state.last_error {
-                let error_bar = Paragraph::new(format!("Error: {}", err))
-                    .style(ratatui::style::Style::default().fg(ratatui::style::Color::Red));
-                let area = Layout::default()
-                    .constraints([Constraint::Min(0), Constraint::Length(1)])
-                    .split(f.area())[1];
-                f.render_widget(error_bar, area);
-            }
-
-            // Input Modal
+            // --- Input Modal ---
             if app_state.mode == crate::app::state::AppMode::Input || app_state.mode == crate::app::state::AppMode::BookmarkInput {
-                use ratatui::widgets::Clear;
                 let area = centered_rect(60, 20, f.area());
                 f.render_widget(Clear, area);
                 let title = if app_state.mode == crate::app::state::AppMode::BookmarkInput {
-                    "Set Bookmark"
+                    " Set Bookmark "
                 } else {
-                    "Describe Revision"
+                    " Describe Revision "
                 };
-                let block = Block::default().title(title).borders(Borders::ALL);
+                let block = Block::default()
+                    .title(title)
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(theme.border_focus);
                 app_state.text_area.set_block(block);
                 f.render_widget(&app_state.text_area, area);
             }
@@ -150,6 +208,7 @@ pub async fn run_loop<B: Backend>(
                             Event::Key(key) => {
                                 match key.code {
                                     KeyCode::Char('q') => Some(Action::Quit),
+                                    KeyCode::Enter => Some(Action::ToggleDiffs),
                                     KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
                                     KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrev),
                                     KeyCode::Char('s') => Some(Action::SnapshotWorkingCopy),

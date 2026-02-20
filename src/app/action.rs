@@ -15,6 +15,7 @@ pub enum Action {
     ScrollDiffDown(u16),
     NextHunk,
     PrevHunk,
+    ToggleDiffs,
 
     // --- JJ Domain Intents ---
     // These trigger async tasks

@@ -1,5 +1,5 @@
 use crate::domain::{
-    models::{CommitId, GraphRow, RepoStatus},
+    models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus},
     vcs::VcsFacade,
 };
 use anyhow::{anyhow, Context, Result};
@@ -165,10 +165,42 @@ impl VcsFacade for JjAdapter {
             let description = commit.description().to_string();
             let change_id = commit.change_id().hex();
             let author = commit.author().email.clone();
-            let timestamp = commit.author().timestamp.timestamp.0.to_string();
+            let timestamp_sec = commit.author().timestamp.timestamp.0;
+            let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0)
+                .unwrap_or_default();
+            let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
 
             let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
             let is_immutable = commit.parents().next().is_none(); // Simple stub: only root is immutable for now
+
+            let mut changed_files = Vec::new();
+            if is_working_copy {
+                if let Some(parent) = commit.parents().next() {
+                    if let Ok(parent_commit) = parent {
+                        let parent_tree = parent_commit.tree();
+                        let tree = commit.tree();
+                        let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
+                        while let Some(entry) = stream.next().await {
+                            let status = if let Ok(values) = entry.values {
+                                if values.before.is_absent() {
+                                    FileStatus::Added
+                                } else if values.after.is_absent() {
+                                    FileStatus::Deleted
+                                } else {
+                                    FileStatus::Modified
+                                }
+                            } else {
+                                FileStatus::Modified
+                            };
+
+                            changed_files.push(FileChange {
+                                path: entry.path.as_internal_file_string().to_string(),
+                                status,
+                            });
+                        }
+                    }
+                }
+            }
 
             let bookmarks = repo
                 .view()
@@ -187,6 +219,7 @@ impl VcsFacade for JjAdapter {
                 is_immutable,
                 parents,
                 bookmarks,
+                changed_files,
             });
         }
 
