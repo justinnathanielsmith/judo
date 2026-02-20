@@ -1,7 +1,7 @@
 use super::{
     action::Action,
     command::Command,
-    state::{AppMode, AppState},
+    state::{AppMode, AppState, AppTextArea},
 };
 
 pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
@@ -104,7 +104,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::CancelMode | Action::CloseContextMenu => {
             state.mode = AppMode::Normal;
             state.last_error = None;
-            state.text_area = tui_textarea::TextArea::default(); // Reset input
+            state.text_area = AppTextArea::default(); // Reset input
             state.context_menu = None;
         }
         Action::Quit => {
@@ -135,7 +135,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::DescribeRevisionIntent => {
             state.mode = AppMode::Input;
-            state.text_area = tui_textarea::TextArea::default();
+            state.text_area = AppTextArea::default();
             // Pre-fill with existing description if possible?
             if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
