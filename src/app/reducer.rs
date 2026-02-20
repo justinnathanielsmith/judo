@@ -370,4 +370,88 @@ mod tests {
         update(&mut state, Action::ScrollDiffDown(15));
         assert_eq!(state.diff_scroll, 15);
     }
+
+    fn create_mock_repo(num_rows: usize) -> RepoStatus {
+        let graph = (0..num_rows)
+            .map(|i| GraphRow {
+                commit_id: CommitId(format!("commit{}", i)),
+                change_id: format!("change{}", i),
+                description: format!("desc{}", i),
+                author: "author".to_string(),
+                timestamp: "2023-01-01 00:00:00".to_string(),
+                is_working_copy: i == 0,
+                is_immutable: false,
+                parents: vec![],
+                bookmarks: vec![],
+                changed_files: vec![],
+            })
+            .collect();
+
+        RepoStatus {
+            operation_id: "op".to_string(),
+            working_copy_id: CommitId("commit0".to_string()),
+            graph,
+        }
+    }
+
+    #[test]
+    fn test_navigation_basic() {
+        let mut state = AppState::default();
+        state.repo = Some(create_mock_repo(3));
+        state.log_list_state.select(Some(1));
+
+        // Test SelectNext
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(2));
+
+        // Test SelectPrev
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(1));
+    }
+
+    #[test]
+    fn test_navigation_wrapping() {
+        let mut state = AppState::default();
+        let num_rows = 3;
+        state.repo = Some(create_mock_repo(num_rows));
+
+        // Wrap from end to beginning
+        state.log_list_state.select(Some(num_rows - 1));
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        // Wrap from beginning to end
+        state.log_list_state.select(Some(0));
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(num_rows - 1));
+    }
+
+    #[test]
+    fn test_navigation_empty_list() {
+        let mut state = AppState::default();
+        state.repo = Some(create_mock_repo(0));
+
+        // In both cases, it should default to 0 and not panic/underflow
+        state.log_list_state.select(Some(0));
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        state.log_list_state.select(Some(0));
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn test_navigation_no_repo() {
+        let mut state = AppState::default();
+        state.repo = None;
+
+        state.log_list_state.select(Some(5)); // Some arbitrary index
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        state.log_list_state.select(Some(5));
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+    }
 }
