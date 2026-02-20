@@ -137,53 +137,78 @@ impl VcsFacade for JjAdapter {
             .ok_or_else(|| anyhow!("No working copy found in view"))?;
         let workspace_id = workspace_id.clone();
 
-        // Manual Simple Walk (BFS)
-        let mut graph_rows = Vec::new();
-        let mut visited = HashSet::new();
-        let mut queue = VecDeque::new();
+        let repo_arc = repo.clone();
+        let ws_id_clone = workspace_id.clone();
 
-        // Start from heads
-        for head_id in repo.view().heads() {
-            queue.push_back(head_id.clone());
-        }
+        // Phase 1: Blocking Graph Traversal
+        let commit_infos = tokio::task::spawn_blocking(move || {
+            let mut visited = HashSet::new();
+            let mut queue = VecDeque::new();
+            let mut results = Vec::new();
 
-        while let Some(id) = queue.pop_front() {
-            if visited.contains(&id) {
-                continue;
-            }
-            visited.insert(id.clone());
-
-            if graph_rows.len() >= 100 {
-                break;
+            for head_id in repo_arc.view().heads() {
+                queue.push_back(head_id.clone());
             }
 
-            let commit = repo.store().get_commit(&id)?;
+            while let Some(id) = queue.pop_front() {
+                if visited.contains(&id) {
+                    continue;
+                }
+                visited.insert(id.clone());
 
-            let mut parents = Vec::new();
-            for parent in commit.parents().flatten() {
-                parents.push(CommitId(parent.id().clone().hex()));
-                queue.push_back(parent.id().clone());
+                if results.len() >= 100 {
+                    break;
+                }
+
+                let commit = repo_arc.store().get_commit(&id)?;
+
+                // Collect parents for queue and for result
+                let mut parent_ids_domain = Vec::new();
+                for parent_id in commit.parent_ids() {
+                     parent_ids_domain.push(CommitId(parent_id.hex()));
+                     // Add to queue
+                     queue.push_back(parent_id.clone());
+                }
+
+                // Fetch first parent for diffing (blocking IO)
+                let first_parent = commit.parents().next().transpose()?;
+
+                // Pre-load trees to ensure no blocking in async phase
+                let tree = commit.tree();
+                let parent_tree = first_parent.as_ref().map(|p| p.tree());
+
+                let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
+                let is_immutable = repo_arc.view().heads().contains(&id) || commit.parents().next().is_none();
+
+                let bookmarks = repo_arc
+                    .view()
+                    .local_bookmarks()
+                    .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
+                    .map(|(name, _)| name.as_str().to_string())
+                    .collect::<Vec<_>>();
+
+                results.push((commit, tree, parent_tree, parent_ids_domain, is_working_copy, is_immutable, bookmarks));
             }
+            Ok::<_, anyhow::Error>(results)
+        }).await??;
 
-            let description = commit.description().to_string();
-            let change_id = commit.change_id().hex();
-            let author = commit.author().email.clone();
-            let timestamp_sec = commit.author().timestamp.timestamp.0;
-            let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0)
-                .unwrap_or_default();
-            let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
+        // Phase 2: Async Detail Expansion (Parallel)
+        let graph_rows = futures::stream::iter(commit_infos)
+            .map(|(commit, tree, parent_tree, parent_ids, is_working_copy, is_immutable, bookmarks)| async move {
+                 let description = commit.description().to_string();
+                 let change_id = commit.change_id().hex();
+                 let author = commit.author().email.clone();
+                 let timestamp_sec = commit.author().timestamp.timestamp.0;
+                 let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0)
+                    .unwrap_or_default();
+                 let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
+                 let commit_id = CommitId(commit.id().hex());
 
-            let is_working_copy = Some(&id) == repo.view().get_wc_commit_id(&workspace_id);
-            let is_immutable = repo.view().heads().contains(&id) || commit.parents().next().is_none();
-
-            let mut changed_files = Vec::new();
-            if let Some(parent) = commit.parents().next() {
-                if let Ok(parent_commit) = parent {
-                    let parent_tree = parent_commit.tree();
-                    let tree = commit.tree();
-                    let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
-                    while let Some(entry) = stream.next().await {
-                        let status = if let Ok(values) = entry.values {
+                 let mut changed_files = Vec::new();
+                 if let Some(p_tree) = parent_tree {
+                     let mut stream = p_tree.diff_stream(&tree, &EverythingMatcher);
+                     while let Some(entry) = stream.next().await {
+                         let status = if let Ok(values) = entry.values {
                             if values.before.is_absent() {
                                 FileStatus::Added
                             } else if values.after.is_absent() {
@@ -199,33 +224,25 @@ impl VcsFacade for JjAdapter {
                             path: entry.path.as_internal_file_string().to_string(),
                             status,
                         });
-                    }
+                     }
+                 }
+
+                 GraphRow {
+                    commit_id,
+                    change_id,
+                    description,
+                    author,
+                    timestamp,
+                    is_working_copy,
+                    is_immutable,
+                    parents: parent_ids,
+                    bookmarks,
+                    changed_files,
                 }
-            }
-
-            let bookmarks = repo
-                .view()
-                .local_bookmarks()
-                .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
-                .map(|(name, _)| name.as_str().to_string())
-                .collect::<Vec<_>>();
-
-            graph_rows.push(GraphRow {
-                commit_id: CommitId(id.hex()),
-                change_id,
-                description,
-                author,
-                timestamp,
-                is_working_copy,
-                is_immutable,
-                parents,
-                bookmarks,
-                changed_files,
-            });
-        }
-
-        // Sort by timestamp desc or similar? BFS might be mixed.
-        // For MVP, raw list is fine.
+            })
+            .buffered(50)
+            .collect::<Vec<_>>()
+            .await;
 
         // Get working copy ID
         let wc_id = match repo.view().get_wc_commit_id(&workspace_id) {
@@ -596,6 +613,61 @@ mod tests {
         let adapter = JjAdapter::load_at(path.to_path_buf());
 
         assert!(adapter.is_ok(), "JjAdapter should be initialized successfully");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_operation_log_capped() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        // Initialize a simple workspace
+        Workspace::init_simple(&user_settings, path)?;
+
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        // Setup 150 commits
+        {
+            let workspace = adapter.workspace.lock().await;
+            let repo = workspace.repo_loader().load_at_head()?;
+
+            let mut tx = repo.start_transaction();
+            let mut_repo = tx.repo_mut();
+
+            let mut parent_id = repo.store().root_commit_id().clone();
+
+            // Create 150 linear commits
+            let root_commit = repo.store().get_commit(&parent_id)?;
+            let tree = root_commit.tree();
+            for i in 0..150 {
+                let commit = mut_repo
+                    .new_commit(vec![parent_id.clone()], tree.clone())
+                    .set_description(format!("Commit {}", i))
+                    .write()?;
+                parent_id = commit.id().clone();
+            }
+
+            // Update working copy to the last commit to make it visible/reachable easily
+            // Find workspace_id
+             let (workspace_id, _) = repo
+                .view()
+                .wc_commit_ids()
+                .iter()
+                .next()
+                .ok_or_else(|| anyhow!("No working copy found in view"))?;
+
+            mut_repo.set_wc_commit(workspace_id.clone(), parent_id.clone())?;
+
+            tx.commit("create 150 commits")?;
+        }
+
+        let log = adapter.get_operation_log().await?;
+
+        assert_eq!(log.graph.len(), 100, "Should return 100 commits (capped)");
 
         Ok(())
     }

@@ -149,7 +149,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::SetBookmarkIntent => {
             state.mode = AppMode::BookmarkInput;
-            state.text_area = tui_textarea::TextArea::default();
+            state.text_area = AppTextArea::default();
         }
         Action::SetBookmark(commit_id, name) => {
             state.mode = AppMode::Normal;
