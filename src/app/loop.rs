@@ -390,6 +390,13 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
                                     KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrev),
                                     KeyCode::Char('s') => Some(Action::SnapshotWorkingCopy),
+                                    KeyCode::Char('S') => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                Some(Action::SquashRevision(row.commit_id.clone()))
+                                            } else { None }
+                                        } else { None }
+                                    },
                                     KeyCode::Char('e') => {
                                         if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
                                             if let Some(row) = repo.graph.get(idx) {

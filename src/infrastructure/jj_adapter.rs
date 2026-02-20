@@ -428,20 +428,38 @@ impl VcsFacade for JjAdapter {
         let mut parents = commit.parents();
         let parent = parents.next().ok_or_else(|| anyhow!("Cannot squash root commit"))??;
 
+        // Merge the trees
+        let merged_tree = {
+            let parent_commit = repo.store().get_commit(parent.id())?;
+            let parent_tree = parent_commit.tree();
+            let commit_tree = commit.tree();
+            jj_lib::merged_tree::MergedTree::merge(
+                jj_lib::merge::Merge::from_removes_adds(
+                    vec![(parent_tree.clone(), "".to_string())],
+                    vec![
+                        (parent_tree.clone(), "".to_string()),
+                        (commit_tree.clone(), "".to_string()),
+                    ],
+                )
+            ).await?
+        };
+
         let mut tx = repo.start_transaction();
         let mut_repo = tx.repo_mut();
 
-        // Resolve tree
-        let tree = jj_lib::merged_tree::MergedTree::new(
-            repo.store().clone(),
-            commit.tree_ids().clone(),
-            jj_lib::conflict_labels::ConflictLabels::unlabeled(),
-        );
-
         // Squash commit into its parent
         let parent_commit = repo.store().get_commit(parent.id())?;
+        
+        // Combine descriptions
+        let mut new_description = parent_commit.description().to_string();
+        if !new_description.ends_with('\n') && !new_description.is_empty() {
+            new_description.push('\n');
+        }
+        new_description.push_str(commit.description());
+
         mut_repo.rewrite_commit(&parent_commit)
-            .set_tree(tree)
+            .set_tree(merged_tree)
+            .set_description(new_description)
             .write()?;
 
         mut_repo.rebase_descendants()?;

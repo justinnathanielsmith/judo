@@ -62,6 +62,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::ToggleDiffs => {
             state.show_diffs = !state.show_diffs;
+            return handle_selection(state);
         }
         Action::NextHunk => {
             if let Some(diff) = &state.current_diff {
@@ -162,6 +163,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::OpenContextMenu(commit_id, pos) => {
             let actions = vec![
                 ("Describe".to_string(), Action::DescribeRevisionIntent),
+                (
+                    "Squash into Parent".to_string(),
+                    Action::SquashRevision(commit_id.clone()),
+                ),
                 (
                     "New Child".to_string(),
                     Action::NewRevision(commit_id.clone()),
