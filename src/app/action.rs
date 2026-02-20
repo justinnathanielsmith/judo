@@ -34,11 +34,16 @@ pub enum Action {
     Redo,                               // `jj redo`
 
     // --- UI Mode Transitions ---
-    EnterCommandMode, // Open command palette (:)
-    EnterSquashMode,  // Open squash selection modal
-    FocusDiff,        // Switch focus to diff window
-    FocusGraph,       // Switch focus to revision graph
-    CancelMode,       // ESC key (close modal/mode)
+    EnterCommandMode,                      // Open command palette (:)
+    EnterSquashMode,                       // Open squash selection modal
+    FocusDiff,                             // Switch focus to diff window
+    FocusGraph,                            // Switch focus to revision graph
+    CancelMode,                            // ESC key (close modal/mode)
+    OpenContextMenu(CommitId, (u16, u16)), // Open menu at position
+    SelectContextMenuAction(usize),        // Select action by index
+    SelectContextMenuNext,                 // Next item in menu
+    SelectContextMenuPrev,                 // Prev item in menu
+    CloseContextMenu,                      // Close the menu
 
     // --- Async Results (The "Callback") ---
     // These are dispatched by your async workers back to the main thread

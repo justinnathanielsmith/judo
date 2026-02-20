@@ -31,6 +31,8 @@ pub struct Theme {
     pub status_error: Style,
 
     pub highlight: Style,
+    pub list_selected: Style,
+    pub list_item: Style,
 }
 
 impl Default for Theme {
@@ -82,6 +84,11 @@ impl Default for Theme {
             highlight: Style::default()
                 .bg(Color::Rgb(50, 50, 50))
                 .add_modifier(Modifier::BOLD),
+            list_selected: Style::default()
+                .bg(Color::Cyan)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+            list_item: Style::default().fg(Color::White),
         }
     }
 }

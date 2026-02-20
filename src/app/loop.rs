@@ -1,4 +1,4 @@
-use crate::app::{action::Action, command::Command, reducer, state::AppState};
+use crate::app::{action::Action, command::Command, reducer, state::{AppMode, AppState}};
 use crate::components::diff_view::DiffView;
 use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
@@ -11,7 +11,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, Paragraph},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
     Terminal,
 };
 use std::sync::Arc;
@@ -174,6 +174,40 @@ pub async fn run_loop<B: Backend>(
                 app_state.text_area.set_block(block);
                 f.render_widget(&app_state.text_area, area);
             }
+
+            // --- Context Menu Popup ---
+            if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
+                let menu_width = 20;
+                let menu_height = menu.actions.len() as u16 + 2;
+                
+                // Position adjustment to keep menu on screen
+                let mut x = menu.x;
+                let mut y = menu.y;
+                if x + menu_width > f.area().width {
+                    x = f.area().width.saturating_sub(menu_width);
+                }
+                if y + menu_height > f.area().height {
+                    y = f.area().height.saturating_sub(menu_height);
+                }
+                
+                let area = ratatui::layout::Rect::new(x, y, menu_width, menu_height);
+                f.render_widget(Clear, area);
+                
+                let items: Vec<ListItem> = menu.actions.iter().enumerate().map(|(i, (name, _))| {
+                    if i == menu.selected_index {
+                        ListItem::new(format!("> {}", name)).style(theme.list_selected)
+                    } else {
+                        ListItem::new(format!("  {}", name)).style(theme.list_item)
+                    }
+                }).collect();
+                
+                let list = List::new(items)
+                    .block(Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Rounded)
+                        .border_style(theme.border_focus));
+                f.render_widget(list, area);
+            }
         })?;
 
         // --- 2. Event Handling (TEA Runtime) ---
@@ -209,6 +243,55 @@ pub async fn run_loop<B: Backend>(
                                     }
                                 }
                             },
+                            _ => None,
+                        }
+                    },
+                    crate::app::state::AppMode::ContextMenu => {
+                        match event {
+                            Event::Key(key) => {
+                                match key.code {
+                                    KeyCode::Esc => Some(Action::CloseContextMenu),
+                                    KeyCode::Char('j') | KeyCode::Down => Some(Action::SelectContextMenuNext),
+                                    KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectContextMenuPrev),
+                                    KeyCode::Enter => {
+                                        if let Some(menu) = &app_state.context_menu {
+                                            Some(Action::SelectContextMenuAction(menu.selected_index))
+                                        } else { None }
+                                    },
+                                    _ => None,
+                                }
+                            },
+                            Event::Mouse(mouse) => {
+                                match mouse.kind {
+                                    MouseEventKind::Down(MouseButton::Left) => {
+                                        if let Some(menu) = &app_state.context_menu {
+                                            let menu_width = 20;
+                                            let menu_height = menu.actions.len() as u16 + 2;
+                                            
+                                            let mut x = menu.x;
+                                            let mut y = menu.y;
+                                            if x + menu_width > terminal.size()?.width {
+                                                x = terminal.size()?.width.saturating_sub(menu_width);
+                                            }
+                                            if y + menu_height > terminal.size()?.height {
+                                                y = terminal.size()?.height.saturating_sub(menu_height);
+                                            }
+
+                                            if mouse.column >= x && mouse.column < x + menu_width
+                                                && mouse.row >= y + 1 && mouse.row < y + menu_height - 1
+                                            {
+                                                let clicked_idx = (mouse.row - (y + 1)) as usize;
+                                                Some(Action::SelectContextMenuAction(clicked_idx))
+                                            } else {
+                                                Some(Action::CloseContextMenu)
+                                            }
+                                        } else {
+                                            Some(Action::CloseContextMenu)
+                                        }
+                                    },
+                                    _ => None,
+                                }
+                            }
                             _ => None,
                         }
                     },
@@ -423,6 +506,37 @@ pub async fn run_loop<B: Backend>(
                                             result
                                         } else if app_state.show_diffs && mouse.column >= diff_area.x && mouse.column < diff_area.x + diff_area.width {
                                             Some(Action::FocusDiff)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    MouseEventKind::Down(MouseButton::Right) => {
+                                        if mouse.column >= graph_area.x + 1 && mouse.column < graph_area.x + graph_area.width - 1
+                                            && mouse.row >= graph_area.y + 1 && mouse.row < graph_area.y + graph_area.height - 1
+                                        {
+                                            let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
+                                            let offset = app_state.log_list_state.offset();
+                                            let mut result = None;
+                                            if let Some(repo) = &app_state.repo {
+                                                let mut current_y = 0;
+                                                for i in offset..repo.graph.len() {
+                                                    let row = &repo.graph[i];
+                                                    let is_selected = app_state.log_list_state.selected() == Some(i);
+                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() as usize } else { 0 };
+                                                    
+                                                    if clicked_row >= current_y && clicked_row < current_y + row_height {
+                                                        // Selection happens on right click too
+                                                        action_tx.try_send(Action::SelectIndex(i)).ok();
+                                                        result = Some(Action::OpenContextMenu(row.commit_id.clone(), (mouse.column, mouse.row)));
+                                                        break;
+                                                    }
+                                                    current_y += row_height;
+                                                    if current_y > graph_area.height as usize {
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            result
                                         } else {
                                             None
                                         }

@@ -95,10 +95,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::FocusGraph => {
             state.mode = AppMode::Normal;
         }
-        Action::CancelMode => {
+        Action::CancelMode | Action::CloseContextMenu => {
             state.mode = AppMode::Normal;
             state.last_error = None;
             state.text_area = tui_textarea::TextArea::default(); // Reset input
+            state.context_menu = None;
         }
         Action::Quit => {
             state.should_quit = true;
@@ -150,6 +151,61 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::DeleteBookmark(name) => {
             return Some(Command::DeleteBookmark(name));
+        }
+
+        // --- Context Menu ---
+        Action::OpenContextMenu(commit_id, pos) => {
+            let actions = vec![
+                ("Describe".to_string(), Action::DescribeRevisionIntent),
+                (
+                    "New Child".to_string(),
+                    Action::NewRevision(commit_id.clone()),
+                ),
+                ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
+                (
+                    "Abandon".to_string(),
+                    Action::AbandonRevision(commit_id.clone()),
+                ),
+                ("Set Bookmark".to_string(), Action::SetBookmarkIntent),
+                ("Toggle Diffs".to_string(), Action::ToggleDiffs),
+            ];
+
+            // If we are in SquashSelect mode, maybe add squash target?
+            // For now, let's keep it simple.
+
+            state.mode = AppMode::ContextMenu;
+            state.context_menu = Some(super::state::ContextMenuState {
+                commit_id,
+                x: pos.0,
+                y: pos.1,
+                selected_index: 0,
+                actions,
+            });
+        }
+        Action::SelectContextMenuAction(idx) => {
+            if let Some(menu) = &state.context_menu {
+                if let Some((_, action)) = menu.actions.get(idx).cloned() {
+                    state.context_menu = None;
+                    state.mode = AppMode::Normal;
+                    // Re-dispatch the action. We can't easily recurse here,
+                    // so we just return the command if the action produces one.
+                    return update(state, action);
+                }
+            }
+        }
+        Action::SelectContextMenuNext => {
+            if let Some(menu) = &mut state.context_menu {
+                menu.selected_index = (menu.selected_index + 1) % menu.actions.len();
+            }
+        }
+        Action::SelectContextMenuPrev => {
+            if let Some(menu) = &mut state.context_menu {
+                if menu.selected_index == 0 {
+                    menu.selected_index = menu.actions.len() - 1;
+                } else {
+                    menu.selected_index -= 1;
+                }
+            }
         }
 
         // --- Async Results ---

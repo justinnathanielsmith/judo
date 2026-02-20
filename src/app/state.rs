@@ -1,10 +1,11 @@
+use super::action::Action;
 use crate::domain::models::{CommitId, RepoStatus};
 use ratatui::widgets::TableState;
 use std::collections::HashMap;
 use std::time::Instant;
 use tui_textarea::TextArea;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AppMode {
     Normal,        // Navigating the log
     Command,       // Typing a command like ":q" or ":new"
@@ -13,6 +14,16 @@ pub enum AppMode {
     Input,         // A generic text input modal (e.g., for commit messages)
     Loading,       // Blocking interaction (optional, often better handled with a flag)
     Diff,          // Focusing the diff window for scrolling
+    ContextMenu,   // Right-click menu for actions
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextMenuState {
+    pub commit_id: CommitId,
+    pub x: u16,
+    pub y: u16,
+    pub selected_index: usize,
+    pub actions: Vec<(String, Action)>,
 }
 
 // Cannot derive Debug/Clone/PartialEq easily because TextArea doesn't support them all or is heavy
@@ -47,6 +58,9 @@ pub struct AppState<'a> {
     // --- Click Tracking ---
     pub last_click_time: Option<Instant>,
     pub last_click_pos: Option<(u16, u16)>,
+
+    // --- Context Menu ---
+    pub context_menu: Option<ContextMenuState>,
 }
 
 impl<'a> Default for AppState<'a> {
@@ -66,6 +80,7 @@ impl<'a> Default for AppState<'a> {
             text_area: TextArea::default(),
             last_click_time: None,
             last_click_pos: None,
+            context_menu: None,
         }
     }
 }
