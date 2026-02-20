@@ -174,30 +174,28 @@ impl VcsFacade for JjAdapter {
             let is_immutable = commit.parents().next().is_none(); // Simple stub: only root is immutable for now
 
             let mut changed_files = Vec::new();
-            if is_working_copy {
-                if let Some(parent) = commit.parents().next() {
-                    if let Ok(parent_commit) = parent {
-                        let parent_tree = parent_commit.tree();
-                        let tree = commit.tree();
-                        let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
-                        while let Some(entry) = stream.next().await {
-                            let status = if let Ok(values) = entry.values {
-                                if values.before.is_absent() {
-                                    FileStatus::Added
-                                } else if values.after.is_absent() {
-                                    FileStatus::Deleted
-                                } else {
-                                    FileStatus::Modified
-                                }
+            if let Some(parent) = commit.parents().next() {
+                if let Ok(parent_commit) = parent {
+                    let parent_tree = parent_commit.tree();
+                    let tree = commit.tree();
+                    let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
+                    while let Some(entry) = stream.next().await {
+                        let status = if let Ok(values) = entry.values {
+                            if values.before.is_absent() {
+                                FileStatus::Added
+                            } else if values.after.is_absent() {
+                                FileStatus::Deleted
                             } else {
                                 FileStatus::Modified
-                            };
+                            }
+                        } else {
+                            FileStatus::Modified
+                        };
 
-                            changed_files.push(FileChange {
-                                path: entry.path.as_internal_file_string().to_string(),
-                                status,
-                            });
-                        }
+                        changed_files.push(FileChange {
+                            path: entry.path.as_internal_file_string().to_string(),
+                            status,
+                        });
                     }
                 }
             }

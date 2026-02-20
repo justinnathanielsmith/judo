@@ -21,7 +21,9 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
         let mut lanes: Vec<Option<String>> = Vec::new();
         let mut rows: Vec<Row> = Vec::new();
 
-        for (_i, row) in self.repo.graph.iter().enumerate() {
+        for (i, row) in self.repo.graph.iter().enumerate() {
+            let is_selected = state.selected() == Some(i);
+
             // Find or assign a lane for this commit
             let commit_id_hex = &row.commit_id.0;
             let current_lane = lanes
@@ -38,7 +40,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     }
                 });
 
-            let num_files = if row.is_working_copy && self.show_diffs {
+            let show_files = is_selected && self.show_diffs;
+            let num_files = if show_files {
                 row.changed_files.len()
             } else {
                 0
@@ -125,8 +128,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 row.description.lines().next().unwrap_or("").to_string(),
             )));
 
-            // Line 3+: Files (for WC)
-            if row.is_working_copy && self.show_diffs {
+            // Line 3+: Files
+            if show_files {
                 for file in &row.changed_files {
                     let style = match file.status {
                         FileStatus::Added => self.theme.diff_add,
