@@ -50,7 +50,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return handle_selection(state);
         }
         Action::ScrollDiffDown(amount) => {
-            state.diff_scroll = state.diff_scroll.saturating_add(amount);
+            if let Some(diff) = &state.current_diff {
+                let max_scroll = diff.lines().count().saturating_sub(1) as u16;
+                state.diff_scroll = state.diff_scroll.saturating_add(amount).min(max_scroll);
+            } else {
+                state.diff_scroll = state.diff_scroll.saturating_add(amount);
+            }
         }
         Action::ScrollDiffUp(amount) => {
             state.diff_scroll = state.diff_scroll.saturating_sub(amount);
