@@ -1,6 +1,6 @@
 use crate::app::ui;
 use crate::domain::models::{FileStatus, RepoStatus};
-use crate::theme::Theme;
+use crate::theme::{glyphs, Theme};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
@@ -28,7 +28,11 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
 
             // Prepare Graph Column
             let mut graph_lines = Vec::new();
-            let max_lanes = row.visual.active_lanes.len().max(row.visual.connector_lanes.len());
+            let max_lanes = row
+                .visual
+                .active_lanes
+                .len()
+                .max(row.visual.connector_lanes.len());
 
             // Graph Line 1: Node symbol and existing pipes
             let mut line_1_graph = Vec::new();
@@ -43,7 +47,13 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                         ("○", self.theme.graph_node_mutable)
                     };
                     line_1_graph.push(Span::styled(symbol, style));
-                } else if row.visual.active_lanes.get(lane_idx).cloned().unwrap_or(false) {
+                } else if row
+                    .visual
+                    .active_lanes
+                    .get(lane_idx)
+                    .cloned()
+                    .unwrap_or(false)
+                {
                     line_1_graph.push(Span::styled("│", lane_style));
                 } else {
                     line_1_graph.push(Span::raw(" "));
@@ -56,21 +66,32 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             // Subsequent Graph Lines: Connector pipes and branching/merging
             for h in 1..row_height {
                 let mut connector_line = Vec::new();
-                
+
                 let parent_cols = &row.visual.parent_columns;
                 let mut sorted_parents = parent_cols.clone();
                 sorted_parents.sort();
-                
+
                 let min_p = sorted_parents.first().cloned().unwrap_or(row.visual.column);
                 let max_p = sorted_parents.last().cloned().unwrap_or(row.visual.column);
                 let range_min = min_p.min(row.visual.column);
                 let range_max = max_p.max(row.visual.column);
 
                 for lane_idx in 0..max_lanes {
-                    let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
-                    let is_active_above = row.visual.active_lanes.get(lane_idx).cloned().unwrap_or(false);
-                    let is_active_below = row.visual.connector_lanes.get(lane_idx).cloned().unwrap_or(false);
-                    
+                    let lane_style =
+                        self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
+                    let is_active_above = row
+                        .visual
+                        .active_lanes
+                        .get(lane_idx)
+                        .cloned()
+                        .unwrap_or(false);
+                    let is_active_below = row
+                        .visual
+                        .connector_lanes
+                        .get(lane_idx)
+                        .cloned()
+                        .unwrap_or(false);
+
                     let mut symbol = if is_active_below { "│" } else { " " };
 
                     if h == 1 {
@@ -78,7 +99,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                             if parent_cols.len() > 1 {
                                 let has_left = parent_cols.iter().any(|p| *p < row.visual.column);
                                 let has_right = parent_cols.iter().any(|p| *p > row.visual.column);
-                                let has_down = parent_cols.iter().any(|p| *p == row.visual.column);
+                                let has_down = parent_cols.contains(&row.visual.column);
 
                                 symbol = match (has_left, has_right, has_down) {
                                     (true, true, true) => "┼",
@@ -90,19 +111,31 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                                     (false, false, true) => "│",
                                     (false, false, false) => " ",
                                 };
-                            } else if parent_cols.len() == 1 && parent_cols[0] != row.visual.column {
-                                symbol = if parent_cols[0] < row.visual.column { "╮" } else { "╭" };
+                            } else if parent_cols.len() == 1 && parent_cols[0] != row.visual.column
+                            {
+                                symbol = if parent_cols[0] < row.visual.column {
+                                    "╮"
+                                } else {
+                                    "╭"
+                                };
                             } else if parent_cols.is_empty() {
                                 symbol = " "; // Root
                             } else {
                                 symbol = "│"; // Single parent same lane
                             }
-                        }
- else if parent_cols.contains(&lane_idx) {
+                        } else if parent_cols.contains(&lane_idx) {
                             if is_active_above {
-                                symbol = if lane_idx < row.visual.column { "┤" } else { "├" };
+                                symbol = if lane_idx < row.visual.column {
+                                    "┤"
+                                } else {
+                                    "├"
+                                };
                             } else {
-                                symbol = if lane_idx < row.visual.column { "╭" } else { "╮" };
+                                symbol = if lane_idx < row.visual.column {
+                                    "╭"
+                                } else {
+                                    "╮"
+                                };
                             }
                         } else if lane_idx > range_min && lane_idx < range_max {
                             symbol = if is_active_above { "┼" } else { "─" };
@@ -130,7 +163,15 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 self.theme.change_id_mutable
             };
 
+            // Working copy shows branch icon, all commits show commit icon
+            let type_glyph = if row.is_working_copy {
+                glyphs::BRANCH
+            } else {
+                glyphs::COMMIT
+            };
+
             let mut line_1_details = vec![
+                Span::styled(format!("{} ", type_glyph), change_id_style),
                 Span::styled(change_id_short.to_string(), change_id_style),
                 Span::raw(" "),
                 Span::styled(row.author.clone(), self.theme.author),
@@ -191,7 +232,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
 
         let table = Table::new(rows, [Constraint::Length(16), Constraint::Min(0)])
             .row_highlight_style(self.theme.highlight)
-            .highlight_symbol(">> ");
+            .highlight_symbol(" ");
 
         StatefulWidget::render(table, area, buf, state);
     }

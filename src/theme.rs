@@ -29,6 +29,16 @@ pub struct Palette {
     pub rosewater: Color,
 }
 
+pub mod glyphs {
+    pub const REPO: &str = "󰏗";
+    pub const BRANCH: &str = "";
+    pub const COMMIT: &str = "󰊄";
+    pub const DIFF: &str = "";
+    pub const FOCUS: &str = "▌";
+    pub const SEP_RIGHT: &str = "";
+    pub const SEP_LEFT: &str = "";
+}
+
 pub const CATPPUCCIN_MOCHA: Palette = Palette {
     base: Color::Rgb(30, 30, 46),
     mantle: Color::Rgb(24, 24, 37),
@@ -144,6 +154,9 @@ pub struct Theme {
     pub commit_id_dim: Style,
 
     pub header_logo: Style,
+    pub header_repo: Style,
+    pub header_branch: Style,
+    pub header_stats: Style,
     pub header_active: Style,
     pub header_item: Style,
     pub header: Style,
@@ -219,6 +232,17 @@ impl Theme {
                 .bg(p.blue)
                 .fg(p.crust)
                 .add_modifier(Modifier::BOLD),
+            header_repo: Style::default()
+                .bg(p.surface1)
+                .fg(p.text)
+                .add_modifier(Modifier::BOLD),
+            header_branch: Style::default()
+                .bg(p.mauve)
+                .fg(p.crust)
+                .add_modifier(Modifier::BOLD),
+            header_stats: Style::default()
+                .bg(p.surface0)
+                .fg(p.subtext1),
             header_active: Style::default()
                 .bg(p.green)
                 .fg(p.crust)

@@ -56,6 +56,7 @@ impl Default for CommitId {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RepoStatus {
+    pub repo_name: String,
     pub operation_id: String,
     pub workspace_id: String,
     pub working_copy_id: CommitId,

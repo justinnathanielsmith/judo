@@ -4,10 +4,11 @@ use crate::components::footer::Footer;
 use crate::components::revision_graph::RevisionGraph;
 use crate::components::welcome::Welcome;
 use crate::domain::models::GraphRow;
-use crate::theme::Theme;
+use crate::theme::{glyphs, Theme};
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
     Frame,
@@ -64,48 +65,109 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     }
 
     if app_state.mode == AppMode::NoRepo {
-        let welcome = Welcome {
-            app_state,
-            theme,
-        };
+        let welcome = Welcome { app_state, theme };
         f.render_widget(welcome, f.area());
         return;
     }
 
     let layout = get_layout(f.area(), app_state);
 
-    // --- Header ---
+    // --- Powerline Header ---
     if layout.main[0].width > 0 && layout.main[0].height > 0 {
-        let stats_len = app_state.header_state.stats.len();
-        let padding = (f.area().width as usize).saturating_sub(stats_len + 6);
-        let header = Paragraph::new(Line::from(vec![
-            Span::styled(" JUDO ", theme.header_logo),
-            Span::styled(app_state.header_state.stats.clone(), theme.header),
-            Span::styled(" ".repeat(padding), theme.header),
-        ]))
-        .style(theme.header)
-        .block(Block::default().borders(Borders::BOTTOM).border_style(theme.border));
+        // Segment background colors for separator transitions
+        let logo_bg = theme.header_logo.bg.unwrap_or(Color::Reset);
+        let repo_bg = theme.header_repo.bg.unwrap_or(Color::Reset);
+        let branch_bg = theme.header_branch.bg.unwrap_or(Color::Reset);
+        let stats_bg = theme.header_stats.bg.unwrap_or(Color::Reset);
+        let base_bg = theme.header.bg.unwrap_or(Color::Reset);
+
+        // Separator styles: fg = current segment bg, bg = next segment bg
+        let sep_logo_repo = Style::default().fg(logo_bg).bg(repo_bg);
+        let sep_repo_branch = Style::default().fg(repo_bg).bg(branch_bg);
+        let sep_branch_stats = Style::default().fg(branch_bg).bg(stats_bg);
+        let sep_stats_base = Style::default().fg(stats_bg).bg(base_bg);
+
+        let repo_name = if app_state.header_state.repo_name.is_empty() {
+            "no repo".to_string()
+        } else {
+            app_state.header_state.repo_name.clone()
+        };
+        let branch_name = if app_state.header_state.branch.is_empty() {
+            "(detached)".to_string()
+        } else {
+            app_state.header_state.branch.clone()
+        };
+        let stats_text = app_state.header_state.stats.clone();
+
+        let header_spans = vec![
+            // Logo segment
+            Span::styled(format!(" {} JUDO ", glyphs::REPO), theme.header_logo),
+            Span::styled(glyphs::SEP_RIGHT, sep_logo_repo),
+            // Repo segment
+            Span::styled(format!(" {} ", repo_name), theme.header_repo),
+            Span::styled(glyphs::SEP_RIGHT, sep_repo_branch),
+            // Branch segment
+            Span::styled(
+                format!(" {} {} ", glyphs::BRANCH, branch_name),
+                theme.header_branch,
+            ),
+            Span::styled(glyphs::SEP_RIGHT, sep_branch_stats),
+            // Stats segment
+            Span::styled(format!(" {} ", stats_text), theme.header_stats),
+            Span::styled(glyphs::SEP_RIGHT, sep_stats_base),
+            // Fill rest of line
+            Span::styled(" ".repeat(f.area().width as usize), theme.header),
+        ];
+
+        let header = Paragraph::new(Line::from(header_spans)).style(theme.header);
         f.render_widget(header, layout.main[0]);
     }
 
     // Left: Revision Graph
     let is_graph_focused = app_state.focused_panel == Panel::Graph;
     let is_body_active = app_state.mode == AppMode::Normal || app_state.mode == AppMode::Diff;
-    
-    let (graph_border_style, graph_title_style, graph_borders, graph_border_type) = if is_graph_focused && is_body_active {
-        (theme.border_focus, theme.header_active, Borders::ALL, BorderType::Thick)
-    } else if is_body_active {
-        (theme.border, theme.header_item, Borders::RIGHT, BorderType::Plain)
-    } else {
-        (theme.commit_id_dim, theme.header_item, Borders::RIGHT, BorderType::Rounded)
-    };
 
-    let graph_block = Block::default()
-        .title(Line::from(vec![
+    let (graph_border_style, graph_title_style, graph_borders, graph_border_type) =
+        if is_graph_focused && is_body_active {
+            (
+                theme.border_focus,
+                theme.header_active,
+                Borders::ALL,
+                BorderType::Thick,
+            )
+        } else if is_body_active {
+            (
+                theme.border,
+                theme.header_item,
+                Borders::RIGHT,
+                BorderType::Plain,
+            )
+        } else {
+            (
+                theme.commit_id_dim,
+                theme.header_item,
+                Borders::RIGHT,
+                BorderType::Rounded,
+            )
+        };
+
+    // Build graph title with optional focus indicator
+    let graph_title_spans = if is_graph_focused && is_body_active {
+        vec![
+            Span::styled(format!(" {} ", glyphs::FOCUS), theme.border_focus),
+            Span::styled("REVISION GRAPH", graph_title_style),
+            Span::raw(" "),
+        ]
+    } else {
+        vec![
             Span::raw(" "),
             Span::styled("REVISION GRAPH", graph_title_style),
             Span::raw(" "),
-        ]))
+        ]
+    };
+
+    let graph_block = Block::default()
+        .title(Line::from(graph_title_spans))
         .title_bottom(Line::from(vec![
             Span::raw(" "),
             Span::styled("j/k", theme.footer_segment_key),
@@ -198,20 +260,47 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     // Right: Diff View
     if app_state.show_diffs && layout.body[1].width > 0 && layout.body[1].height > 0 {
         let is_diff_focused = app_state.focused_panel == Panel::Diff;
-        let (diff_border_style, diff_title_style, diff_borders, diff_border_type) = if is_diff_focused && is_body_active {
-            (theme.border_focus, theme.header_active, Borders::ALL, BorderType::Thick)
-        } else if is_body_active {
-            (theme.border, theme.header_item, Borders::LEFT, BorderType::Plain)
+        let (diff_border_style, diff_title_style, diff_borders, diff_border_type) =
+            if is_diff_focused && is_body_active {
+                (
+                    theme.border_focus,
+                    theme.header_active,
+                    Borders::ALL,
+                    BorderType::Thick,
+                )
+            } else if is_body_active {
+                (
+                    theme.border,
+                    theme.header_item,
+                    Borders::LEFT,
+                    BorderType::Plain,
+                )
+            } else {
+                (
+                    theme.commit_id_dim,
+                    theme.header_item,
+                    Borders::LEFT,
+                    BorderType::Rounded,
+                )
+            };
+
+        // Build diff title with optional focus indicator and DIFF glyph
+        let diff_title_spans = if is_diff_focused && is_body_active {
+            vec![
+                Span::styled(format!(" {} ", glyphs::FOCUS), theme.border_focus),
+                Span::styled(format!("{} DIFF VIEW", glyphs::DIFF), diff_title_style),
+                Span::raw(" "),
+            ]
         } else {
-            (theme.commit_id_dim, theme.header_item, Borders::LEFT, BorderType::Rounded)
+            vec![
+                Span::raw(" "),
+                Span::styled(format!("{} DIFF VIEW", glyphs::DIFF), diff_title_style),
+                Span::raw(" "),
+            ]
         };
 
         let diff_block = Block::default()
-            .title(Line::from(vec![
-                Span::raw(" "),
-                Span::styled("DIFF VIEW", diff_title_style),
-                Span::raw(" "),
-            ]))
+            .title(Line::from(diff_title_spans))
             .title_bottom(Line::from(vec![
                 Span::raw(" "),
                 Span::styled("PgUp/PgDn", theme.footer_segment_key),
@@ -239,19 +328,14 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
             state: app_state,
             theme,
         };
-        f.render_widget(
-            footer,
-            layout.main[2]
-        );
-        // Add a top border for the footer for seamless look
-        f.render_widget(Block::default().borders(Borders::TOP).border_style(theme.border), layout.main[2]);
+        f.render_widget(footer, layout.main[2]);
     }
 
     // --- Visual Dimming ---
-    let is_modal_active = match app_state.mode {
-        AppMode::Normal | AppMode::Diff | AppMode::NoRepo | AppMode::Loading => false,
-        _ => true,
-    } || app_state.last_error.is_some();
+    let is_modal_active = !matches!(
+        app_state.mode,
+        AppMode::Normal | AppMode::Diff | AppMode::NoRepo | AppMode::Loading
+    ) || app_state.last_error.is_some();
 
     if is_modal_active {
         dim_area(f, f.area());
@@ -470,53 +554,119 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
             Cell::from(Span::styled("Navigation", category_style)),
             Cell::from(""),
         ]),
-        Row::new(vec![Cell::from(Span::styled(" j / ↓", key_style)), Cell::from(Span::styled("Select next revision", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" k / ↑", key_style)), Cell::from(Span::styled("Select previous revision", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" Enter", key_style)), Cell::from(Span::styled("Toggle diff panel", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" Tab / l", key_style)), Cell::from(Span::styled("Focus diff panel", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" h", key_style)), Cell::from(Span::styled("Focus revision graph", desc_style))]),
+        Row::new(vec![
+            Cell::from(Span::styled(" j / ↓", key_style)),
+            Cell::from(Span::styled("Select next revision", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" k / ↑", key_style)),
+            Cell::from(Span::styled("Select previous revision", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" Enter", key_style)),
+            Cell::from(Span::styled("Toggle diff panel", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" Tab / l", key_style)),
+            Cell::from(Span::styled("Focus diff panel", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" h", key_style)),
+            Cell::from(Span::styled("Focus revision graph", desc_style)),
+        ]),
         Row::new(vec![Cell::from(""), Cell::from("")]),
-        
         // Operations
         Row::new(vec![
             Cell::from(Span::styled("Operations", category_style)),
             Cell::from(""),
         ]),
-        Row::new(vec![Cell::from(Span::styled(" s", key_style)), Cell::from(Span::styled("Snapshot working copy", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" e", key_style)), Cell::from(Span::styled("Edit selected revision", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" n", key_style)), Cell::from(Span::styled("Create new child revision", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" d", key_style)), Cell::from(Span::styled("Describe revision", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" a", key_style)), Cell::from(Span::styled("Abandon revision", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" S", key_style)), Cell::from(Span::styled("Squash into parent", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" b", key_style)), Cell::from(Span::styled("Set bookmark", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" B", key_style)), Cell::from(Span::styled("Delete bookmark", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" u / U", key_style)), Cell::from(Span::styled("Undo / Redo", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" f / p", key_style)), Cell::from(Span::styled("Fetch / Push", desc_style))]),
+        Row::new(vec![
+            Cell::from(Span::styled(" s", key_style)),
+            Cell::from(Span::styled("Snapshot working copy", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" e", key_style)),
+            Cell::from(Span::styled("Edit selected revision", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" n", key_style)),
+            Cell::from(Span::styled("Create new child revision", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" d", key_style)),
+            Cell::from(Span::styled("Describe revision", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" a", key_style)),
+            Cell::from(Span::styled("Abandon revision", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" S", key_style)),
+            Cell::from(Span::styled("Squash into parent", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" b", key_style)),
+            Cell::from(Span::styled("Set bookmark", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" B", key_style)),
+            Cell::from(Span::styled("Delete bookmark", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" u / U", key_style)),
+            Cell::from(Span::styled("Undo / Redo", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" f / p", key_style)),
+            Cell::from(Span::styled("Fetch / Push", desc_style)),
+        ]),
         Row::new(vec![Cell::from(""), Cell::from("")]),
-
         // Filtering
         Row::new(vec![
             Cell::from(Span::styled("Filtering", category_style)),
             Cell::from(""),
         ]),
-        Row::new(vec![Cell::from(Span::styled(" /", key_style)), Cell::from(Span::styled("Custom revset filter", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" m", key_style)), Cell::from(Span::styled("Filter: mine()", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" t", key_style)), Cell::from(Span::styled("Filter: trunk()", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" c", key_style)), Cell::from(Span::styled("Filter: conflicts()", desc_style))]),
+        Row::new(vec![
+            Cell::from(Span::styled(" /", key_style)),
+            Cell::from(Span::styled("Custom revset filter", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" m", key_style)),
+            Cell::from(Span::styled("Filter: mine()", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" t", key_style)),
+            Cell::from(Span::styled("Filter: trunk()", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" c", key_style)),
+            Cell::from(Span::styled("Filter: conflicts()", desc_style)),
+        ]),
         Row::new(vec![Cell::from(""), Cell::from("")]),
-
         // General
         Row::new(vec![
             Cell::from(Span::styled("General", category_style)),
             Cell::from(""),
         ]),
-        Row::new(vec![Cell::from(Span::styled(" ?", key_style)), Cell::from(Span::styled("Show this help", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" Esc", key_style)), Cell::from(Span::styled("Close modal / Clear errors", desc_style))]),
-        Row::new(vec![Cell::from(Span::styled(" q", key_style)), Cell::from(Span::styled("Quit", desc_style))]),
+        Row::new(vec![
+            Cell::from(Span::styled(" ?", key_style)),
+            Cell::from(Span::styled("Show this help", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" Esc", key_style)),
+            Cell::from(Span::styled("Close modal / Clear errors", desc_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled(" q", key_style)),
+            Cell::from(Span::styled("Quit", desc_style)),
+        ]),
     ];
 
-    let table = Table::new(rows, [Constraint::Percentage(30), Constraint::Percentage(70)])
-        .block(block);
+    let table = Table::new(
+        rows,
+        [Constraint::Percentage(30), Constraint::Percentage(70)],
+    )
+    .block(block);
 
     f.render_widget(table, help_area);
 }

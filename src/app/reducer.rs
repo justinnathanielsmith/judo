@@ -584,6 +584,16 @@ fn refresh_derived_state(state: &mut AppState) {
         let mutable_count = repo.graph.iter().filter(|r| !r.is_immutable).count();
         let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
 
+        state.header_state.repo_name = repo.repo_name.clone();
+        
+        // Find branch/bookmark of working copy
+        let wc_id = &repo.working_copy_id;
+        state.header_state.branch = repo.graph.iter()
+            .find(|r| r.commit_id == *wc_id)
+            .and_then(|r| r.bookmarks.first())
+            .cloned()
+            .unwrap_or_else(|| "no bookmark".to_string());
+
         state.header_state.op_id = repo.operation_id[..8.min(repo.operation_id.len())].to_string();
         state.header_state.wc_info = format!(
             " WC: {} ",
@@ -676,6 +686,7 @@ mod tests {
             });
         }
         RepoStatus {
+            repo_name: "test-repo".to_string(),
             operation_id: "op".to_string(),
             workspace_id: "default".to_string(),
             working_copy_id: CommitId("wc".to_string()),
@@ -769,6 +780,7 @@ mod tests {
             .collect();
 
         RepoStatus {
+            repo_name: "test-repo".to_string(),
             operation_id: "op".to_string(),
             workspace_id: "default".to_string(),
             working_copy_id: CommitId("commit0".to_string()),

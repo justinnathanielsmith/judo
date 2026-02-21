@@ -155,6 +155,7 @@ impl VcsFacade for JjAdapter {
 
         let repo_arc = repo.clone();
         let ws_id_clone = workspace_id.clone();
+        let ws_root_for_closure = ws_root.clone();
 
         // Phase 1: Blocking Graph Traversal (Pre-loading objects)
         let commit_infos = tokio::task::spawn_blocking(move || {
@@ -175,7 +176,7 @@ impl VcsFacade for JjAdapter {
                     .arg("-T")
                     .arg("commit_id ++ \"\\n\"")
                     .arg("--no-graph")
-                    .current_dir(ws_root)
+                    .current_dir(&ws_root_for_closure)
                     .output();
 
                 match output {
@@ -199,10 +200,8 @@ impl VcsFacade for JjAdapter {
                                         parent_ids_domain.push(CommitId(parent_id.hex()));
                                     }
 
-                                    let first_parent = match commit.parents().next().transpose() {
-                                        Ok(p) => p,
-                                        Err(_) => None,
-                                    };
+                                    let first_parent: Option<jj_lib::commit::Commit> =
+                                        commit.parents().next().transpose().unwrap_or_default();
                                     let tree = commit.tree();
                                     let parent_tree = first_parent.as_ref().map(|p| p.tree());
                                     let is_working_copy =
@@ -274,10 +273,8 @@ impl VcsFacade for JjAdapter {
                     queue.push_back(parent_id.clone());
                 }
 
-                let first_parent = match commit.parents().next().transpose() {
-                    Ok(p) => p,
-                    Err(_) => None,
-                };
+                let first_parent: Option<jj_lib::commit::Commit> =
+                    commit.parents().next().transpose().unwrap_or_default();
                 let tree = commit.tree();
                 let parent_tree = first_parent.as_ref().map(|p| p.tree());
                 let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
@@ -377,7 +374,14 @@ impl VcsFacade for JjAdapter {
             None => CommitId("".to_string()),
         };
 
+        let repo_name = ws_root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
         Ok(RepoStatus {
+            repo_name,
             operation_id: op_id,
             workspace_id: workspace_id.as_str().to_string(),
             working_copy_id: wc_id,

@@ -114,6 +114,8 @@ impl<'a> Widget for &AppTextArea<'a> {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct HeaderState {
+    pub repo_name: String,
+    pub branch: String,
     pub op_id: String,
     pub wc_info: String,
     pub stats: String,
