@@ -363,6 +363,7 @@ impl VcsFacade for JjAdapter {
                                         ChangeTag::Delete => {
                                             file_output.push_str(&format!(
                                                 "{:4}     : {}",
+                                                // SAFETY: ChangeTag::Delete always has an old_index
                                                 change.old_index().unwrap() + 1,
                                                 change.value()
                                             ));
@@ -370,6 +371,7 @@ impl VcsFacade for JjAdapter {
                                         ChangeTag::Insert => {
                                             file_output.push_str(&format!(
                                                 "    {:5}: {}",
+                                                // SAFETY: ChangeTag::Insert always has a new_index
                                                 change.new_index().unwrap() + 1,
                                                 change.value()
                                             ));
@@ -377,6 +379,7 @@ impl VcsFacade for JjAdapter {
                                         ChangeTag::Equal => {
                                             file_output.push_str(&format!(
                                                 "{:4}{:5}: {}",
+                                                // SAFETY: ChangeTag::Equal always has both old and new indices
                                                 change.old_index().unwrap() + 1,
                                                 change.new_index().unwrap() + 1,
                                                 change.value()

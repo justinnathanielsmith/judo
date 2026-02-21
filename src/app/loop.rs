@@ -138,7 +138,8 @@ pub async fn run_loop<B: Backend>(
                         match event {
                             Event::Key(key) => {
                                 match key.code {
-                                    KeyCode::Esc | KeyCode::Char('q') => Some(Action::Quit),
+                                    KeyCode::Esc => Some(Action::CancelMode),
+                                    KeyCode::Char('q') => Some(Action::Quit),
                                     KeyCode::Char('h') | KeyCode::Tab => Some(Action::FocusGraph),
                                     KeyCode::Down | KeyCode::Char('j') => Some(Action::ScrollDiffDown(1)),
                                     KeyCode::Up | KeyCode::Char('k') => Some(Action::ScrollDiffUp(1)),
@@ -250,6 +251,7 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                                     KeyCode::Char('[') => Some(Action::PrevHunk),
                                     KeyCode::Char(']') => Some(Action::NextHunk),
+                                    KeyCode::Esc => Some(Action::CancelMode),
                                     _ => None,
                                 }
                             },

@@ -381,10 +381,12 @@ mod tests {
 
     #[test]
     fn test_navigation() {
-        let mut state = AppState::default();
+        let mut state = AppState {
+            repo: Some(create_dummy_repo(0)),
+            ..Default::default()
+        };
 
         // 1. Empty Repo
-        state.repo = Some(create_dummy_repo(0));
         update(&mut state, Action::SelectNext);
         assert_eq!(state.log_list_state.selected(), Some(0));
 
@@ -427,8 +429,10 @@ mod tests {
 
     #[test]
     fn test_scroll_diff() {
-        let mut state = AppState::default();
-        state.diff_scroll = 10;
+        let mut state = AppState {
+            diff_scroll: 10,
+            ..Default::default()
+        };
 
         // Test ScrollDiffUp normal
         update(&mut state, Action::ScrollDiffUp(5));
@@ -469,8 +473,10 @@ mod tests {
 
     #[test]
     fn test_navigation_basic() {
-        let mut state = AppState::default();
-        state.repo = Some(create_mock_repo(3));
+        let mut state = AppState {
+            repo: Some(create_mock_repo(3)),
+            ..Default::default()
+        };
         state.log_list_state.select(Some(1));
 
         // Test SelectNext
@@ -484,9 +490,11 @@ mod tests {
 
     #[test]
     fn test_navigation_wrapping() {
-        let mut state = AppState::default();
         let num_rows = 3;
-        state.repo = Some(create_mock_repo(num_rows));
+        let mut state = AppState {
+            repo: Some(create_mock_repo(num_rows)),
+            ..Default::default()
+        };
 
         // Wrap from end to beginning
         state.log_list_state.select(Some(num_rows - 1));
@@ -523,6 +531,18 @@ mod tests {
         update(&mut state, Action::TextAreaInput(key));
         
         assert_eq!(state.text_area.lines()[0], "a");
+    }
+
+    #[test]
+    fn test_clear_error_on_cancel_mode() {
+        let mut state = AppState::default();
+        state.last_error = Some("An error occurred".to_string());
+        state.mode = AppMode::Input;
+
+        update(&mut state, Action::CancelMode);
+
+        assert_eq!(state.last_error, None);
+        assert_eq!(state.mode, AppMode::Normal);
     }
 
     #[test]
