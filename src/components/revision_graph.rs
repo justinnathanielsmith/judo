@@ -75,7 +75,9 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             let change_id_short = row.change_id.get(0..8).unwrap_or(&row.change_id);
             let commit_id_short = row.commit_id.0.get(0..8).unwrap_or(&row.commit_id.0);
 
-            let change_id_style = if row.is_immutable {
+            let change_id_style = if row.is_working_copy {
+                self.theme.change_id_wc
+            } else if row.is_immutable {
                 self.theme.change_id_immutable
             } else {
                 self.theme.change_id_mutable
