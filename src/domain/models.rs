@@ -40,6 +40,7 @@ pub struct GraphRow {
     pub description: String, // Full description now
     pub author: String,
     pub timestamp: String,
+    pub timestamp_secs: i64,
     pub is_working_copy: bool,
     pub is_immutable: bool,
     pub parents: Vec<CommitId>,

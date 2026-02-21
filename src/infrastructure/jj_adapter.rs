@@ -316,9 +316,9 @@ impl VcsFacade for JjAdapter {
                     let description = commit.description().to_string();
                     let change_id = commit.change_id().hex();
                     let author = commit.author().email.clone();
-                    let timestamp_sec = commit.author().timestamp.timestamp.0;
+                    let timestamp_secs = commit.author().timestamp.timestamp.0;
                     let datetime =
-                        chrono::DateTime::from_timestamp(timestamp_sec, 0).unwrap_or_default();
+                        chrono::DateTime::from_timestamp(timestamp_secs, 0).unwrap_or_default();
                     let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
                     let commit_id = CommitId(commit.id().hex());
 
@@ -356,6 +356,7 @@ impl VcsFacade for JjAdapter {
                         description,
                         author,
                         timestamp,
+                        timestamp_secs,
                         is_working_copy,
                         is_immutable,
                         parents: parent_ids,

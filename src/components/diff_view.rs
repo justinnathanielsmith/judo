@@ -49,6 +49,8 @@ impl<'a> Widget for DiffView<'a> {
             .map(|t| t.elapsed().as_millis() < 200)
             .unwrap_or(false);
 
+        let width = area.width as usize;
+
         let mut lines = Vec::new();
         for (i, line) in content.lines().enumerate() {
             let mut style = if line.starts_with("Bookmarks:") {
@@ -65,14 +67,13 @@ impl<'a> Widget for DiffView<'a> {
             {
                 self.theme.diff_header
             } else if line.starts_with('+') {
-                self.theme.diff_add
+                // Full-line green background tint for additions
+                self.theme.diff_add_bg
             } else if line.starts_with('-') {
-                self.theme.diff_remove
+                // Full-line red background tint for removals
+                self.theme.diff_remove_bg
             } else if line.starts_with("@@") {
                 self.theme.diff_hunk
-            } else if line.starts_with("    ") {
-                // Description or code context
-                self.theme.diff_context
             } else {
                 self.theme.diff_context
             };
@@ -81,7 +82,14 @@ impl<'a> Widget for DiffView<'a> {
                 style = style.add_modifier(ratatui::style::Modifier::REVERSED);
             }
 
-            lines.push(Line::from(Span::styled(line, style)));
+            // Pad the line to the full terminal width so the background tint fills the row.
+            let padded = if line.len() < width {
+                format!("{:<width$}", line, width = width)
+            } else {
+                line.to_string()
+            };
+
+            lines.push(Line::from(Span::styled(padded, style)));
         }
 
         Paragraph::new(lines)

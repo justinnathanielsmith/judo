@@ -4,7 +4,7 @@ use crate::theme::{glyphs, Theme};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Cell, Row, StatefulWidget, Table, TableState},
 };
@@ -16,15 +16,48 @@ pub struct RevisionGraph<'a> {
     pub selected_file_index: Option<usize>,
 }
 
+/// Returns a copy of `style` with its `Color::Rgb` foreground dimmed by `factor` (0.0–1.0).
+/// Non-Rgb fg colors are left unchanged. Used to indicate commit age on connector lines.
+fn age_dimmed_style(style: Style, factor: f32) -> Style {
+    if let Some(Color::Rgb(r, g, b)) = style.fg {
+        style.fg(Color::Rgb(
+            (r as f32 * factor) as u8,
+            (g as f32 * factor) as u8,
+            (b as f32 * factor) as u8,
+        ))
+    } else {
+        style
+    }
+}
+
+/// Maps commit age in days to a brightness factor for connector lines.
+/// Recent commits are full-brightness; older commits fade progressively.
+fn brightness_for_age(age_days: f32) -> f32 {
+    if age_days < 7.0 {
+        1.0
+    } else if age_days < 30.0 {
+        0.70
+    } else if age_days < 180.0 {
+        0.45
+    } else {
+        0.25
+    }
+}
+
 impl<'a> StatefulWidget for RevisionGraph<'a> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
+        let now_secs = chrono::Utc::now().timestamp();
         let mut rows: Vec<Row> = Vec::new();
 
         for (i, row) in self.repo.graph.iter().enumerate() {
             let is_selected = state.selected() == Some(i);
             let row_height = ui::calculate_row_height(row, is_selected, self.show_diffs);
+
+            // Compute age-based brightness for this commit's connector lines.
+            let age_days = (now_secs - row.timestamp_secs).max(0) as f32 / 86_400.0;
+            let brightness = brightness_for_age(age_days);
 
             // Prepare Graph Column
             let mut graph_lines = Vec::new();
@@ -46,6 +79,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     } else {
                         ("○", self.theme.graph_node_mutable)
                     };
+                    // Node symbols always full brightness
                     line_1_graph.push(Span::styled(symbol, style));
                 } else if row
                     .visual
@@ -54,7 +88,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     .cloned()
                     .unwrap_or(false)
                 {
-                    line_1_graph.push(Span::styled("│", lane_style));
+                    // Connector pipes: age-dimmed
+                    line_1_graph.push(Span::styled("│", age_dimmed_style(lane_style, brightness)));
                 } else {
                     line_1_graph.push(Span::raw(" "));
                 }
@@ -79,6 +114,9 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 for lane_idx in 0..max_lanes {
                     let lane_style =
                         self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
+                    // All symbols in connector rows are age-dimmed
+                    let dim_style = age_dimmed_style(lane_style, brightness);
+
                     let is_active_above = row
                         .visual
                         .active_lanes
@@ -142,7 +180,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                         }
                     }
 
-                    connector_line.push(Span::styled(symbol, lane_style));
+                    connector_line.push(Span::styled(symbol, dim_style));
                 }
                 connector_line.push(Span::raw("  "));
                 graph_lines.push(Line::from(connector_line));

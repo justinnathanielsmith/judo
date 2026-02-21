@@ -1,5 +1,20 @@
 use ratatui::style::{Color, Modifier, Style};
 
+/// Scale an `Rgb` color's channels by `factor` (0.0 = black, 1.0 = unchanged).
+/// Used to derive subtle background tints from palette foreground colors.
+/// Non-Rgb `Color` variants are returned as-is (they don't appear in these palettes).
+fn dim_color(c: Color, factor: f32) -> Color {
+    if let Color::Rgb(r, g, b) = c {
+        Color::Rgb(
+            (r as f32 * factor) as u8,
+            (g as f32 * factor) as u8,
+            (b as f32 * factor) as u8,
+        )
+    } else {
+        c
+    }
+}
+
 pub struct Palette {
     pub base: Color,
     pub mantle: Color,
@@ -92,8 +107,8 @@ pub const NORD: Palette = Palette {
     maroon: Color::Rgb(191, 97, 106),
     red: Color::Rgb(191, 97, 106),
     mauve: Color::Rgb(180, 142, 173),
-    pink: Color::Rgb(180, 142, 173),     // Approximation
-    flamingo: Color::Rgb(216, 222, 233), // Approximation
+    pink: Color::Rgb(180, 142, 173),      // Approximation
+    flamingo: Color::Rgb(216, 222, 233),  // Approximation
     rosewater: Color::Rgb(216, 222, 233), // Approximation
 };
 
@@ -143,7 +158,9 @@ pub struct Theme {
 
     pub diff_header: Style,
     pub diff_add: Style,
+    pub diff_add_bg: Style,
     pub diff_remove: Style,
+    pub diff_remove_bg: Style,
     pub diff_hunk: Style,
     pub diff_context: Style,
     pub diff_modify: Style,
@@ -222,7 +239,9 @@ impl Theme {
 
             diff_header: Style::default().fg(p.blue).add_modifier(Modifier::BOLD),
             diff_add: Style::default().fg(p.green),
+            diff_add_bg: Style::default().fg(p.green).bg(dim_color(p.green, 0.18)),
             diff_remove: Style::default().fg(p.red),
+            diff_remove_bg: Style::default().fg(p.red).bg(dim_color(p.red, 0.18)),
             diff_hunk: Style::default().fg(p.teal),
             diff_context: Style::default().fg(p.text),
             diff_modify: Style::default().fg(p.yellow),
@@ -240,9 +259,7 @@ impl Theme {
                 .bg(p.mauve)
                 .fg(p.crust)
                 .add_modifier(Modifier::BOLD),
-            header_stats: Style::default()
-                .bg(p.surface0)
-                .fg(p.subtext1),
+            header_stats: Style::default().bg(p.surface0).fg(p.subtext1),
             header_active: Style::default()
                 .bg(p.green)
                 .fg(p.crust)
