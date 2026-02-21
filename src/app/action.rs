@@ -39,6 +39,7 @@ pub enum Action {
     FocusDiff,                             // Switch focus to diff window
     FocusGraph,                            // Switch focus to revision graph
     CancelMode,                            // ESC key (close modal/mode)
+    TextAreaInput(crossterm::event::KeyEvent), // Handle text area input
     OpenContextMenu(CommitId, (u16, u16)), // Open menu at position
     SelectContextMenuAction(usize),        // Select action by index
     SelectContextMenuNext,                 // Next item in menu

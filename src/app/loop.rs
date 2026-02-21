@@ -301,8 +301,7 @@ pub async fn run_loop<B: Backend>(
                                         } else { None }
                                     },
                                     _ => {
-                                        app_state.text_area.input(key);
-                                        None
+                                        Some(Action::TextAreaInput(key))
                                     }
                                 }
                             },
@@ -707,10 +706,6 @@ async fn handle_command(
                         let _ = tx
                             .send(Action::OperationCompleted(Ok("Described".to_string())))
                             .await;
-                        // Reload repo after operation
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -728,9 +723,6 @@ async fn handle_command(
                 match adapter.snapshot().await {
                     Ok(msg) => {
                         let _ = tx.send(Action::OperationCompleted(Ok(msg))).await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -755,9 +747,6 @@ async fn handle_command(
                                 Ok("Edit successful".to_string()),
                             ))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -782,9 +771,6 @@ async fn handle_command(
                                 "Squash successful".to_string()
                             )))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -809,9 +795,6 @@ async fn handle_command(
                                 "New revision created".to_string()
                             )))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -836,9 +819,6 @@ async fn handle_command(
                                 "Revision abandoned".to_string()
                             )))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -864,9 +844,6 @@ async fn handle_command(
                                 name
                             ))))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -892,9 +869,6 @@ async fn handle_command(
                                 name
                             ))))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -916,9 +890,6 @@ async fn handle_command(
                                 Ok("Undo successful".to_string()),
                             ))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx
@@ -940,9 +911,6 @@ async fn handle_command(
                                 Ok("Redo successful".to_string()),
                             ))
                             .await;
-                        if let Ok(repo) = adapter.get_operation_log().await {
-                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
-                        }
                     }
                     Err(e) => {
                         let _ = tx

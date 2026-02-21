@@ -75,6 +75,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.text_area = AppTextArea::default(); // Reset input
             state.context_menu = None;
         }
+        Action::TextAreaInput(key) => {
+            state.text_area.input(key);
+        }
         Action::Quit => {
             state.should_quit = true;
         }
@@ -222,6 +225,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 Ok(msg) => {
                     state.status_message = Some(msg);
                     state.diff_cache.clear(); // Clear cache as operations might change history
+                    return Some(Command::LoadRepo);
                 }
                 Err(err) => state.last_error = Some(err),
             }
@@ -247,17 +251,21 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 
 fn move_selection(state: &mut AppState, delta: isize) -> Option<Command> {
     let len = state.repo.as_ref().map(|r| r.graph.len()).unwrap_or(0);
-    if len == 0 {
-        state.log_list_state.select(Some(0));
-        return handle_selection(state);
-    }
-
-    let new_index = match state.log_list_state.selected() {
-        Some(i) => (i as isize + delta).rem_euclid(len as isize) as usize,
-        None => 0,
-    };
+    let current_index = state.log_list_state.selected();
+    let new_index = calculate_new_index(current_index, delta, len);
+    
     state.log_list_state.select(Some(new_index));
     handle_selection(state)
+}
+
+fn calculate_new_index(current: Option<usize>, delta: isize, len: usize) -> usize {
+    if len == 0 {
+        return 0;
+    }
+    match current {
+        Some(i) => (i as isize + delta).rem_euclid(len as isize) as usize,
+        None => 0,
+    }
 }
 
 fn handle_selection(state: &mut AppState) -> Option<Command> {
@@ -442,16 +450,22 @@ mod tests {
     }
 
     #[test]
-    fn test_navigation_no_repo() {
+    fn test_text_area_input() {
         let mut state = AppState::default();
-        state.repo = None;
+        use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
+        
+        let key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+        update(&mut state, Action::TextAreaInput(key));
+        
+        assert_eq!(state.text_area.lines()[0], "a");
+    }
 
-        state.log_list_state.select(Some(5)); // Some arbitrary index
-        update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
-
-        state.log_list_state.select(Some(5));
-        update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+    #[test]
+    fn test_calculate_new_index() {
+        assert_eq!(calculate_new_index(Some(1), 1, 3), 2);
+        assert_eq!(calculate_new_index(Some(2), 1, 3), 0);
+        assert_eq!(calculate_new_index(Some(0), -1, 3), 2);
+        assert_eq!(calculate_new_index(None, 1, 3), 0);
+        assert_eq!(calculate_new_index(Some(5), 1, 0), 0);
     }
 }
