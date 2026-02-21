@@ -823,6 +823,78 @@ mod tests {
         update(&mut state, Action::SelectNext);
         assert_eq!(state.selected_file_index, None);
     }
+
+    #[test]
+    fn test_navigation_boundaries_and_empty_state() {
+        // Test with empty repo
+        let mut state = AppState::default();
+        state.repo = Some(create_mock_repo(0));
+
+        update(&mut state, Action::SelectNext);
+        assert!(state.log_list_state.selected().unwrap_or(0) < 1);
+
+        update(&mut state, Action::SelectPrev);
+        assert!(state.log_list_state.selected().unwrap_or(0) < 1);
+
+        // Test with 1 item repo
+        state.repo = Some(create_mock_repo(1));
+        state.log_list_state.select(Some(0));
+
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        // Test with large deltas (if we had them, but we use 1/-1)
+        // Ensure wrap-around is consistent
+        state.repo = Some(create_mock_repo(10));
+        state.log_list_state.select(Some(9));
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.log_list_state.selected(), Some(0));
+
+        state.log_list_state.select(Some(0));
+        update(&mut state, Action::SelectPrev);
+        assert_eq!(state.log_list_state.selected(), Some(9));
+    }
+
+    #[test]
+    fn test_comprehensive_esc_behavior() {
+        let modes = [
+            AppMode::Command,
+            AppMode::SquashSelect,
+            AppMode::BookmarkInput,
+            AppMode::Input,
+            AppMode::Loading,
+            AppMode::Diff,
+            AppMode::ContextMenu,
+            AppMode::FilterInput,
+        ];
+
+        for mode in modes {
+            let mut state = AppState {
+                mode,
+                last_error: Some("error".to_string()),
+                context_menu: Some(crate::app::state::ContextMenuState {
+                    commit_id: CommitId("c1".to_string()),
+                    x: 0,
+                    y: 0,
+                    selected_index: 0,
+                    actions: vec![],
+                }),
+                ..Default::default()
+            };
+            // Set some text in text area
+            state.text_area.insert_str("some text");
+
+            update(&mut state, Action::CancelMode);
+
+            assert_eq!(state.mode, AppMode::Normal, "Mode should reset to Normal from {:?}", mode);
+            assert_eq!(state.last_error, None, "Error should be cleared from {:?}", mode);
+            assert_eq!(state.context_menu, None, "Context menu should be cleared from {:?}", mode);
+            assert!(state.text_area.is_empty(), "Text area should be cleared from {:?}", mode);
+        }
+    }
 }
 
 fn scroll_to_selected_file(state: &mut AppState) {
