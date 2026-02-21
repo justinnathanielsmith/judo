@@ -310,119 +310,175 @@ impl VcsFacade for JjAdapter {
 
         let tree = commit.tree();
 
-        let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
-        while let Some(entry) = stream.next().await {
-            let path_str = entry.path.as_internal_file_string().to_string();
+        let entries = parent_tree
+            .diff_stream(&tree, &EverythingMatcher)
+            .collect::<Vec<_>>()
+            .await;
 
-            let diff = entry.values?;
+        let diff_outputs = futures::stream::iter(entries)
+            .map(|entry| {
+                let repo = repo.clone();
+                async move {
+                    let entry = entry;
+                    let path_str = entry.path.as_internal_file_string().to_string();
 
-            let mut old_content = Vec::new();
-            if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
-                diff.before.into_resolved()
-            {
-                let mut reader = repo
-                    .store()
-                    .read_file(&entry.path, &id)
-                    .await?
-                    .take(MAX_DIFF_SIZE + 1);
-                reader.read_to_end(&mut old_content).await?;
-                if old_content.len() as u64 > MAX_DIFF_SIZE {
-                    output.push_str(&format!("File {} is too large to diff\n\n", path_str));
-                    continue;
-                }
-            }
+                    let diff = match entry.values {
+                        Ok(v) => v,
+                        Err(e) => {
+                            return Ok::<String, anyhow::Error>(format!(
+                                "Error reading diff values for {}: {}\n",
+                                path_str, e
+                            ))
+                        }
+                    };
 
-            let mut new_content = Vec::new();
-            if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
-                diff.after.into_resolved()
-            {
-                let mut reader = repo
-                    .store()
-                    .read_file(&entry.path, &id)
-                    .await?
-                    .take(MAX_DIFF_SIZE + 1);
-                reader.read_to_end(&mut new_content).await?;
-                if new_content.len() as u64 > MAX_DIFF_SIZE {
-                    output.push_str(&format!("File {} is too large to diff\n\n", path_str));
-                    continue;
-                }
-            }
-
-            let diff_output = tokio::task::spawn_blocking(move || {
-                let mut file_output = String::new();
-                // Simple binary check: check for null bytes in the first 1KB
-                let is_binary = old_content
-                    .iter()
-                    .chain(new_content.iter())
-                    .take(1024)
-                    .any(|&b| b == 0);
-
-                if is_binary {
-                    file_output.push_str(&format!("Binary file {}\n\n", path_str));
-                } else {
-                    let old_text = String::from_utf8_lossy(&old_content);
-                    let new_text = String::from_utf8_lossy(&new_content);
-
-                    use similar::{ChangeTag, TextDiff};
-
-                    let diff = TextDiff::from_lines(&old_text, &new_text);
-
-                    if old_content.is_empty() {
-                        file_output.push_str(&format!("+ Added regular file {}:\n", path_str));
-                    } else if new_content.is_empty() {
-                        file_output.push_str(&format!("- Deleted regular file {}:\n", path_str));
+                    let old_id = if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
+                        diff.before.into_resolved()
+                    {
+                        Some(id)
                     } else {
-                        file_output.push_str(&format!("~ Modified regular file {}:\n", path_str));
+                        None
+                    };
+
+                    let new_id = if let Ok(Some(jj_lib::backend::TreeValue::File { id, .. })) =
+                        diff.after.into_resolved()
+                    {
+                        Some(id)
+                    } else {
+                        None
+                    };
+
+                    if old_id.is_none() && new_id.is_none() {
+                        return Ok(String::new());
                     }
 
-                    if diff.ratio() < 1.0 || old_text != new_text {
-                        let mut first_group = true;
-                        for group in diff.grouped_ops(3) {
-                            if !first_group {
-                                file_output.push_str("    ...\n");
+                    // Read contents in parallel
+                    let (old_content_res, new_content_res) = tokio::join!(
+                        async {
+                            if let Some(id) = old_id {
+                                let mut content = Vec::new();
+                                let mut reader = repo
+                                    .store()
+                                    .read_file(&entry.path, &id)
+                                    .await?
+                                    .take(MAX_DIFF_SIZE + 1);
+                                reader.read_to_end(&mut content).await?;
+                                Ok::<_, anyhow::Error>(Some(content))
+                            } else {
+                                Ok(None)
                             }
-                            first_group = false;
+                        },
+                        async {
+                            if let Some(id) = new_id {
+                                let mut content = Vec::new();
+                                let mut reader = repo
+                                    .store()
+                                    .read_file(&entry.path, &id)
+                                    .await?
+                                    .take(MAX_DIFF_SIZE + 1);
+                                reader.read_to_end(&mut content).await?;
+                                Ok::<_, anyhow::Error>(Some(content))
+                            } else {
+                                Ok(None)
+                            }
+                        }
+                    );
 
-                            for op in group {
-                                for change in diff.iter_changes(&op) {
-                                    match change.tag() {
-                                        ChangeTag::Delete => {
-                                            file_output.push_str(&format!(
-                                                "{:4}     : {}",
-                                                // SAFETY: ChangeTag::Delete always has an old_index
-                                                change.old_index().unwrap() + 1,
-                                                change.value()
-                                            ));
-                                        }
-                                        ChangeTag::Insert => {
-                                            file_output.push_str(&format!(
-                                                "    {:5}: {}",
-                                                // SAFETY: ChangeTag::Insert always has a new_index
-                                                change.new_index().unwrap() + 1,
-                                                change.value()
-                                            ));
-                                        }
-                                        ChangeTag::Equal => {
-                                            file_output.push_str(&format!(
-                                                "{:4}{:5}: {}",
-                                                // SAFETY: ChangeTag::Equal always has both old and new indices
-                                                change.old_index().unwrap() + 1,
-                                                change.new_index().unwrap() + 1,
-                                                change.value()
-                                            ));
+                    let old_content = old_content_res?.unwrap_or_default();
+                    let new_content = new_content_res?.unwrap_or_default();
+
+                    if old_content.len() as u64 > MAX_DIFF_SIZE
+                        || new_content.len() as u64 > MAX_DIFF_SIZE
+                    {
+                        return Ok(format!("File {} is too large to diff\n\n", path_str));
+                    }
+
+                    let diff_output = tokio::task::spawn_blocking(move || {
+                        let mut file_output = String::new();
+                        // Simple binary check: check for null bytes in the first 1KB
+                        let is_binary = old_content
+                            .iter()
+                            .chain(new_content.iter())
+                            .take(1024)
+                            .any(|&b| b == 0);
+
+                        if is_binary {
+                            file_output.push_str(&format!("Binary file {}\n\n", path_str));
+                        } else {
+                            let old_text = String::from_utf8_lossy(&old_content);
+                            let new_text = String::from_utf8_lossy(&new_content);
+
+                            use similar::{ChangeTag, TextDiff};
+
+                            let diff = TextDiff::from_lines(&old_text, &new_text);
+
+                            if old_content.is_empty() {
+                                file_output
+                                    .push_str(&format!("+ Added regular file {}:\n", path_str));
+                            } else if new_content.is_empty() {
+                                file_output
+                                    .push_str(&format!("- Deleted regular file {}:\n", path_str));
+                            } else {
+                                file_output
+                                    .push_str(&format!("~ Modified regular file {}:\n", path_str));
+                            }
+
+                            if diff.ratio() < 1.0 || old_text != new_text {
+                                let mut first_group = true;
+                                for group in diff.grouped_ops(3) {
+                                    if !first_group {
+                                        file_output.push_str("    ...\n");
+                                    }
+                                    first_group = false;
+
+                                    for op in group {
+                                        for change in diff.iter_changes(&op) {
+                                            match change.tag() {
+                                                ChangeTag::Delete => {
+                                                    file_output.push_str(&format!(
+                                                        "{:4}     : {}",
+                                                        change.old_index().unwrap() + 1,
+                                                        change.value()
+                                                    ));
+                                                }
+                                                ChangeTag::Insert => {
+                                                    file_output.push_str(&format!(
+                                                        "    {:5}: {}",
+                                                        change.new_index().unwrap() + 1,
+                                                        change.value()
+                                                    ));
+                                                }
+                                                ChangeTag::Equal => {
+                                                    file_output.push_str(&format!(
+                                                        "{:4}{:5}: {}",
+                                                        change.old_index().unwrap() + 1,
+                                                        change.new_index().unwrap() + 1,
+                                                        change.value()
+                                                    ));
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                }
-                file_output
-            })
-            .await?;
+                        file_output
+                    })
+                    .await?;
 
-            output.push_str(&diff_output);
-            output.push('\n');
+                    Ok(diff_output)
+                }
+            })
+            .buffered(8)
+            .collect::<Vec<Result<String>>>()
+            .await;
+
+        for res in diff_outputs {
+            let chunk = res?;
+            if !chunk.is_empty() {
+                output.push_str(&chunk);
+                output.push('\n');
+            }
         }
 
         if output.trim().is_empty() {
@@ -468,7 +524,6 @@ impl VcsFacade for JjAdapter {
         let mut workspace = self.workspace.lock().await;
 
         let repo = workspace.repo_loader().load_at_head()?;
-        let op_id = repo.operation().id().clone();
 
         let mut locked_ws = workspace.start_working_copy_mutation()?;
 
@@ -480,11 +535,31 @@ impl VcsFacade for JjAdapter {
             max_new_file_size: MAX_NEW_FILE_SIZE,
         };
 
-        let (_tree, _stats) = locked_ws.locked_wc().snapshot(&options).await?;
+        let (tree, _stats) = locked_ws.locked_wc().snapshot(&options).await?;
 
-        locked_ws.finish(op_id)?;
+        let (_workspace_id, wc_commit_id) = repo
+            .view()
+            .wc_commit_ids()
+            .iter()
+            .next()
+            .ok_or_else(|| anyhow!("No working copy found in view"))?;
 
-        Ok("Snapshot created".to_string())
+        let wc_commit = repo.store().get_commit(wc_commit_id)?;
+
+        if wc_commit.tree_ids() != tree.tree_ids() {
+            let mut tx = repo.start_transaction();
+            tx.repo_mut()
+                .rewrite_commit(&wc_commit)
+                .set_tree(tree)
+                .write()?;
+            tx.repo_mut().rebase_descendants()?;
+            let repo = tx.commit("snapshot")?;
+            locked_ws.finish(repo.operation().id().clone())?;
+            Ok("Snapshot created".to_string())
+        } else {
+            locked_ws.finish(repo.operation().id().clone())?;
+            Ok("Snapshot created".to_string())
+        }
     }
 
     async fn edit(&self, commit_id: &CommitId) -> Result<()> {
@@ -943,6 +1018,59 @@ mod tests {
         adapter.redo().await?;
         let redo_status = adapter.get_operation_log(None, 100).await?;
         assert_eq!(redo_status.operation_id, mid_op_id);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_commit_diff() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        Workspace::init_simple(&user_settings, path)?;
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        // 1. Test Added File
+        let file_path = path.join("test.txt");
+        tokio::fs::write(&file_path, "Line 1\nLine 2\n").await?;
+
+        adapter.snapshot().await?;
+
+        let status = adapter.get_operation_log(None, 100).await?;
+        let commit_id = status.graph.first().unwrap().commit_id.clone();
+
+        let diff = adapter.get_commit_diff(&commit_id).await?;
+
+        assert!(diff.contains("test.txt"));
+        assert!(diff.contains("+ Added regular file test.txt"));
+        assert!(diff.contains("Line 1"));
+        assert!(diff.contains("Line 2"));
+
+        // 2. Test Modified File
+        // Create a new child commit so the parent has the file
+        adapter.new_child(&commit_id).await?;
+        
+        // In jj, new_child doesn't necessarily move the working copy.
+        // We need to edit the new child to make it the working copy.
+        let status = adapter.get_operation_log(None, 100).await?;
+        let new_commit_id = status.graph.first().unwrap().commit_id.clone();
+        adapter.edit(&new_commit_id).await?;
+        
+        tokio::fs::write(&file_path, "Line 1\nLine 2 modified\n").await?;
+        adapter.snapshot().await?;
+
+        let status = adapter.get_operation_log(None, 100).await?;
+        let commit_id = status.graph.first().unwrap().commit_id.clone();
+
+        let diff = adapter.get_commit_diff(&commit_id).await?;
+        
+        assert!(diff.contains("test.txt"));
+        assert!(diff.contains("~ Modified regular file test.txt"));
+        assert!(diff.contains("Line 2"));
+        assert!(diff.contains("Line 2 modified"));
 
         Ok(())
     }
