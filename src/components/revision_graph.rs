@@ -1,5 +1,6 @@
 use crate::domain::models::{FileStatus, RepoStatus};
 use crate::theme::Theme;
+use crate::app::ui;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
@@ -18,43 +19,19 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
-        let mut lanes: Vec<Option<String>> = Vec::new();
         let mut rows: Vec<Row> = Vec::new();
 
         for (i, row) in self.repo.graph.iter().enumerate() {
             let is_selected = state.selected() == Some(i);
-
-            // Find or assign a lane for this commit
-            let commit_id_hex = &row.commit_id.0;
-            let current_lane = lanes
-                .iter()
-                .position(|l| l.as_ref() == Some(commit_id_hex))
-                .unwrap_or_else(|| {
-                    // If not found, find an empty spot or push a new one
-                    if let Some(pos) = lanes.iter().position(|l| l.is_none()) {
-                        lanes[pos] = Some(commit_id_hex.clone());
-                        pos
-                    } else {
-                        lanes.push(Some(commit_id_hex.clone()));
-                        lanes.len() - 1
-                    }
-                });
-
-            let show_files = is_selected && self.show_diffs;
-            let num_files = if show_files {
-                row.changed_files.len()
-            } else {
-                0
-            };
-            let row_height = 2 + num_files as u16;
+            let row_height = ui::calculate_row_height(row, is_selected, self.show_diffs);
 
             // Prepare Graph Column
             let mut graph_lines = Vec::new();
 
             // Graph Line 1: Node symbol and existing pipes
             let mut line_1_graph = Vec::new();
-            for (lane_idx, lane_commit) in lanes.iter().enumerate() {
-                if lane_idx == current_lane {
+            for (lane_idx, is_active) in row.visual.active_lanes.iter().enumerate() {
+                if lane_idx == row.visual.column {
                     let (symbol, style) = if row.is_working_copy {
                         ("@", self.theme.graph_node_wc)
                     } else if row.is_immutable {
@@ -63,7 +40,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                         ("○", self.theme.graph_node_mutable)
                     };
                     line_1_graph.push(Span::styled(symbol, style));
-                } else if lane_commit.is_some() {
+                } else if *is_active {
                     line_1_graph.push(Span::styled("│", self.theme.graph_line));
                 } else {
                     line_1_graph.push(Span::raw(" "));
@@ -73,23 +50,11 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             line_1_graph.push(Span::raw("  "));
             graph_lines.push(Line::from(line_1_graph));
 
-            // Update lanes for parents
-            lanes[current_lane] = None;
-            for parent in &row.parents {
-                if !lanes.iter().any(|l| l.as_ref() == Some(&parent.0)) {
-                    if let Some(pos) = lanes.iter().position(|l| l.is_none()) {
-                        lanes[pos] = Some(parent.0.clone());
-                    } else {
-                        lanes.push(Some(parent.0.clone()));
-                    }
-                }
-            }
-
             // Subsequent Graph Lines: Connector pipes
             for _ in 1..row_height {
                 let mut connector_line = Vec::new();
-                for lane_commit in lanes.iter() {
-                    if lane_commit.is_some() {
+                for is_active in row.visual.connector_lanes.iter() {
+                    if *is_active {
                         connector_line.push(Span::styled("│", self.theme.graph_line));
                     } else {
                         connector_line.push(Span::raw(" "));
@@ -145,7 +110,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             }
 
             // Line 3+: Files
-            if show_files {
+            if is_selected && self.show_diffs {
                 for file in &row.changed_files {
                     let style = match file.status {
                         FileStatus::Added => self.theme.diff_add,

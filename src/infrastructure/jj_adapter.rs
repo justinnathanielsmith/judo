@@ -221,6 +221,7 @@ impl VcsFacade for JjAdapter {
                     parents: parent_ids,
                     bookmarks,
                     changed_files,
+                    visual: crate::domain::models::GraphRowVisual::default(),
                 }
             })
             .buffered(50) 

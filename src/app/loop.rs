@@ -2,23 +2,15 @@ use crate::app::{
     action::Action,
     command::Command,
     reducer,
-    state::{AppMode, AppState},
+    state::AppState,
+    ui,
 };
-use crate::components::diff_view::DiffView;
-use crate::components::footer::Footer;
-use crate::components::revision_graph::RevisionGraph;
 use crate::domain::vcs::VcsFacade;
 use crate::theme::Theme;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, MouseButton, MouseEventKind};
-use ratatui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
-    Terminal,
-};
+use ratatui::{backend::Backend, Terminal};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -57,220 +49,7 @@ pub async fn run_loop<B: Backend>(
     loop {
         // --- 1. Render ---
         terminal.draw(|f| {
-            let main_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(1), // Header
-                    Constraint::Min(0),    // Body
-                    Constraint::Length(1), // Footer
-                ])
-                .split(f.area());
-
-            // --- Header ---
-            let (op_id, wc_info, stats) = if let Some(repo) = &app_state.repo {
-                let mutable_count = repo.graph.iter().filter(|r| !r.is_immutable).count();
-                let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
-                (
-                    &repo.operation_id[..8.min(repo.operation_id.len())],
-                    format!(
-                        " WC: {} ",
-                        &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())]
-                    ),
-                    format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count),
-                )
-            } else {
-                ("........", " Loading... ".to_string(), "".to_string())
-            };
-
-            let header = Paragraph::new(Line::from(vec![
-                Span::styled(" JUDO ", theme.header_logo),
-                Span::styled(format!(" Op: {} ", op_id), theme.header_item),
-                Span::styled(wc_info, theme.header_item),
-                Span::styled(stats, theme.header),
-                Span::styled(" ".repeat(f.area().width as usize), theme.header),
-            ]))
-            .style(theme.header);
-            f.render_widget(header, main_chunks[0]);
-
-            // --- Body ---
-            let body_chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints(if app_state.show_diffs {
-                    [Constraint::Percentage(50), Constraint::Percentage(50)]
-                } else {
-                    [Constraint::Percentage(100), Constraint::Percentage(0)]
-                })
-                .split(main_chunks[1]);
-
-            // Left: Revision Graph
-            let graph_border = if app_state.mode == crate::app::state::AppMode::Normal {
-                theme.border_focus
-            } else {
-                theme.border
-            };
-            let graph_block = Block::default()
-                .title(Line::from(vec![
-                    Span::raw(" "),
-                    Span::styled("REVISION GRAPH", theme.header_logo),
-                    Span::raw(" "),
-                ]))
-                .title_bottom(Line::from(vec![
-                    Span::raw(" "),
-                    Span::styled("j/k", theme.footer_segment_key),
-                    Span::raw(": navigate "),
-                    Span::styled("d", theme.footer_segment_key),
-                    Span::raw(": describe "),
-                ]))
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .border_style(graph_border);
-
-            if let Some(repo) = &app_state.repo {
-                let graph = RevisionGraph {
-                    repo,
-                    theme: &theme,
-                    show_diffs: app_state.show_diffs,
-                };
-                f.render_stateful_widget(
-                    graph,
-                    graph_block.inner(body_chunks[0]),
-                    &mut app_state.log_list_state,
-                );
-            } else {
-                let spin_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-                let spinner =
-                    spin_chars[(app_state.frame_count % spin_chars.len() as u64) as usize];
-
-                let logo_ascii = [
-                    "   _ _   _ ___   ___ ",
-                    "  | | | | |   \\ / _ \\",
-                    " _| | |_| | |) | (_) |",
-                    "|___|_____|___/ \\___/ ",
-                ];
-
-                let mut lines: Vec<Line> = logo_ascii
-                    .iter()
-                    .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
-                    .collect();
-                lines.push(Line::from(""));
-                lines.push(Line::from(vec![
-                    Span::styled(spinner, theme.header_logo),
-                    Span::raw(" Loading Jujutsu Repository... "),
-                ]));
-
-                let loading = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
-
-                let area = body_chunks[0];
-                let logo_height = 6;
-                let centered_area = Rect {
-                    x: area.x,
-                    y: area.y + area.height / 2 - (logo_height / 2),
-                    width: area.width,
-                    height: logo_height,
-                };
-                f.render_widget(loading, centered_area);
-            }
-            f.render_widget(graph_block, body_chunks[0]);
-
-            // Right: Diff View
-            if app_state.show_diffs {
-                let diff_border = if app_state.mode == crate::app::state::AppMode::Diff {
-                    theme.border_focus
-                } else {
-                    theme.border
-                };
-                let diff_block = Block::default()
-                    .title(Line::from(vec![
-                        Span::raw(" "),
-                        Span::styled("DIFF VIEW", theme.header_logo),
-                        Span::raw(" "),
-                    ]))
-                    .title_bottom(Line::from(vec![
-                        Span::raw(" "),
-                        Span::styled("PgUp/PgDn", theme.footer_segment_key),
-                        Span::raw(": scroll "),
-                        Span::styled("[/]", theme.footer_segment_key),
-                        Span::raw(": hunks "),
-                    ]))
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .border_style(diff_border);
-
-                let diff_view = DiffView {
-                    diff_content: app_state.current_diff.as_deref(),
-                    scroll_offset: app_state.diff_scroll,
-                    theme: &theme,
-                };
-                f.render_widget(diff_view, diff_block.inner(body_chunks[1]));
-                f.render_widget(diff_block, body_chunks[1]);
-            }
-
-            // --- Footer ---
-            let footer = Footer {
-                state: &app_state,
-                theme: &theme,
-            };
-            f.render_widget(footer, main_chunks[2]);
-
-            // --- Input Modal ---
-            if app_state.mode == crate::app::state::AppMode::Input
-                || app_state.mode == crate::app::state::AppMode::BookmarkInput
-            {
-                let area = centered_rect(60, 20, f.area());
-                f.render_widget(Clear, area);
-                let title = if app_state.mode == crate::app::state::AppMode::BookmarkInput {
-                    " Set Bookmark "
-                } else {
-                    " Describe Revision "
-                };
-                let block = Block::default()
-                    .title(title)
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .border_style(theme.border_focus);
-                app_state.text_area.set_block(block);
-                f.render_widget(&app_state.text_area, area);
-            }
-
-            // --- Context Menu Popup ---
-            if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
-                let menu_width = 20;
-                let menu_height = menu.actions.len() as u16 + 2;
-
-                // Position adjustment to keep menu on screen
-                let mut x = menu.x;
-                let mut y = menu.y;
-                if x + menu_width > f.area().width {
-                    x = f.area().width.saturating_sub(menu_width);
-                }
-                if y + menu_height > f.area().height {
-                    y = f.area().height.saturating_sub(menu_height);
-                }
-
-                let area = ratatui::layout::Rect::new(x, y, menu_width, menu_height);
-                f.render_widget(Clear, area);
-
-                let items: Vec<ListItem> = menu
-                    .actions
-                    .iter()
-                    .enumerate()
-                    .map(|(i, (name, _))| {
-                        if i == menu.selected_index {
-                            ListItem::new(format!("> {}", name)).style(theme.list_selected)
-                        } else {
-                            ListItem::new(format!("  {}", name)).style(theme.list_item)
-                        }
-                    })
-                    .collect();
-
-                let list = List::new(items).block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_type(BorderType::Rounded)
-                        .border_style(theme.border_focus),
-                );
-                f.render_widget(list, area);
-            }
+            ui::draw(f, &mut app_state, &theme);
         })?;
 
         // --- 2. Event Handling (TEA Runtime) ---
@@ -383,25 +162,10 @@ pub async fn run_loop<B: Backend>(
 
                                         let size = terminal.size()?;
                                         let area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
-                                        let main_chunks = Layout::default()
-                                            .direction(Direction::Vertical)
-                                            .constraints([
-                                                Constraint::Length(1), // Header
-                                                Constraint::Min(0),    // Body
-                                                Constraint::Length(1), // Footer
-                                            ])
-                                            .split(area);
-                                        let body_chunks = Layout::default()
-                                            .direction(Direction::Horizontal)
-                                            .constraints(if app_state.show_diffs {
-                                                [Constraint::Percentage(50), Constraint::Percentage(50)]
-                                            } else {
-                                                [Constraint::Percentage(100), Constraint::Percentage(0)]
-                                            })
-                                            .split(main_chunks[1]);
+                                        let layout = ui::get_layout(area, app_state.show_diffs);
 
                                         // Revision Graph Area
-                                        let graph_area = body_chunks[0];
+                                        let graph_area = layout.body[0];
                                         if mouse.column > graph_area.x && mouse.column < graph_area.x + graph_area.width - 1
                                             && mouse.row > graph_area.y && mouse.row < graph_area.y + graph_area.height - 1
                                         {
@@ -492,25 +256,10 @@ pub async fn run_loop<B: Backend>(
                             Event::Mouse(mouse) => {
                                 let size = terminal.size()?;
                                 let area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
-                                let main_chunks = Layout::default()
-                                    .direction(Direction::Vertical)
-                                    .constraints([
-                                        Constraint::Length(1), // Header
-                                        Constraint::Min(0),    // Body
-                                        Constraint::Length(1), // Footer
-                                    ])
-                                    .split(area);
-                                let body_chunks = Layout::default()
-                                    .direction(Direction::Horizontal)
-                                    .constraints(if app_state.show_diffs {
-                                        [Constraint::Percentage(50), Constraint::Percentage(50)]
-                                    } else {
-                                        [Constraint::Percentage(100), Constraint::Percentage(0)]
-                                    })
-                                    .split(main_chunks[1]);
+                                let layout = ui::get_layout(area, app_state.show_diffs);
 
-                                let graph_area = body_chunks[0];
-                                let diff_area = body_chunks[1];
+                                let graph_area = layout.body[0];
+                                let diff_area = layout.body[1];
 
                                 match mouse.kind {
                                     MouseEventKind::ScrollUp => {
@@ -548,7 +297,7 @@ pub async fn run_loop<B: Backend>(
                                                 for i in offset..repo.graph.len() {
                                                     let row = &repo.graph[i];
                                                     let is_selected = app_state.log_list_state.selected() == Some(i);
-                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() } else { 0 };
+                                                    let row_height = ui::calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
 
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                         result = Some(Action::SelectIndex(i));
@@ -579,7 +328,7 @@ pub async fn run_loop<B: Backend>(
                                                 for i in offset..repo.graph.len() {
                                                     let row = &repo.graph[i];
                                                     let is_selected = app_state.log_list_state.selected() == Some(i);
-                                                    let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() } else { 0 };
+                                                    let row_height = ui::calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
 
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
                                                         // Selection happens on right click too
@@ -632,30 +381,6 @@ pub async fn run_loop<B: Backend>(
     }
 
     Ok(())
-}
-
-fn centered_rect(
-    percent_x: u16,
-    percent_y: u16,
-    r: ratatui::layout::Rect,
-) -> ratatui::layout::Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
 
 async fn handle_command(

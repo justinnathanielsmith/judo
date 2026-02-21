@@ -75,6 +75,13 @@ impl<'a> Widget for &AppTextArea<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct HeaderState {
+    pub op_id: String,
+    pub wc_info: String,
+    pub stats: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState<'a> {
     // --- Connectivity & Status ---
@@ -98,6 +105,8 @@ pub struct AppState<'a> {
     pub diff_scroll: u16,
     pub diff_cache: HashMap<CommitId, String>,
     pub show_diffs: bool,
+    pub header_state: HeaderState,
+    pub spinner: String,
 
     // --- Input Handling ---
     pub text_area: AppTextArea<'a>,
@@ -126,8 +135,10 @@ impl<'a> Default for AppState<'a> {
             is_loading_diff: false,
             diff_scroll: 0,
             diff_cache: HashMap::new(),
-            text_area: AppTextArea::default(),
             show_diffs: false,
+            header_state: HeaderState::default(),
+            spinner: "⠋".to_string(),
+            text_area: AppTextArea::default(),
             last_click_time: None,
             last_click_pos: None,
             context_menu: None,

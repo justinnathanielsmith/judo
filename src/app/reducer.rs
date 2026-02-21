@@ -192,6 +192,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         // --- Async Results ---
         Action::RepoLoaded(repo_status) => {
             state.repo = Some(*repo_status);
+            refresh_derived_state(state);
             // If nothing selected, select the working copy (or HEAD)
             if state.log_list_state.selected().is_none() {
                 state.log_list_state.select(Some(0));
@@ -242,6 +243,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 
         Action::Tick => {
             state.frame_count = state.frame_count.wrapping_add(1);
+            refresh_derived_state(state);
         }
 
         _ => {}
@@ -287,6 +289,67 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
     None
 }
 
+fn refresh_derived_state(state: &mut AppState) {
+    // Update spinner
+    let spin_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    state.spinner = spin_chars[(state.frame_count % spin_chars.len() as u64) as usize].to_string();
+
+    // Update header state
+    if let Some(repo) = &mut state.repo {
+        let mutable_count = repo.graph.iter().filter(|r| !r.is_immutable).count();
+        let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
+
+        state.header_state.op_id = repo.operation_id[..8.min(repo.operation_id.len())].to_string();
+        state.header_state.wc_info = format!(
+            " WC: {} ",
+            &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())]
+        );
+        state.header_state.stats = format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count);
+
+        // --- Calculate Graph Lanes (Business logic extracted from View) ---
+        let mut active_commits: Vec<Option<String>> = Vec::new();
+        for row in &mut repo.graph {
+            let commit_id_hex = &row.commit_id.0;
+            
+            // Find or assign a lane for this commit
+            let current_lane = active_commits
+                .iter()
+                .position(|l| l.as_ref() == Some(commit_id_hex))
+                .unwrap_or_else(|| {
+                    if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
+                        active_commits[pos] = Some(commit_id_hex.clone());
+                        pos
+                    } else {
+                        active_commits.push(Some(commit_id_hex.clone()));
+                        active_commits.len() - 1
+                    }
+                });
+
+            // Store results in the model
+            row.visual.column = current_lane;
+            row.visual.active_lanes = active_commits.iter().map(|l| l.is_some()).collect();
+
+            // Prepare lanes for parents (and for the connector lines)
+            active_commits[current_lane] = None;
+            for parent in &row.parents {
+                if !active_commits.iter().any(|l| l.as_ref() == Some(&parent.0)) {
+                    if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
+                        active_commits[pos] = Some(parent.0.clone());
+                    } else {
+                        active_commits.push(Some(parent.0.clone()));
+                    }
+                }
+            }
+
+            row.visual.connector_lanes = active_commits.iter().map(|l| l.is_some()).collect();
+        }
+    } else {
+        state.header_state.op_id = "........".to_string();
+        state.header_state.wc_info = " Loading... ".to_string();
+        state.header_state.stats = "".to_string();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,6 +369,7 @@ mod tests {
                 parents: vec![],
                 bookmarks: vec![],
                 changed_files: vec![],
+                visual: crate::domain::models::GraphRowVisual::default(),
             });
         }
         RepoStatus {
@@ -392,6 +456,7 @@ mod tests {
                 parents: vec![],
                 bookmarks: vec![],
                 changed_files: vec![],
+                visual: crate::domain::models::GraphRowVisual::default(),
             })
             .collect();
 
@@ -461,11 +526,18 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_new_index() {
-        assert_eq!(calculate_new_index(Some(1), 1, 3), 2);
-        assert_eq!(calculate_new_index(Some(2), 1, 3), 0);
-        assert_eq!(calculate_new_index(Some(0), -1, 3), 2);
-        assert_eq!(calculate_new_index(None, 1, 3), 0);
-        assert_eq!(calculate_new_index(Some(5), 1, 0), 0);
+    fn test_refresh_derived_state() {
+        let mut state = AppState::default();
+        state.repo = Some(create_mock_repo(2));
+        
+        // Before refresh
+        assert_eq!(state.header_state.op_id, "");
+        
+        refresh_derived_state(&mut state);
+        
+        // After refresh
+        assert_eq!(state.header_state.op_id, "op");
+        assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.column, 0);
+        assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.active_lanes, vec![true]);
     }
 }

@@ -1,0 +1,253 @@
+use crate::app::state::{AppMode, AppState};
+use crate::components::diff_view::DiffView;
+use crate::components::footer::Footer;
+use crate::components::revision_graph::RevisionGraph;
+use crate::domain::models::GraphRow;
+use crate::theme::Theme;
+
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    text::{Line, Span},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
+    Frame,
+};
+
+pub fn calculate_row_height(row: &GraphRow, is_selected: bool, show_diffs: bool) -> u16 {
+    let num_files = if is_selected && show_diffs {
+        row.changed_files.len()
+    } else {
+        0
+    };
+    2 + num_files as u16
+}
+
+pub struct AppLayout {
+    pub main: Vec<Rect>,
+    pub body: Vec<Rect>,
+}
+
+pub fn get_layout(area: Rect, show_diffs: bool) -> AppLayout {
+    let main = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Header
+            Constraint::Min(0),    // Body
+            Constraint::Length(1), // Footer
+        ])
+        .split(area)
+        .to_vec();
+
+    let body = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(if show_diffs {
+            [Constraint::Percentage(50), Constraint::Percentage(50)]
+        } else {
+            [Constraint::Percentage(100), Constraint::Percentage(0)]
+        })
+        .split(main[1])
+        .to_vec();
+
+    AppLayout { main, body }
+}
+
+pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
+    let layout = get_layout(f.area(), app_state.show_diffs);
+
+    // --- Header ---
+    let header = Paragraph::new(Line::from(vec![
+        Span::styled(" JUDO ", theme.header_logo),
+        Span::styled(
+            format!(" Op: {} ", app_state.header_state.op_id),
+            theme.header_item,
+        ),
+        Span::styled(app_state.header_state.wc_info.clone(), theme.header_item),
+        Span::styled(app_state.header_state.stats.clone(), theme.header),
+        Span::styled(" ".repeat(f.area().width as usize), theme.header),
+    ]))
+    .style(theme.header);
+    f.render_widget(header, layout.main[0]);
+
+    // Left: Revision Graph
+    let graph_border = if app_state.mode == AppMode::Normal {
+        theme.border_focus
+    } else {
+        theme.border
+    };
+    let graph_block = Block::default()
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("REVISION GRAPH", theme.header_logo),
+            Span::raw(" "),
+        ]))
+        .title_bottom(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("j/k", theme.footer_segment_key),
+            Span::raw(": navigate "),
+            Span::styled("d", theme.footer_segment_key),
+            Span::raw(": describe "),
+        ]))
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(graph_border);
+
+    if let Some(repo) = &app_state.repo {
+        let graph = RevisionGraph {
+            repo,
+            theme,
+            show_diffs: app_state.show_diffs,
+        };
+        f.render_stateful_widget(
+            graph,
+            graph_block.inner(layout.body[0]),
+            &mut app_state.log_list_state,
+        );
+    } else {
+        let logo_ascii = [
+            r"   _ _   _ ___   ___ ",
+            r"  | | | | |   \ / _ \",
+            r" _| | |_| | |) | (_) |",
+            r"|___|_____|___/ \___/ ",
+        ];
+
+        let mut lines: Vec<Line> = logo_ascii
+            .iter()
+            .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
+            .collect();
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![
+            Span::styled(app_state.spinner.clone(), theme.header_logo),
+            Span::raw(" Loading Jujutsu Repository... "),
+        ]));
+
+        let loading = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
+
+        let area = layout.body[0];
+        let logo_height = 6;
+        let centered_area = Rect {
+            x: area.x,
+            y: area.y + area.height / 2 - (logo_height / 2),
+            width: area.width,
+            height: logo_height,
+        };
+        f.render_widget(loading, centered_area);
+    }
+    f.render_widget(graph_block, layout.body[0]);
+
+    // Right: Diff View
+    if app_state.show_diffs {
+        let diff_border = if app_state.mode == AppMode::Diff {
+            theme.border_focus
+        } else {
+            theme.border
+        };
+        let diff_block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("DIFF VIEW", theme.header_logo),
+                Span::raw(" "),
+            ]))
+            .title_bottom(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("PgUp/PgDn", theme.footer_segment_key),
+                Span::raw(": scroll "),
+                Span::styled("[/]", theme.footer_segment_key),
+                Span::raw(": hunks "),
+            ]))
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(diff_border);
+
+        let diff_view = DiffView {
+            diff_content: app_state.current_diff.as_deref(),
+            scroll_offset: app_state.diff_scroll,
+            theme,
+        };
+        f.render_widget(diff_view, diff_block.inner(layout.body[1]));
+        f.render_widget(diff_block, layout.body[1]);
+    }
+
+    // --- Footer ---
+    let footer = Footer {
+        state: app_state,
+        theme,
+    };
+    f.render_widget(footer, layout.main[2]);
+
+    // --- Input Modal ---
+    if app_state.mode == AppMode::Input || app_state.mode == AppMode::BookmarkInput {
+        let area = centered_rect(60, 20, f.area());
+        f.render_widget(Clear, area);
+        let title = if app_state.mode == AppMode::BookmarkInput {
+            " Set Bookmark "
+        } else {
+            " Describe Revision "
+        };
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(theme.border_focus);
+        app_state.text_area.set_block(block);
+        f.render_widget(&app_state.text_area, area);
+    }
+
+    // --- Context Menu Popup ---
+    if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
+        let menu_width = 20;
+        let menu_height = menu.actions.len() as u16 + 2;
+
+        // Position adjustment to keep menu on screen
+        let mut x = menu.x;
+        let mut y = menu.y;
+        if x + menu_width > f.area().width {
+            x = f.area().width.saturating_sub(menu_width);
+        }
+        if y + menu_height > f.area().height {
+            y = f.area().height.saturating_sub(menu_height);
+        }
+
+        let area = Rect::new(x, y, menu_width, menu_height);
+        f.render_widget(Clear, area);
+
+        let items: Vec<ListItem> = menu
+            .actions
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| {
+                if i == menu.selected_index {
+                    ListItem::new(format!("> {}", name)).style(theme.list_selected)
+                } else {
+                    ListItem::new(format!("  {}", name)).style(theme.list_item)
+                }
+            })
+            .collect();
+
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(theme.border_focus),
+        );
+        f.render_widget(list, area);
+    }
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}

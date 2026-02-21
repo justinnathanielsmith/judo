@@ -22,6 +22,13 @@ pub struct FileChange {
     pub status: FileStatus,
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GraphRowVisual {
+    pub column: usize,
+    pub active_lanes: Vec<bool>,
+    pub connector_lanes: Vec<bool>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphRow {
     pub commit_id: CommitId,
@@ -34,6 +41,7 @@ pub struct GraphRow {
     pub parents: Vec<CommitId>,
     pub bookmarks: Vec<String>,
     pub changed_files: Vec<FileChange>,
+    pub visual: GraphRowVisual,
 }
 
 #[derive(Debug, Clone, PartialEq)]
