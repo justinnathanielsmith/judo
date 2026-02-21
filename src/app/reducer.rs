@@ -509,8 +509,10 @@ mod tests {
 
     #[test]
     fn test_navigation_empty_list() {
-        let mut state = AppState::default();
-        state.repo = Some(create_mock_repo(0));
+        let mut state = AppState {
+            repo: Some(create_mock_repo(0)),
+            ..Default::default()
+        };
 
         // In both cases, it should default to 0 and not panic/underflow
         state.log_list_state.select(Some(0));
@@ -535,9 +537,11 @@ mod tests {
 
     #[test]
     fn test_clear_error_on_cancel_mode() {
-        let mut state = AppState::default();
-        state.last_error = Some("An error occurred".to_string());
-        state.mode = AppMode::Input;
+        let mut state = AppState {
+            last_error: Some("An error occurred".to_string()),
+            mode: AppMode::Input,
+            ..Default::default()
+        };
 
         update(&mut state, Action::CancelMode);
 
@@ -547,8 +551,10 @@ mod tests {
 
     #[test]
     fn test_refresh_derived_state() {
-        let mut state = AppState::default();
-        state.repo = Some(create_mock_repo(2));
+        let mut state = AppState {
+            repo: Some(create_mock_repo(2)),
+            ..Default::default()
+        };
         
         // Before refresh
         assert_eq!(state.header_state.op_id, "");
