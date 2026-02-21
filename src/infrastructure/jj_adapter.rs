@@ -9,11 +9,13 @@ use jj_lib::{
     config::{ConfigLayer, ConfigSource, StackedConfig},
     local_working_copy::LocalWorkingCopyFactory,
     object_id::ObjectId,
+    op_store::RefTarget,
     repo::{Repo, StoreFactories},
     settings::UserSettings,
     working_copy::WorkingCopyFactory,
     workspace::Workspace,
 };
+use jj_lib::ref_name::RefName;
 
 use jj_lib::gitignore::GitIgnoreFile;
 
@@ -623,15 +625,43 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
-        let _ = (commit_id, name);
-        // Implementation would go here
-        Ok(())
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
+
+        let commit_id_hex = commit_id.0.clone();
+        let name = name.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            let id = JjCommitId::try_from_hex(&commit_id_hex)
+                .ok_or_else(|| anyhow!("Invalid commit ID"))?;
+
+            let mut tx = repo.start_transaction();
+            tx.repo_mut().set_local_bookmark_target(RefName::new(&name), RefTarget::normal(id));
+
+            tx.commit(format!("set bookmark {}", name))?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn delete_bookmark(&self, name: &str) -> Result<()> {
-        let _ = name;
-        // Implementation would go here
-        Ok(())
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
+
+        let name = name.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            let mut tx = repo.start_transaction();
+            tx.repo_mut().set_local_bookmark_target(RefName::new(&name), RefTarget::absent());
+
+            tx.commit(format!("delete bookmark {}", name))?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn undo(&self) -> Result<()> {
@@ -778,6 +808,39 @@ mod tests {
         let log = adapter.get_operation_log().await?;
 
         assert_eq!(log.graph.len(), 100, "Should return 100 commits (capped)");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_bookmark_management() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        Workspace::init_simple(&user_settings, path)?;
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        let status = adapter.get_operation_log().await?;
+        let commit_id = status.graph.first().unwrap().commit_id.clone();
+
+        // Set bookmark
+        adapter.set_bookmark(&commit_id, "test-bookmark").await?;
+
+        // Verify bookmark exists
+        let status = adapter.get_operation_log().await?;
+        let commit = status.graph.first().unwrap();
+        assert!(commit.bookmarks.contains(&"test-bookmark".to_string()));
+
+        // Delete bookmark
+        adapter.delete_bookmark("test-bookmark").await?;
+
+        // Verify bookmark is gone
+        let status = adapter.get_operation_log().await?;
+        let commit = status.graph.first().unwrap();
+        assert!(!commit.bookmarks.contains(&"test-bookmark".to_string()));
 
         Ok(())
     }
