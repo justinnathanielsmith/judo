@@ -11,6 +11,12 @@ use std::time::Instant;
 use tui_textarea::{CursorMove, TextArea};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Panel {
+    Graph,
+    Diff,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AppMode {
     Normal,        // Navigating the log
     Command,       // Typing a command like ":q" or ":new"
@@ -160,6 +166,10 @@ pub struct AppState<'a> {
     pub frame_count: u64,
     pub hunk_highlight_time: Option<Instant>,
 
+    // --- Layout ---
+    pub diff_ratio: u16,
+    pub focused_panel: Panel,
+
     // --- Config ---
     pub keymap: Arc<KeyMap>,
 }
@@ -202,6 +212,8 @@ impl<'a> Default for AppState<'a> {
             context_menu: None,
             frame_count: 0,
             hunk_highlight_time: None,
+            diff_ratio: 50,
+            focused_panel: Panel::Graph,
             keymap: Arc::new(KeyMap::from_config(&KeyConfig::default())),
         }
     }

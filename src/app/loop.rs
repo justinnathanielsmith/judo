@@ -331,7 +331,7 @@ pub fn map_event_to_action(
                             terminal_size.width,
                             terminal_size.height,
                         );
-                        let layout = ui::get_layout(area, app_state.show_diffs);
+                        let layout = ui::get_layout(area, app_state);
 
                         // Revision Graph Area
                         let graph_area = layout.body[0];
@@ -399,7 +399,7 @@ pub fn map_event_to_action(
             },
             Event::Mouse(mouse) => {
                 let area = ratatui::layout::Rect::new(0, 0, terminal_size.width, terminal_size.height);
-                let layout = ui::get_layout(area, app_state.show_diffs);
+                let layout = ui::get_layout(area, app_state);
 
                 let graph_area = layout.body[0];
                 let diff_area = layout.body[1];

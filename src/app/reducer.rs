@@ -1,7 +1,7 @@
 use super::{
     action::Action,
     command::Command,
-    state::{AppMode, AppState, AppTextArea},
+    state::{AppMode, AppState, AppTextArea, Panel},
 };
 use std::time::{Duration, Instant};
 
@@ -72,6 +72,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::ToggleDiffs => {
             state.show_diffs = !state.show_diffs;
+            if state.show_diffs {
+                state.focused_panel = Panel::Graph;
+                state.diff_ratio = 30;
+            }
             return handle_selection(state);
         }
         Action::NextHunk => {
@@ -147,6 +151,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::FocusDiff => {
             if state.show_diffs {
                 state.mode = AppMode::Diff;
+                state.focused_panel = Panel::Diff;
+                state.diff_ratio = 70;
                 if state.selected_file_index.is_none() {
                     state.selected_file_index = Some(0);
                 }
@@ -155,6 +161,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::FocusGraph => {
             state.mode = AppMode::Normal;
+            state.focused_panel = Panel::Graph;
+            state.diff_ratio = 30;
         }
         Action::ToggleHelp => {
             if state.mode == AppMode::Help {
@@ -165,6 +173,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::CancelMode | Action::CloseContextMenu => {
             state.mode = AppMode::Normal;
+            if state.mode == AppMode::Normal {
+                state.focused_panel = Panel::Graph;
+            }
             state.last_error = None;
             state.text_area = AppTextArea::default(); // Reset input
             state.context_menu = None;
@@ -986,6 +997,23 @@ mod tests {
             assert_eq!(state.context_menu, None, "Context menu should be cleared from {:?}", mode);
             assert!(state.text_area.is_empty(), "Text area should be cleared from {:?}", mode);
         }
+    }
+
+    #[test]
+    fn test_dynamic_diff_ratio() {
+        let mut state = AppState::default();
+        state.show_diffs = true;
+        assert_eq!(state.diff_ratio, 50);
+
+        // Focus Diff
+        update(&mut state, Action::FocusDiff);
+        assert_eq!(state.mode, AppMode::Diff);
+        assert_eq!(state.diff_ratio, 70);
+
+        // Focus Graph
+        update(&mut state, Action::FocusGraph);
+        assert_eq!(state.mode, AppMode::Normal);
+        assert_eq!(state.diff_ratio, 30);
     }
 
     #[test]

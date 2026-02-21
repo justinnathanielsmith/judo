@@ -160,6 +160,7 @@ pub struct Theme {
     pub highlight: Style,
     pub list_selected: Style,
     pub list_item: Style,
+    pub dimmed: Style,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
@@ -252,6 +253,7 @@ impl Theme {
                 .fg(p.crust)
                 .add_modifier(Modifier::BOLD),
             list_item: Style::default().fg(p.text),
+            dimmed: Style::default().fg(p.overlay0).add_modifier(Modifier::DIM),
         }
     }
 }

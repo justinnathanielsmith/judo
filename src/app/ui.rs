@@ -1,4 +1,4 @@
-use crate::app::state::{AppMode, AppState};
+use crate::app::state::{AppMode, AppState, Panel};
 use crate::components::diff_view::DiffView;
 use crate::components::footer::Footer;
 use crate::components::revision_graph::RevisionGraph;
@@ -27,7 +27,7 @@ pub struct AppLayout {
     pub body: Vec<Rect>,
 }
 
-pub fn get_layout(area: Rect, show_diffs: bool) -> AppLayout {
+pub fn get_layout(area: Rect, app_state: &AppState) -> AppLayout {
     let main = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -41,8 +41,11 @@ pub fn get_layout(area: Rect, show_diffs: bool) -> AppLayout {
     let body = if main.len() > 1 {
         Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(if show_diffs {
-                [Constraint::Percentage(50), Constraint::Percentage(50)]
+            .constraints(if app_state.show_diffs {
+                [
+                    Constraint::Percentage(100u16.saturating_sub(app_state.diff_ratio)),
+                    Constraint::Percentage(app_state.diff_ratio),
+                ]
             } else {
                 [Constraint::Percentage(100), Constraint::Percentage(0)]
             })
@@ -69,7 +72,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         return;
     }
 
-    let layout = get_layout(f.area(), app_state.show_diffs);
+    let layout = get_layout(f.area(), app_state);
 
     // --- Header ---
     if layout.main[0].width > 0 && layout.main[0].height > 0 {
@@ -80,16 +83,23 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
             Span::styled(app_state.header_state.stats.clone(), theme.header),
             Span::styled(" ".repeat(padding), theme.header),
         ]))
-        .style(theme.header);
+        .style(theme.header)
+        .block(Block::default().borders(Borders::BOTTOM).border_style(theme.border));
         f.render_widget(header, layout.main[0]);
     }
 
     // Left: Revision Graph
-    let (graph_border, graph_title_style) = if app_state.mode == AppMode::Normal {
-        (theme.border_focus, theme.header_active)
+    let is_graph_focused = app_state.focused_panel == Panel::Graph;
+    let is_body_active = app_state.mode == AppMode::Normal || app_state.mode == AppMode::Diff;
+    
+    let (graph_border_style, graph_title_style, graph_borders, graph_border_type) = if is_graph_focused && is_body_active {
+        (theme.border_focus, theme.header_active, Borders::ALL, BorderType::Thick)
+    } else if is_body_active {
+        (theme.border, theme.header_item, Borders::RIGHT, BorderType::Plain)
     } else {
-        (theme.border, theme.header_item)
+        (theme.commit_id_dim, theme.header_item, Borders::RIGHT, BorderType::Rounded)
     };
+
     let graph_block = Block::default()
         .title(Line::from(vec![
             Span::raw(" "),
@@ -103,9 +113,9 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
             Span::styled("d", theme.footer_segment_key),
             Span::raw(": describe "),
         ]))
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(graph_border);
+        .borders(graph_borders)
+        .border_type(graph_border_type)
+        .border_style(graph_border_style);
 
     if layout.body[0].width > 0 && layout.body[0].height > 0 {
         if let Some(repo) = &app_state.repo {
@@ -187,11 +197,15 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
 
     // Right: Diff View
     if app_state.show_diffs && layout.body[1].width > 0 && layout.body[1].height > 0 {
-        let (diff_border, diff_title_style) = if app_state.mode == AppMode::Diff {
-            (theme.border_focus, theme.header_active)
+        let is_diff_focused = app_state.focused_panel == Panel::Diff;
+        let (diff_border_style, diff_title_style, diff_borders, diff_border_type) = if is_diff_focused && is_body_active {
+            (theme.border_focus, theme.header_active, Borders::ALL, BorderType::Thick)
+        } else if is_body_active {
+            (theme.border, theme.header_item, Borders::LEFT, BorderType::Plain)
         } else {
-            (theme.border, theme.header_item)
+            (theme.commit_id_dim, theme.header_item, Borders::LEFT, BorderType::Rounded)
         };
+
         let diff_block = Block::default()
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -205,9 +219,9 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
                 Span::styled("[/]", theme.footer_segment_key),
                 Span::raw(": hunks "),
             ]))
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(diff_border);
+            .borders(diff_borders)
+            .border_type(diff_border_type)
+            .border_style(diff_border_style);
 
         let diff_view = DiffView {
             diff_content: app_state.current_diff.as_deref(),
@@ -225,7 +239,22 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
             state: app_state,
             theme,
         };
-        f.render_widget(footer, layout.main[2]);
+        f.render_widget(
+            footer,
+            layout.main[2]
+        );
+        // Add a top border for the footer for seamless look
+        f.render_widget(Block::default().borders(Borders::TOP).border_style(theme.border), layout.main[2]);
+    }
+
+    // --- Visual Dimming ---
+    let is_modal_active = match app_state.mode {
+        AppMode::Normal | AppMode::Diff | AppMode::NoRepo | AppMode::Loading => false,
+        _ => true,
+    } || app_state.last_error.is_some();
+
+    if is_modal_active {
+        dim_area(f, f.area());
     }
 
     // --- Modals ---
@@ -240,6 +269,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     {
         let area = centered_rect(60, 20, f.area());
         if area.width > 0 && area.height > 0 {
+            draw_drop_shadow(f, area);
             f.render_widget(Clear, area);
             let title = if app_state.mode == AppMode::BookmarkInput {
                 " SET BOOKMARK "
@@ -277,6 +307,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     if app_state.mode == AppMode::FilterInput && f.area().width > 0 && f.area().height > 0 {
         let area = centered_rect_fixed_height(60, 3, f.area());
         if area.width > 0 && area.height > 0 {
+            draw_drop_shadow(f, area);
             f.render_widget(Clear, area);
             let block = Block::default()
                 .title(Line::from(vec![
@@ -302,6 +333,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         if f.area().width > 0 && f.area().height > 0 {
             let area = menu.calculate_rect(f.area());
             if area.width > 0 && area.height > 0 {
+                draw_drop_shadow(f, area);
                 f.render_widget(Clear, area);
 
                 let items: Vec<ListItem> = menu
@@ -333,6 +365,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         if f.area().width > 0 && f.area().height > 0 {
             let area = centered_rect(60, 20, f.area());
             if area.width > 0 && area.height > 0 {
+                draw_drop_shadow(f, area);
                 f.render_widget(Clear, area);
                 let block = Block::default()
                     .title(Line::from(vec![
@@ -412,6 +445,7 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
     if help_area.width == 0 || help_area.height == 0 {
         return;
     }
+    draw_drop_shadow(f, help_area);
     f.render_widget(Clear, help_area); // Clear the background
 
     let block = Block::default()
@@ -485,4 +519,35 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         .block(block);
 
     f.render_widget(table, help_area);
+}
+
+fn dim_area(f: &mut Frame, area: Rect) {
+    let buffer = f.buffer_mut();
+    for y in area.top()..area.bottom() {
+        for x in area.left()..area.right() {
+            let cell = &mut buffer[(x, y)];
+            cell.set_style(cell.style().add_modifier(ratatui::style::Modifier::DIM));
+        }
+    }
+}
+
+fn draw_drop_shadow(f: &mut Frame, area: Rect) {
+    let shadow_area = Rect {
+        x: area.x + 1,
+        y: area.y + 1,
+        width: area.width,
+        height: area.height,
+    };
+
+    let terminal_area = f.area();
+    let shadow_area = shadow_area.intersection(terminal_area);
+
+    let buffer = f.buffer_mut();
+    for y in shadow_area.top()..shadow_area.bottom() {
+        for x in shadow_area.left()..shadow_area.right() {
+            let cell = &mut buffer[(x, y)];
+            cell.set_style(ratatui::style::Style::default().bg(ratatui::style::Color::Black));
+            cell.set_symbol(" ");
+        }
+    }
 }
