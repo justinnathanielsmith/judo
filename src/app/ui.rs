@@ -232,6 +232,39 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         );
         f.render_widget(list, area);
     }
+
+    // --- Error Modal ---
+    if let Some(err) = &app_state.last_error {
+        let area = centered_rect(60, 20, f.area());
+        f.render_widget(Clear, area);
+        let block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(" ERROR ", theme.status_error),
+                Span::raw(" "),
+            ]))
+            .borders(Borders::ALL)
+            .border_type(BorderType::Double)
+            .border_style(theme.status_error);
+
+        // Ensure there's enough height to show the message
+        let text_lines = vec![
+            Line::from(""),
+            Line::from(Span::styled(err.clone(), theme.footer_segment_val)),
+            Line::from(""),
+            Line::from(vec![
+                Span::raw(" Press "),
+                Span::styled("Esc", theme.footer_segment_key),
+                Span::raw(" to acknowledge "),
+            ]),
+        ];
+
+        let paragraph = Paragraph::new(text_lines)
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(block);
+
+        f.render_widget(paragraph, area);
+    }
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

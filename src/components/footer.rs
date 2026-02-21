@@ -24,6 +24,16 @@ pub struct Footer<'a> {
 
 impl<'a> Footer<'a> {
     fn get_groups(&self) -> Vec<FooterGroup> {
+        if self.state.last_error.is_some() {
+            return vec![
+                FooterGroup {
+                    name: "ERROR",
+                    items: vec![
+                        FooterItem { key: "Esc", desc: "dismiss" },
+                    ],
+                },
+            ];
+        }
         match self.state.mode {
             AppMode::Normal => {
                 let mut groups = vec![
@@ -49,7 +59,7 @@ impl<'a> Footer<'a> {
                 groups.push(FooterGroup {
                     name: "EDIT",
                     items: vec![
-                        FooterItem { key: "ENTER", desc: "diff" },
+                        FooterItem { key: "ENTER", desc: "select" },
                         FooterItem { key: "d", desc: "desc" },
                         FooterItem { key: "n", desc: "new" },
                         FooterItem { key: "e", desc: "edit" },
