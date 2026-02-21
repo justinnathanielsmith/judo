@@ -43,30 +43,30 @@ pub enum Action {
     LoadMoreGraph,                      // Trigger pagination
 
     // --- UI Mode Transitions ---
-    EnterCommandMode,                      // Open command palette (:)
-    EnterFilterMode,                       // Open filter bar (/)
-    ApplyFilter(String),                   // Apply a revset filter
-    FilterMine,                            // Quick filter: mine()
-    FilterTrunk,                           // Quick filter: trunk()
-    FilterConflicts,                       // Quick filter: conflicts()
-    EnterSquashMode,                       // Open squash selection modal
-    FocusDiff,                             // Switch focus to diff window
-    FocusGraph,                            // Switch focus to revision graph
-    CancelMode,                            // ESC key (close modal/mode)
+    EnterCommandMode,                          // Open command palette (:)
+    EnterFilterMode,                           // Open filter bar (/)
+    ApplyFilter(String),                       // Apply a revset filter
+    FilterMine,                                // Quick filter: mine()
+    FilterTrunk,                               // Quick filter: trunk()
+    FilterConflicts,                           // Quick filter: conflicts()
+    EnterSquashMode,                           // Open squash selection modal
+    FocusDiff,                                 // Switch focus to diff window
+    FocusGraph,                                // Switch focus to revision graph
+    CancelMode,                                // ESC key (close modal/mode)
     TextAreaInput(crossterm::event::KeyEvent), // Handle text area input
-    OpenContextMenu(CommitId, (u16, u16)), // Open menu at position
-    SelectContextMenuAction(usize),        // Select action by index
-    SelectContextMenuNext,                 // Next item in menu
-    SelectContextMenuPrev,                 // Prev item in menu
-    CloseContextMenu,                      // Close the menu
+    OpenContextMenu(CommitId, (u16, u16)),     // Open menu at position
+    SelectContextMenuAction(usize),            // Select action by index
+    SelectContextMenuNext,                     // Next item in menu
+    SelectContextMenuPrev,                     // Prev item in menu
+    CloseContextMenu,                          // Close the menu
 
     // --- Async Results (The "Callback") ---
     // These are dispatched by your async workers back to the main thread
-    RepoLoaded(Box<RepoStatus>), // Fresh graph data arrived
+    RepoLoaded(Box<RepoStatus>),       // Fresh graph data arrived
     GraphBatchLoaded(Box<RepoStatus>), // Additional graph data arrived
-    DiffLoaded(CommitId, String), // Diff content for the selected commit
-    OperationStarted(String),     // "Squashing..." (sets loading state)
+    DiffLoaded(CommitId, String),      // Diff content for the selected commit
+    OperationStarted(String),          // "Squashing..." (sets loading state)
     OperationCompleted(Result<String, String>), // Success/Failure message
-    ErrorOccurred(String),        // General error reporting
-    ExternalChangeDetected,       // External change to the repo (jj op heads)
+    ErrorOccurred(String),             // General error reporting
+    ExternalChangeDetected,            // External change to the repo (jj op heads)
 }

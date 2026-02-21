@@ -18,7 +18,7 @@ pub enum AppMode {
     Loading,       // Blocking interaction (optional, often better handled with a flag)
     Diff,          // Focusing the diff window for scrolling
     ContextMenu,   // Right-click menu for actions
-    FilterInput,    // Inputting a revset filter
+    FilterInput,   // Inputting a revset filter
 }
 
 #[derive(Debug, Clone, PartialEq)]

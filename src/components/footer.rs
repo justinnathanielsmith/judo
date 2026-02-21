@@ -1,11 +1,11 @@
+use crate::app::state::{AppMode, AppState};
+use crate::theme::Theme;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
     text::{Line, Span},
     widgets::{Paragraph, Widget},
 };
-use crate::theme::Theme;
-use crate::app::state::{AppMode, AppState};
 
 pub struct FooterItem {
     pub key: &'static str,
@@ -25,14 +25,13 @@ pub struct Footer<'a> {
 impl<'a> Footer<'a> {
     fn get_groups(&self) -> Vec<FooterGroup> {
         if self.state.last_error.is_some() {
-            return vec![
-                FooterGroup {
-                    name: "ERROR",
-                    items: vec![
-                        FooterItem { key: "Esc", desc: "dismiss" },
-                    ],
-                },
-            ];
+            return vec![FooterGroup {
+                name: "ERROR",
+                items: vec![FooterItem {
+                    key: "Esc",
+                    desc: "dismiss",
+                }],
+            }];
         }
         match self.state.mode {
             AppMode::Normal => {
@@ -40,19 +39,37 @@ impl<'a> Footer<'a> {
                 groups.push(FooterGroup {
                     name: "NAV",
                     items: vec![
-                        FooterItem { key: "j/k", desc: "move" },
-                        FooterItem { key: "/", desc: "filt" },
-                        FooterItem { key: "m/t/c", desc: "mine/trnk/conf" },
+                        FooterItem {
+                            key: "j/k",
+                            desc: "move",
+                        },
+                        FooterItem {
+                            key: "/",
+                            desc: "filt",
+                        },
+                        FooterItem {
+                            key: "m/t/c",
+                            desc: "mine/trnk/conf",
+                        },
                     ],
                 });
 
                 if self.state.show_diffs {
-                    groups[0].items.push(FooterItem { key: "Tab", desc: "focus" });
+                    groups[0].items.push(FooterItem {
+                        key: "Tab",
+                        desc: "focus",
+                    });
                     groups.push(FooterGroup {
                         name: "DIFF",
                         items: vec![
-                            FooterItem { key: "PgUp/Dn", desc: "scroll" },
-                            FooterItem { key: "[/]", desc: "hunk" },
+                            FooterItem {
+                                key: "PgUp/Dn",
+                                desc: "scroll",
+                            },
+                            FooterItem {
+                                key: "[/]",
+                                desc: "hunk",
+                            },
                         ],
                     });
                 }
@@ -60,30 +77,61 @@ impl<'a> Footer<'a> {
                 groups.push(FooterGroup {
                     name: "EDIT",
                     items: vec![
-                        FooterItem { key: "ENTER", desc: "select" },
-                        FooterItem { key: "d", desc: "desc" },
-                        FooterItem { key: "n", desc: "new" },
-                        FooterItem { key: "e", desc: "edit" },
-                        FooterItem { key: "a", desc: "abdn" },
+                        FooterItem {
+                            key: "ENTER",
+                            desc: "select",
+                        },
+                        FooterItem {
+                            key: "d",
+                            desc: "desc",
+                        },
+                        FooterItem {
+                            key: "n",
+                            desc: "new",
+                        },
+                        FooterItem {
+                            key: "e",
+                            desc: "edit",
+                        },
+                        FooterItem {
+                            key: "a",
+                            desc: "abdn",
+                        },
                     ],
                 });
 
                 groups.push(FooterGroup {
                     name: "VCS",
                     items: vec![
-                        FooterItem { key: "s/S", desc: "snap/sqsh" },
-                        FooterItem { key: "f", desc: "fetch" },
-                        FooterItem { key: "p", desc: "push" },
-                        FooterItem { key: "b/B", desc: "bkmk" },
-                        FooterItem { key: "u/U", desc: "undo" },
+                        FooterItem {
+                            key: "s/S",
+                            desc: "snap/sqsh",
+                        },
+                        FooterItem {
+                            key: "f",
+                            desc: "fetch",
+                        },
+                        FooterItem {
+                            key: "p",
+                            desc: "push",
+                        },
+                        FooterItem {
+                            key: "b/B",
+                            desc: "bkmk",
+                        },
+                        FooterItem {
+                            key: "u/U",
+                            desc: "undo",
+                        },
                     ],
                 });
 
                 groups.push(FooterGroup {
                     name: "APP",
-                    items: vec![
-                        FooterItem { key: "q", desc: "quit" },
-                    ],
+                    items: vec![FooterItem {
+                        key: "q",
+                        desc: "quit",
+                    }],
                 });
                 groups
             }
@@ -91,63 +139,96 @@ impl<'a> Footer<'a> {
                 FooterGroup {
                     name: "NAV",
                     items: vec![
-                        FooterItem { key: "j/k", desc: "file" },
-                        FooterItem { key: "h/Tab", desc: "back" },
-                        FooterItem { key: "PgUp/Dn", desc: "scroll" },
-                        FooterItem { key: "m/ENTER", desc: "merge" },
+                        FooterItem {
+                            key: "j/k",
+                            desc: "file",
+                        },
+                        FooterItem {
+                            key: "h/Tab",
+                            desc: "back",
+                        },
+                        FooterItem {
+                            key: "PgUp/Dn",
+                            desc: "scroll",
+                        },
+                        FooterItem {
+                            key: "m/ENTER",
+                            desc: "merge",
+                        },
                     ],
                 },
                 FooterGroup {
                     name: "APP",
-                    items: vec![
-                        FooterItem { key: "q", desc: "quit" },
-                    ],
+                    items: vec![FooterItem {
+                        key: "q",
+                        desc: "quit",
+                    }],
                 },
             ],
-            AppMode::Input | AppMode::BookmarkInput | AppMode::FilterInput => vec![
-                FooterGroup {
-                    name: "INPUT",
-                    items: vec![
-                        FooterItem { key: "ENTER", desc: "submit" },
-                        FooterItem { key: "Esc", desc: "cancel" },
-                    ],
-                },
-            ],
-            AppMode::ContextMenu => vec![
-                FooterGroup {
-                    name: "MENU",
-                    items: vec![
-                        FooterItem { key: "j/k", desc: "move" },
-                        FooterItem { key: "ENTER", desc: "select" },
-                        FooterItem { key: "Esc", desc: "close" },
-                    ],
-                },
-            ],
-            AppMode::SquashSelect => vec![
-                FooterGroup {
-                    name: "SQUASH",
-                    items: vec![
-                        FooterItem { key: "j/k", desc: "select" },
-                        FooterItem { key: "ENTER", desc: "confirm" },
-                        FooterItem { key: "Esc", desc: "cancel" },
-                    ],
-                },
-            ],
-            AppMode::Command => vec![
-                FooterGroup {
-                    name: "COMMAND",
-                    items: vec![
-                        FooterItem { key: "ENTER", desc: "run" },
-                        FooterItem { key: "Esc", desc: "cancel" },
-                    ],
-                },
-            ],
-            AppMode::Loading => vec![
-                FooterGroup {
-                    name: "LOADING",
-                    items: vec![],
-                },
-            ],
+            AppMode::Input | AppMode::BookmarkInput | AppMode::FilterInput => vec![FooterGroup {
+                name: "INPUT",
+                items: vec![
+                    FooterItem {
+                        key: "ENTER",
+                        desc: "submit",
+                    },
+                    FooterItem {
+                        key: "Esc",
+                        desc: "cancel",
+                    },
+                ],
+            }],
+            AppMode::ContextMenu => vec![FooterGroup {
+                name: "MENU",
+                items: vec![
+                    FooterItem {
+                        key: "j/k",
+                        desc: "move",
+                    },
+                    FooterItem {
+                        key: "ENTER",
+                        desc: "select",
+                    },
+                    FooterItem {
+                        key: "Esc",
+                        desc: "close",
+                    },
+                ],
+            }],
+            AppMode::SquashSelect => vec![FooterGroup {
+                name: "SQUASH",
+                items: vec![
+                    FooterItem {
+                        key: "j/k",
+                        desc: "select",
+                    },
+                    FooterItem {
+                        key: "ENTER",
+                        desc: "confirm",
+                    },
+                    FooterItem {
+                        key: "Esc",
+                        desc: "cancel",
+                    },
+                ],
+            }],
+            AppMode::Command => vec![FooterGroup {
+                name: "COMMAND",
+                items: vec![
+                    FooterItem {
+                        key: "ENTER",
+                        desc: "run",
+                    },
+                    FooterItem {
+                        key: "Esc",
+                        desc: "cancel",
+                    },
+                ],
+            }],
+            AppMode::Loading => vec![FooterGroup {
+                name: "LOADING",
+                items: vec![],
+            }],
         }
     }
 }
@@ -170,21 +251,34 @@ impl<'a> Widget for Footer<'a> {
 
         // Repo context (Workspace, WC & Operation)
         if !state.workspace_id.is_empty() {
-             spans.push(Span::styled(format!(" {} ", state.workspace_id), theme.header_item));
-             spans.push(Span::raw(" "));
+            spans.push(Span::styled(
+                format!(" {} ", state.workspace_id),
+                theme.header_item,
+            ));
+            spans.push(Span::raw(" "));
         }
-        spans.push(Span::styled(state.header_state.wc_info.clone(), theme.header_item));
+        spans.push(Span::styled(
+            state.header_state.wc_info.clone(),
+            theme.header_item,
+        ));
         spans.push(Span::raw(" "));
-        spans.push(Span::styled(format!(" OP: {} ", state.header_state.op_id), theme.header_item));
+        spans.push(Span::styled(
+            format!(" OP: {} ", state.header_state.op_id),
+            theme.header_item,
+        ));
         spans.push(Span::raw(" "));
 
         // Background tasks
         if !state.active_tasks.is_empty() {
-             let tasks_text = format!(" {} tasks: {} ", state.spinner, state.active_tasks.join(", "));
-             spans.push(Span::styled(tasks_text, theme.status_info));
-             spans.push(Span::raw("  "));
+            let tasks_text = format!(
+                " {} tasks: {} ",
+                state.spinner,
+                state.active_tasks.join(", ")
+            );
+            spans.push(Span::styled(tasks_text, theme.status_info));
+            spans.push(Span::raw("  "));
         } else {
-             spans.push(Span::raw("  "));
+            spans.push(Span::raw("  "));
         }
 
         let groups = self.get_groups();
@@ -200,24 +294,26 @@ impl<'a> Widget for Footer<'a> {
             // Check if we can fit at least the first item of the group
             let first_item = &group.items[0];
             let first_item_width = first_item.key.len() + first_item.desc.len() + 4;
-            
+
             if current_width + first_item_width > available_width as usize {
                 break;
             }
 
             // Add group name as a subtle label if there's plenty of space
             if area.width > 100 {
-                 let group_label = Span::styled(format!("{}: ", group.name), theme.footer_group_name);
-                 if current_width + group_label.width() + first_item_width < available_width as usize {
-                     spans.push(group_label);
-                     current_width += group.name.len() + 2;
-                 }
+                let group_label =
+                    Span::styled(format!("{}: ", group.name), theme.footer_group_name);
+                if current_width + group_label.width() + first_item_width < available_width as usize
+                {
+                    spans.push(group_label);
+                    current_width += group.name.len() + 2;
+                }
             }
 
             for item in group.items {
                 let key_str = format!(" {} ", item.key);
                 let desc_str = format!(" {} ", item.desc);
-                
+
                 let item_width = key_str.len() + desc_str.len();
                 if current_width + item_width + 1 > available_width as usize {
                     break;

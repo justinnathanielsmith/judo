@@ -21,7 +21,9 @@ impl<'a> Widget for DiffView<'a> {
                     Line::from(""),
                     Line::from(Span::styled(
                         "  No diff selected",
-                        self.theme.diff_header.add_modifier(ratatui::style::Modifier::BOLD),
+                        self.theme
+                            .diff_header
+                            .add_modifier(ratatui::style::Modifier::BOLD),
                     )),
                     Line::from(Span::styled(
                         "  Select a revision in the log to view its changes.",
@@ -30,11 +32,12 @@ impl<'a> Widget for DiffView<'a> {
                     Line::from(""),
                     Line::from(Span::styled(
                         "  (Press 'Enter' or click a revision)",
-                        self.theme.timestamp.add_modifier(ratatui::style::Modifier::ITALIC),
+                        self.theme
+                            .timestamp
+                            .add_modifier(ratatui::style::Modifier::ITALIC),
                     )),
                 ];
-                Paragraph::new(text)
-                    .render(area, buf);
+                Paragraph::new(text).render(area, buf);
                 return;
             }
         };

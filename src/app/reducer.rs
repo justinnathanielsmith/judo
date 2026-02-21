@@ -52,7 +52,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     let len = row.changed_files.len();
                     if len > 0 {
                         let current = state.selected_file_index.unwrap_or(0);
-                        state.selected_file_index = Some(if current == 0 { len - 1 } else { current - 1 });
+                        state.selected_file_index =
+                            Some(if current == 0 { len - 1 } else { current - 1 });
                         scroll_to_selected_file(state);
                     }
                 }
@@ -416,7 +417,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::ExternalChangeDetected => {
             state.mode = AppMode::Loading;
             state.current_diff = None;
-            state.active_tasks.push("Syncing external changes...".to_string());
+            state
+                .active_tasks
+                .push("Syncing external changes...".to_string());
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
 
@@ -433,11 +436,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             // Pagination: check if we are near the end of the graph
             if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
                 if idx + 20 >= repo.graph.len() && !state.is_loading_more && state.has_more {
-                     // We need to trigger LoadMoreGraph. Reducer can't dispatch actions.
-                     // But we can return a command! 
-                     // Wait, Tick doesn't usually return a command, but it can.
-                     // Let's check update() signature.
-                     return update(state, Action::LoadMoreGraph);
+                    // We need to trigger LoadMoreGraph. Reducer can't dispatch actions.
+                    // But we can return a command!
+                    // Wait, Tick doesn't usually return a command, but it can.
+                    // Let's check update() signature.
+                    return update(state, Action::LoadMoreGraph);
                 }
             }
         }
@@ -451,7 +454,7 @@ fn move_selection(state: &mut AppState, delta: isize) -> Option<Command> {
     let len = state.repo.as_ref().map(|r| r.graph.len()).unwrap_or(0);
     let current_index = state.log_list_state.selected();
     let new_index = calculate_new_index(current_index, delta, len);
-    
+
     state.log_list_state.select(Some(new_index));
     handle_selection(state)
 }
@@ -507,7 +510,7 @@ fn refresh_derived_state(state: &mut AppState) {
         let mut active_commits: Vec<Option<String>> = Vec::new();
         for row in &mut repo.graph {
             let commit_id_hex = &row.commit_id.0;
-            
+
             // Find or assign a lane for this commit
             let current_lane = active_commits
                 .iter()
@@ -550,7 +553,7 @@ fn refresh_derived_state(state: &mut AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::{CommitId, GraphRow, RepoStatus, FileChange, FileStatus};
+    use crate::domain::models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus};
 
     fn create_dummy_repo(count: usize) -> RepoStatus {
         let mut graph = Vec::new();
@@ -726,11 +729,11 @@ mod tests {
     #[test]
     fn test_text_area_input() {
         let mut state = AppState::default();
-        use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
-        
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
         let key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         update(&mut state, Action::TextAreaInput(key));
-        
+
         assert_eq!(state.text_area.lines()[0], "a");
     }
 
@@ -754,26 +757,35 @@ mod tests {
             repo: Some(create_mock_repo(2)),
             ..Default::default()
         };
-        
+
         // Before refresh
         assert_eq!(state.header_state.op_id, "");
-        
+
         refresh_derived_state(&mut state);
-        
+
         // After refresh
         assert_eq!(state.header_state.op_id, "op");
         assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.column, 0);
-        assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.active_lanes, vec![true]);
+        assert_eq!(
+            state.repo.as_ref().unwrap().graph[0].visual.active_lanes,
+            vec![true]
+        );
     }
 
     #[test]
     fn test_file_selection() {
         let mut repo = create_mock_repo(1);
         repo.graph[0].changed_files = vec![
-            FileChange { path: "f1".to_string(), status: FileStatus::Added },
-            FileChange { path: "f2".to_string(), status: FileStatus::Modified },
+            FileChange {
+                path: "f1".to_string(),
+                status: FileStatus::Added,
+            },
+            FileChange {
+                path: "f2".to_string(),
+                status: FileStatus::Modified,
+            },
         ];
-        
+
         let mut state = AppState {
             repo: Some(repo),
             ..Default::default()

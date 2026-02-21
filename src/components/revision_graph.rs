@@ -1,6 +1,6 @@
+use crate::app::ui;
 use crate::domain::models::{FileStatus, RepoStatus};
 use crate::theme::Theme;
-use crate::app::ui;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
@@ -56,7 +56,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             for _ in 1..row_height {
                 let mut connector_line = Vec::new();
                 for (lane_idx, is_active) in row.visual.connector_lanes.iter().enumerate() {
-                    let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
+                    let lane_style =
+                        self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
                     if *is_active {
                         connector_line.push(Span::styled("│", lane_style));
                     } else {

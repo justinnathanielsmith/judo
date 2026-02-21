@@ -60,7 +60,7 @@ impl Default for Theme {
             graph_node_immutable: Style::default()
                 .fg(Color::Rgb(137, 180, 250))
                 .add_modifier(Modifier::BOLD),
-            graph_line: Style::default().fg(Color::Rgb(108, 112, 134)),           // Surface
+            graph_line: Style::default().fg(Color::Rgb(108, 112, 134)), // Surface
             graph_lanes: vec![
                 Style::default().fg(Color::Rgb(243, 139, 168)), // Red
                 Style::default().fg(Color::Rgb(166, 227, 161)), // Green

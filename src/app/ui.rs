@@ -187,7 +187,10 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     }
 
     // --- Input Modal ---
-    if (app_state.mode == AppMode::Input || app_state.mode == AppMode::BookmarkInput) && f.area().width > 0 && f.area().height > 0 {
+    if (app_state.mode == AppMode::Input || app_state.mode == AppMode::BookmarkInput)
+        && f.area().width > 0
+        && f.area().height > 0
+    {
         let area = centered_rect(60, 20, f.area());
         if area.width > 0 && area.height > 0 {
             f.render_widget(Clear, area);

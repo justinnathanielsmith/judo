@@ -1,16 +1,10 @@
-use crate::app::{
-    action::Action,
-    command::Command,
-    reducer,
-    state::AppState,
-    ui,
-};
+use crate::app::{action::Action, command::Command, reducer, state::AppState, ui};
 use crate::domain::vcs::VcsFacade;
 use crate::theme::Theme;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, MouseButton, MouseEventKind};
-use notify::{Watcher, RecursiveMode};
+use notify::{RecursiveMode, Watcher};
 use ratatui::{backend::Backend, Terminal};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -30,12 +24,12 @@ pub async fn run_loop<B: Backend>(
 
     // Repository Watcher
     let (notify_tx, mut notify_rx) = mpsc::channel(1);
-    let mut watcher = notify::recommended_watcher(move |res| {
-        if let Ok(_) = res {
+    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        if res.is_ok() {
             let _ = notify_tx.blocking_send(());
         }
     })?;
-    
+
     let repo_path = adapter.workspace_root();
     let op_heads_path = repo_path.join(".jj").join("repo").join("op_heads");
     if op_heads_path.exists() {
@@ -59,8 +53,12 @@ pub async fn run_loop<B: Backend>(
     });
 
     // Initial Load
-    handle_command(Command::LoadRepo(None, 100, None), adapter.clone(), action_tx.clone()).await?;
-
+    handle_command(
+        Command::LoadRepo(None, 100, None),
+        adapter.clone(),
+        action_tx.clone(),
+    )
+    .await?;
 
     loop {
         // --- 1. Render ---
@@ -455,7 +453,12 @@ pub async fn run_loop<B: Backend>(
                             crossterm::cursor::Hide
                         )?;
                         terminal.clear()?;
-                        let _ = action_tx.send(Action::OperationCompleted(Err(format!("Invalid path: {}", path)))).await;
+                        let _ = action_tx
+                            .send(Action::OperationCompleted(Err(format!(
+                                "Invalid path: {}",
+                                path
+                            ))))
+                            .await;
                         continue;
                     }
 
@@ -463,7 +466,7 @@ pub async fn run_loop<B: Backend>(
                         .arg("resolve")
                         .arg(&path)
                         .spawn()?;
-                    
+
                     let status = child.wait()?;
 
                     // 3. Resume TUI
@@ -476,11 +479,13 @@ pub async fn run_loop<B: Backend>(
                     terminal.clear()?;
 
                     // 4. Trigger refresh
-                    let _ = action_tx.send(Action::OperationCompleted(if status.success() {
-                        Ok(format!("Resolved {}", path))
-                    } else {
-                        Err(format!("Resolve failed for {}", path))
-                    })).await;
+                    let _ = action_tx
+                        .send(Action::OperationCompleted(if status.success() {
+                            Ok(format!("Resolved {}", path))
+                        } else {
+                            Err(format!("Resolve failed for {}", path))
+                        }))
+                        .await;
                 } else {
                     handle_command(cmd, adapter.clone(), action_tx.clone()).await?;
                 }
@@ -766,7 +771,9 @@ async fn handle_command(
                 match adapter.fetch().await {
                     Ok(_) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Ok("Fetch successful".to_string())))
+                            .send(Action::OperationCompleted(Ok(
+                                "Fetch successful".to_string()
+                            )))
                             .await;
                     }
                     Err(e) => {
@@ -789,7 +796,9 @@ async fn handle_command(
                 match adapter.push(bookmark_clone).await {
                     Ok(_) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Ok("Push successful".to_string())))
+                            .send(Action::OperationCompleted(
+                                Ok("Push successful".to_string()),
+                            ))
                             .await;
                     }
                     Err(e) => {
