@@ -28,10 +28,11 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
 
             // Prepare Graph Column
             let mut graph_lines = Vec::new();
+            let max_lanes = row.visual.active_lanes.len().max(row.visual.connector_lanes.len());
 
             // Graph Line 1: Node symbol and existing pipes
             let mut line_1_graph = Vec::new();
-            for (lane_idx, is_active) in row.visual.active_lanes.iter().enumerate() {
+            for lane_idx in 0..max_lanes {
                 let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
                 if lane_idx == row.visual.column {
                     let (symbol, style) = if row.is_working_copy {
@@ -42,7 +43,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                         ("○", self.theme.graph_node_mutable)
                     };
                     line_1_graph.push(Span::styled(symbol, style));
-                } else if *is_active {
+                } else if row.visual.active_lanes.get(lane_idx).cloned().unwrap_or(false) {
                     line_1_graph.push(Span::styled("│", lane_style));
                 } else {
                     line_1_graph.push(Span::raw(" "));
@@ -52,17 +53,63 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             line_1_graph.push(Span::raw("  "));
             graph_lines.push(Line::from(line_1_graph));
 
-            // Subsequent Graph Lines: Connector pipes
-            for _ in 1..row_height {
+            // Subsequent Graph Lines: Connector pipes and branching/merging
+            for h in 1..row_height {
                 let mut connector_line = Vec::new();
-                for (lane_idx, is_active) in row.visual.connector_lanes.iter().enumerate() {
-                    let lane_style =
-                        self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
-                    if *is_active {
-                        connector_line.push(Span::styled("│", lane_style));
-                    } else {
-                        connector_line.push(Span::raw(" "));
+                
+                let parent_cols = &row.visual.parent_columns;
+                let mut sorted_parents = parent_cols.clone();
+                sorted_parents.sort();
+                
+                let min_p = sorted_parents.first().cloned().unwrap_or(row.visual.column);
+                let max_p = sorted_parents.last().cloned().unwrap_or(row.visual.column);
+                let range_min = min_p.min(row.visual.column);
+                let range_max = max_p.max(row.visual.column);
+
+                for lane_idx in 0..max_lanes {
+                    let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
+                    let is_active_above = row.visual.active_lanes.get(lane_idx).cloned().unwrap_or(false);
+                    let is_active_below = row.visual.connector_lanes.get(lane_idx).cloned().unwrap_or(false);
+                    
+                    let mut symbol = if is_active_below { "│" } else { " " };
+
+                    if h == 1 {
+                        if lane_idx == row.visual.column {
+                            if parent_cols.len() > 1 {
+                                let has_left = parent_cols.iter().any(|p| *p < row.visual.column);
+                                let has_right = parent_cols.iter().any(|p| *p > row.visual.column);
+                                let has_down = parent_cols.iter().any(|p| *p == row.visual.column);
+
+                                symbol = match (has_left, has_right, has_down) {
+                                    (true, true, true) => "┼",
+                                    (true, true, false) => "┬",
+                                    (true, false, true) => "┤",
+                                    (false, true, true) => "├",
+                                    (true, false, false) => "╮",
+                                    (false, true, false) => "╭",
+                                    (false, false, true) => "│",
+                                    (false, false, false) => " ",
+                                };
+                            } else if parent_cols.len() == 1 && parent_cols[0] != row.visual.column {
+                                symbol = if parent_cols[0] < row.visual.column { "╮" } else { "╭" };
+                            } else if parent_cols.is_empty() {
+                                symbol = " "; // Root
+                            } else {
+                                symbol = "│"; // Single parent same lane
+                            }
+                        }
+ else if parent_cols.contains(&lane_idx) {
+                            if is_active_above {
+                                symbol = if lane_idx < row.visual.column { "┤" } else { "├" };
+                            } else {
+                                symbol = if lane_idx < row.visual.column { "╭" } else { "╮" };
+                            }
+                        } else if lane_idx > range_min && lane_idx < range_max {
+                            symbol = if is_active_above { "┼" } else { "─" };
+                        }
                     }
+
+                    connector_line.push(Span::styled(symbol, lane_style));
                 }
                 connector_line.push(Span::raw("  "));
                 graph_lines.push(Line::from(connector_line));

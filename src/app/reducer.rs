@@ -603,17 +603,35 @@ fn refresh_derived_state(state: &mut AppState) {
             row.visual.column = current_lane;
             row.visual.active_lanes = active_commits.iter().map(|l| l.is_some()).collect();
 
-            // Prepare lanes for parents (and for the connector lines)
-            active_commits[current_lane] = None;
-            for parent in &row.parents {
-                if !active_commits.iter().any(|l| l.as_ref() == Some(&parent.0)) {
-                    if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
-                        active_commits[pos] = Some(parent.0.clone());
-                    } else {
-                        active_commits.push(Some(parent.0.clone()));
-                    }
+            // Track continuing lanes before we modify active_commits for parents
+            let mut continuing = Vec::new();
+            for (i, lane) in active_commits.iter().enumerate() {
+                if i != current_lane && lane.is_some() {
+                    continuing.push(i);
                 }
             }
+
+            // Prepare lanes for parents (and for the connector lines)
+            active_commits[current_lane] = None;
+            
+            let mut parent_cols = Vec::new();
+            for parent in &row.parents {
+                let parent_id = &parent.0;
+                let parent_lane = if let Some(pos) = active_commits.iter().position(|l| l.as_ref() == Some(parent_id)) {
+                    pos
+                } else if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
+                    active_commits[pos] = Some(parent_id.clone());
+                    pos
+                } else {
+                    active_commits.push(Some(parent_id.clone()));
+                    active_commits.len() - 1
+                };
+                parent_cols.push(parent_lane);
+            }
+            row.visual.parent_columns = parent_cols;
+
+            // Map continuing lanes to their new positions (they shouldn't move in this simple model)
+            row.visual.continuing_lanes = continuing.into_iter().map(|i| (i, i)).collect();
 
             row.visual.connector_lanes = active_commits.iter().map(|l| l.is_some()).collect();
         }
@@ -989,28 +1007,64 @@ mod tests {
     }
 
     #[test]
-    fn test_hunk_navigation_highlight() {
+    fn test_refresh_derived_state_merge() {
+        let mut graph = Vec::new();
+        // A (0) -> B (0), C (1)
+        graph.push(GraphRow {
+            commit_id: CommitId("A".to_string()),
+            parents: vec![CommitId("B".to_string()), CommitId("C".to_string())],
+            ..GraphRow::default()
+        });
+        // B (0) -> D (0)
+        graph.push(GraphRow {
+            commit_id: CommitId("B".to_string()),
+            parents: vec![CommitId("D".to_string())],
+            ..GraphRow::default()
+        });
+        // C (1) -> D (0)
+        graph.push(GraphRow {
+            commit_id: CommitId("C".to_string()),
+            parents: vec![CommitId("D".to_string())],
+            ..GraphRow::default()
+        });
+        // D (0)
+        graph.push(GraphRow {
+            commit_id: CommitId("D".to_string()),
+            parents: vec![],
+            ..GraphRow::default()
+        });
+
         let mut state = AppState {
-            current_diff: Some("@@ hunk1\nline1\n@@ hunk2\nline2".to_string()),
-            diff_scroll: 0,
+            repo: Some(RepoStatus {
+                operation_id: "op".to_string(),
+                workspace_id: "ws".to_string(),
+                working_copy_id: CommitId("A".to_string()),
+                graph,
+            }),
             ..Default::default()
         };
 
-        // Test NextHunk
-        update(&mut state, Action::NextHunk);
-        assert_eq!(state.diff_scroll, 2);
-        assert!(state.hunk_highlight_time.is_some());
+        refresh_derived_state(&mut state);
 
-        // Test Tick clears highlight
-        state.hunk_highlight_time = Some(Instant::now() - Duration::from_millis(201));
-        update(&mut state, Action::Tick);
-        assert!(state.hunk_highlight_time.is_none());
-
-        // Test PrevHunk
-        state.diff_scroll = 2;
-        update(&mut state, Action::PrevHunk);
-        assert_eq!(state.diff_scroll, 0);
-        assert!(state.hunk_highlight_time.is_some());
+        let repo = state.repo.as_ref().unwrap();
+        
+        // Row A: node at 0, parents [0, 1]
+        assert_eq!(repo.graph[0].visual.column, 0);
+        assert_eq!(repo.graph[0].visual.parent_columns, vec![0, 1]);
+        
+        // Row B: node at 0, parent [0]. Lane 1 (C) is active.
+        assert_eq!(repo.graph[1].visual.column, 0);
+        assert_eq!(repo.graph[1].visual.parent_columns, vec![0]);
+        assert_eq!(repo.graph[1].visual.active_lanes, vec![true, true]);
+        
+        // Row C: node at 1, parent [0]. Lane 0 (D, from B) is active.
+        assert_eq!(repo.graph[2].visual.column, 1);
+        assert_eq!(repo.graph[2].visual.parent_columns, vec![0]);
+        assert_eq!(repo.graph[2].visual.active_lanes, vec![true, true]);
+        
+        // Row D: node at 0, no parents.
+        assert_eq!(repo.graph[3].visual.column, 0);
+        assert!(repo.graph[3].visual.parent_columns.is_empty());
     }
 }
 

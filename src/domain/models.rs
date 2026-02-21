@@ -28,9 +28,12 @@ pub struct GraphRowVisual {
     pub column: usize,
     pub active_lanes: Vec<bool>,
     pub connector_lanes: Vec<bool>,
+    // New fields for advanced rendering
+    pub parent_columns: Vec<usize>,
+    pub continuing_lanes: Vec<(usize, usize)>, // (from_lane, to_lane)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct GraphRow {
     pub commit_id: CommitId,
     pub change_id: String,
@@ -43,6 +46,12 @@ pub struct GraphRow {
     pub bookmarks: Vec<String>,
     pub changed_files: Vec<FileChange>,
     pub visual: GraphRowVisual,
+}
+
+impl Default for CommitId {
+    fn default() -> Self {
+        Self("".to_string())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
