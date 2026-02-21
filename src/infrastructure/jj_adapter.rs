@@ -818,6 +818,27 @@ impl VcsFacade for JjAdapter {
 
         Err(anyhow!("No operation to redo"))
     }
+
+    async fn fetch(&self) -> Result<()> {
+        let ws_root = {
+            let ws = self.workspace.lock().await;
+            ws.workspace_root().to_path_buf()
+        };
+
+        let output = tokio::process::Command::new("jj")
+            .arg("git")
+            .arg("fetch")
+            .current_dir(ws_root)
+            .output()
+            .await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj git fetch failed: {}", err))
+        }
+    }
 }
 
 #[cfg(test)]

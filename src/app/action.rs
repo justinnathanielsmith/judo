@@ -32,6 +32,7 @@ pub enum Action {
     DeleteBookmark(String),             // `jj bookmark delete <name>`
     Undo,                               // `jj undo`
     Redo,                               // `jj redo`
+    Fetch,                              // `jj git fetch`
     LoadMoreGraph,                      // Trigger pagination
 
     // --- UI Mode Transitions ---

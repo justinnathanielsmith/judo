@@ -241,6 +241,7 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Char('d') => Some(Action::DescribeRevisionIntent),
                                     KeyCode::Char('u') => Some(Action::Undo),
                                     KeyCode::Char('U') => Some(Action::Redo),
+                                    KeyCode::Char('f') => Some(Action::Fetch),
                                     KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                                     KeyCode::Char('[') => Some(Action::PrevHunk),
@@ -636,6 +637,25 @@ async fn handle_command(
                             .send(Action::OperationCompleted(
                                 Ok("Redo successful".to_string()),
                             ))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Fetch => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted("Fetching...".to_string()))
+                    .await;
+                match adapter.fetch().await {
+                    Ok(_) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok("Fetch successful".to_string())))
                             .await;
                     }
                     Err(e) => {

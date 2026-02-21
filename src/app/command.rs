@@ -14,4 +14,5 @@ pub enum Command {
     DeleteBookmark(String),
     Undo,
     Redo,
+    Fetch,
 }

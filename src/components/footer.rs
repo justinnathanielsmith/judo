@@ -71,6 +71,7 @@ impl<'a> Footer<'a> {
                     name: "VCS",
                     items: vec![
                         FooterItem { key: "s/S", desc: "snap/sqsh" },
+                        FooterItem { key: "f", desc: "fetch" },
                         FooterItem { key: "b/B", desc: "bkmk" },
                         FooterItem { key: "u/U", desc: "undo" },
                     ],

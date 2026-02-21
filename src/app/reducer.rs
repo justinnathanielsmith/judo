@@ -107,6 +107,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::Redo => {
             return Some(Command::Redo);
         }
+        Action::Fetch => {
+            return Some(Command::Fetch);
+        }
         Action::DescribeRevisionIntent => {
             state.mode = AppMode::Input;
             state.text_area = AppTextArea::default();

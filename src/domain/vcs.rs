@@ -29,4 +29,6 @@ pub trait VcsFacade: Send + Sync {
 
     async fn undo(&self) -> Result<()>;
     async fn redo(&self) -> Result<()>;
+
+    async fn fetch(&self) -> Result<()>;
 }
