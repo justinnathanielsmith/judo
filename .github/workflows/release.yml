@@ -1,0 +1,164 @@
+name: Release
+
+# ── Trigger ─────────────────────────────────────────────────────────────────
+# Fires only when a semver tag is pushed (e.g. v0.1.0, v1.2.3).
+# The tag name becomes the release title and version marker.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  CARGO_TERM_COLOR: always
+  # Vendor OpenSSL so builds are hermetic on every runner (required by jj-lib).
+  OPENSSL_NO_VENDOR: 0
+
+# Needed to create the GitHub Release and upload assets.
+permissions:
+  contents: write
+
+# ── Job 1: Cross-platform build ──────────────────────────────────────────────
+jobs:
+  build-release:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Linux (glibc, x86-64) ──────────────────────────────────────────
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: judo
+            ext: ""
+            strip_cmd: strip
+
+          # ── macOS (Apple Silicon) ──────────────────────────────────────────
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: judo
+            ext: ""
+            strip_cmd: strip
+
+          # ── Windows (MSVC, x86-64) ─────────────────────────────────────────
+          # MSVC debug info lives in a separate .pdb; the .exe is already lean.
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: judo.exe
+            ext: ".exe"
+            strip_cmd: ""   # no strip needed on Windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Toolchain ──────────────────────────────────────────────────────────
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # ── Cargo cache ───────────────────────────────────────────────────────
+      - name: Cache Cargo registry & build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      # ── Extract version from Cargo.toml ────────────────────────────────────
+      # Writes a step output so downstream steps reference it via outputs, not
+      # env, keeping actionlint happy.
+      - name: Extract version from Cargo.toml
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # ── Compute asset filename ─────────────────────────────────────────────
+      # Produces e.g. judo-0.1.0-x86_64-unknown-linux-gnu
+      #               judo-0.1.0-x86_64-pc-windows-msvc.exe
+      - name: Compute asset name
+        id: asset
+        shell: bash
+        run: |
+          NAME="judo-${{ steps.version.outputs.value }}-${{ matrix.target }}${{ matrix.ext }}"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+
+      # ── Build (release profile) ────────────────────────────────────────────
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --bin judo
+
+      # ── Strip symbols (Unix only) ──────────────────────────────────────────
+      - name: Strip binary
+        if: matrix.strip_cmd != ''
+        shell: bash
+        run: ${{ matrix.strip_cmd }} target/${{ matrix.target }}/release/${{ matrix.binary }}
+
+      # ── Copy binary to distribution name ──────────────────────────────────
+      - name: Rename binary
+        shell: bash
+        run: |
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" \
+             "${{ steps.asset.outputs.name }}"
+
+      # ── SHA-256 checksum ───────────────────────────────────────────────────
+      - name: Generate SHA-256 checksum (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: sha256sum "${{ steps.asset.outputs.name }}" > "${{ steps.asset.outputs.name }}.sha256"
+
+      - name: Generate SHA-256 checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "${{ steps.asset.outputs.name }}" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ steps.asset.outputs.name }}" | Out-File -Encoding utf8 "${{ steps.asset.outputs.name }}.sha256"
+
+      # ── Upload per-platform artifacts ──────────────────────────────────────
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.asset.outputs.name }}
+          path: ${{ steps.asset.outputs.name }}
+          if-no-files-found: error
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.asset.outputs.name }}.sha256
+          path: ${{ steps.asset.outputs.name }}.sha256
+          if-no-files-found: error
+
+  # ── Job 2: Create GitHub Release ─────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    needs: build-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          # Merge files from all upload-artifact calls into a flat directory.
+          merge-multiple: true
+
+      - name: List release assets (debug)
+        run: ls -lh dist/
+
+      # Creates the release and attaches every file in dist/.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "judo ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: dist/*
