@@ -268,6 +268,15 @@ pub fn map_event_to_action(
             }
         }
         crate::app::state::AppMode::Loading => None,
+        crate::app::state::AppMode::Help => {
+            match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?') => Some(Action::ToggleHelp),
+                    _ => None,
+                },
+                _ => None,
+            }
+        }
         crate::app::state::AppMode::Diff => {
             match event {
                 Event::Key(key) => match key.code {
@@ -460,6 +469,7 @@ pub fn map_event_to_action(
                 KeyCode::Char('f') => Some(Action::Fetch),
                 KeyCode::Char('/') => Some(Action::EnterFilterMode),
                 KeyCode::Char('p') => Some(Action::PushIntent),
+                KeyCode::Char('?') => Some(Action::ToggleHelp),
                 KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                 KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                 KeyCode::Char('[') => Some(Action::PrevHunk),

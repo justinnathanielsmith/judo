@@ -19,6 +19,7 @@ pub enum AppMode {
     Diff,          // Focusing the diff window for scrolling
     ContextMenu,   // Right-click menu for actions
     FilterInput,   // Inputting a revset filter
+    Help,          // Showing the help overlay
 }
 
 #[derive(Debug, Clone, PartialEq)]

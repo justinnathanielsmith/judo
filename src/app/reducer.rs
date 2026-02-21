@@ -148,6 +148,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::FocusGraph => {
             state.mode = AppMode::Normal;
         }
+        Action::ToggleHelp => {
+            if state.mode == AppMode::Help {
+                state.mode = AppMode::Normal;
+            } else {
+                state.mode = AppMode::Help;
+            }
+        }
         Action::CancelMode | Action::CloseContextMenu => {
             state.mode = AppMode::Normal;
             state.last_error = None;
