@@ -310,6 +310,17 @@ impl VcsFacade for JjAdapter {
 
         output.push_str(&format!("Commit ID: {}\n", commit.id().hex()));
         output.push_str(&format!("Change ID: {}\n", commit.change_id().hex()));
+
+        let bookmarks = repo
+            .view()
+            .local_bookmarks()
+            .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
+            .map(|(name, _)| name.as_str().to_string())
+            .collect::<Vec<_>>();
+        if !bookmarks.is_empty() {
+            output.push_str(&format!("Bookmarks: {}\n", bookmarks.join(", ")));
+        }
+
         output.push_str(&format!("Author   : {} <{}> ({})\n", author.name, author.email, timestamp));
         output.push_str(&format!("    {}\n\n", commit.description().replace('\n', "\n    ")));
 
@@ -359,14 +370,7 @@ impl VcsFacade for JjAdapter {
             let after_str = String::from_utf8_lossy(&after_content);
 
             let diff = similar::TextDiff::from_lines(&before_str, &after_str);
-            for change in diff.iter_all_changes() {
-                let sign = match change.tag() {
-                    similar::ChangeTag::Delete => "-",
-                    similar::ChangeTag::Insert => "+",
-                    similar::ChangeTag::Equal => " ",
-                };
-                output.push_str(&format!("{}{}", sign, change));
-            }
+            output.push_str(&diff.unified_diff().context_radius(3).to_string());
             output.push_str("\n");
         }
 

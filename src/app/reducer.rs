@@ -20,6 +20,20 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log_list_state.select(Some(i));
             return handle_selection(state);
         }
+        Action::SelectFile(i) => {
+            state.selected_file_index = Some(i);
+            scroll_to_selected_file(state);
+        }
+        Action::SelectFileByPath(path) => {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    if let Some(file_idx) = row.changed_files.iter().position(|f| f.path == path) {
+                        state.selected_file_index = Some(file_idx);
+                        scroll_to_selected_file(state);
+                    }
+                }
+            }
+        }
         Action::SelectNextFile => {
             if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
@@ -27,6 +41,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     if len > 0 {
                         let current = state.selected_file_index.unwrap_or(0);
                         state.selected_file_index = Some((current + 1) % len);
+                        scroll_to_selected_file(state);
                     }
                 }
             }
@@ -38,6 +53,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     if len > 0 {
                         let current = state.selected_file_index.unwrap_or(0);
                         state.selected_file_index = Some(if current == 0 { len - 1 } else { current - 1 });
+                        scroll_to_selected_file(state);
                     }
                 }
             }
@@ -125,6 +141,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 if state.selected_file_index.is_none() {
                     state.selected_file_index = Some(0);
                 }
+                scroll_to_selected_file(state);
             }
         }
         Action::FocusGraph => {
@@ -784,5 +801,23 @@ mod tests {
         });
         update(&mut state, Action::SelectNext);
         assert_eq!(state.selected_file_index, None);
+    }
+}
+
+fn scroll_to_selected_file(state: &mut AppState) {
+    if let (Some(repo), Some(idx), Some(file_idx), Some(diff)) = (
+        &state.repo,
+        state.log_list_state.selected(),
+        state.selected_file_index,
+        &state.current_diff,
+    ) {
+        if let Some(row) = repo.graph.get(idx) {
+            if let Some(file) = row.changed_files.get(file_idx) {
+                let target = format!("File: {}", file.path);
+                if let Some(line_idx) = diff.lines().position(|l| l.starts_with(&target)) {
+                    state.diff_scroll = line_idx as u16;
+                }
+            }
+        }
     }
 }

@@ -207,7 +207,12 @@ pub async fn run_loop<B: Backend>(
                                                         let row_height = 2 + if is_selected && app_state.show_diffs { row.changed_files.len() } else { 0 };
 
                                                         if clicked_row >= current_y && clicked_row < current_y + row_height {
-                                                            result = Some(Action::SelectIndex(i));
+                                                            if is_selected && app_state.show_diffs && clicked_row >= current_y + 2 {
+                                                                let file_idx = clicked_row - (current_y + 2);
+                                                                result = Some(Action::SelectFile(file_idx));
+                                                            } else {
+                                                                result = Some(Action::SelectIndex(i));
+                                                            }
                                                             break;
                                                         }
                                                         current_y += row_height;
@@ -331,7 +336,12 @@ pub async fn run_loop<B: Backend>(
                                                     let row_height = ui::calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
 
                                                     if clicked_row >= current_y && clicked_row < current_y + row_height {
-                                                        result = Some(Action::SelectIndex(i));
+                                                        if is_selected && app_state.show_diffs && clicked_row >= current_y + 2 {
+                                                            let file_idx = clicked_row - (current_y + 2);
+                                                            result = Some(Action::SelectFile(file_idx));
+                                                        } else {
+                                                            result = Some(Action::SelectIndex(i));
+                                                        }
                                                         break;
                                                     }
                                                     current_y += row_height;

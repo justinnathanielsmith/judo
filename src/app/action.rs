@@ -12,6 +12,8 @@ pub enum Action {
     SelectNext,
     SelectPrev,
     SelectIndex(usize),
+    SelectFile(usize),
+    SelectFileByPath(String),
     SelectNextFile,
     SelectPrevFile,
     ScrollDiffUp(u16),

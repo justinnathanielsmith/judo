@@ -41,38 +41,27 @@ impl<'a> Widget for DiffView<'a> {
 
         let mut lines = Vec::new();
         for line in content.lines() {
-            let style = if line.starts_with("Commit ID:")
+            let style = if line.starts_with("Bookmarks:") {
+                self.theme.bookmark
+            } else if line.starts_with("Commit ID:")
                 || line.starts_with("Change ID:")
                 || line.starts_with("Author:")
                 || line.starts_with("Author   :")
                 || line.starts_with("Committer:")
                 || line.starts_with("Timestamp:")
                 || line.starts_with("Date:")
+                || line.starts_with("File:")
+                || line.starts_with("Status:")
             {
                 self.theme.diff_header
-            } else if line.starts_with("+ Added") {
+            } else if line.starts_with('+') {
                 self.theme.diff_add
-            } else if line.starts_with("- Deleted") {
+            } else if line.starts_with('-') {
                 self.theme.diff_remove
-            } else if line.starts_with("~ Modified") {
-                self.theme.diff_modify
-            } else if line.starts_with("    ...") {
+            } else if line.starts_with("@@") {
                 self.theme.diff_hunk
-            } else if line.len() >= 10 && line.as_bytes().get(9) == Some(&b':') {
-                // It's a diff line. Check for addition/deletion.
-                // In jj, a deletion has spaces in the second column (index 4-8)
-                // An addition has spaces in the first column (index 0-3)
-                let first_col = &line[0..4];
-                let second_col = &line[4..9];
-                if first_col.trim().is_empty() {
-                    self.theme.diff_add
-                } else if second_col.trim().is_empty() {
-                    self.theme.diff_remove
-                } else {
-                    self.theme.diff_context
-                }
             } else if line.starts_with("    ") {
-                // This is likely the description part
+                // Description or code context
                 self.theme.diff_context
             } else {
                 self.theme.diff_context
