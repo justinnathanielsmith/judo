@@ -68,15 +68,15 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     f.render_widget(header, layout.main[0]);
 
     // Left: Revision Graph
-    let graph_border = if app_state.mode == AppMode::Normal {
-        theme.border_focus
+    let (graph_border, graph_title_style) = if app_state.mode == AppMode::Normal {
+        (theme.border_focus, theme.header_active)
     } else {
-        theme.border
+        (theme.border, theme.header_item)
     };
     let graph_block = Block::default()
         .title(Line::from(vec![
             Span::raw(" "),
-            Span::styled("REVISION GRAPH", theme.header_logo),
+            Span::styled("REVISION GRAPH", graph_title_style),
             Span::raw(" "),
         ]))
         .title_bottom(Line::from(vec![
@@ -135,15 +135,15 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
 
     // Right: Diff View
     if app_state.show_diffs {
-        let diff_border = if app_state.mode == AppMode::Diff {
-            theme.border_focus
+        let (diff_border, diff_title_style) = if app_state.mode == AppMode::Diff {
+            (theme.border_focus, theme.header_active)
         } else {
-            theme.border
+            (theme.border, theme.header_item)
         };
         let diff_block = Block::default()
             .title(Line::from(vec![
                 Span::raw(" "),
-                Span::styled("DIFF VIEW", theme.header_logo),
+                Span::styled("DIFF VIEW", diff_title_style),
                 Span::raw(" "),
             ]))
             .title_bottom(Line::from(vec![

@@ -146,11 +146,11 @@ impl<'a> Widget for Footer<'a> {
 
         // Status segment
         let status_span = if let Some(err) = &state.last_error {
-            Span::styled(format!(" ERROR: {} ", err), theme.status_error)
+            Span::styled(format!("  ERROR: {}  ", err), theme.status_error)
         } else if let Some(msg) = &state.status_message {
-            Span::styled(format!(" {} ", msg), theme.status_info)
+            Span::styled(format!("  {}  ", msg), theme.status_info)
         } else {
-            Span::styled(" READY ", theme.status_ready)
+            Span::styled("  READY  ", theme.status_ready)
         };
 
         let groups = self.get_groups();
@@ -174,7 +174,7 @@ impl<'a> Widget for Footer<'a> {
 
             // Add group name as a subtle label if there's plenty of space
             if area.width > 100 {
-                 let group_label = Span::styled(format!("{}: ", group.name), theme.footer.fg(theme.timestamp.fg.unwrap_or(ratatui::style::Color::DarkGray)));
+                 let group_label = Span::styled(format!("{}: ", group.name), theme.footer_group_name);
                  if current_width + group_label.width() + first_item_width < available_width as usize {
                      spans.push(group_label);
                      current_width += group.name.len() + 2;

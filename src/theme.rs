@@ -25,11 +25,13 @@ pub struct Theme {
     pub commit_id_dim: Style,
 
     pub header_logo: Style,
+    pub header_active: Style,
     pub header_item: Style,
     pub header: Style,
 
     pub footer_segment_key: Style,
     pub footer_segment_val: Style,
+    pub footer_group_name: Style,
     pub footer: Style,
 
     pub status_ready: Style,
@@ -53,17 +55,29 @@ impl Default for Theme {
             graph_node_mutable: Style::default()
                 .fg(Color::Rgb(203, 166, 247)) // Mauve
                 .add_modifier(Modifier::BOLD),
-            graph_node_immutable: Style::default().fg(Color::Rgb(137, 180, 250)), // Blue
+            graph_node_immutable: Style::default()
+                .fg(Color::Rgb(137, 180, 250))
+                .add_modifier(Modifier::BOLD),
             graph_line: Style::default().fg(Color::Rgb(108, 112, 134)),           // Surface
 
-            change_id_mutable: Style::default().fg(Color::Rgb(203, 166, 247)),
-            change_id_immutable: Style::default().fg(Color::Rgb(137, 180, 250)),
+            change_id_mutable: Style::default()
+                .fg(Color::Rgb(203, 166, 247))
+                .add_modifier(Modifier::BOLD),
+            change_id_immutable: Style::default()
+                .fg(Color::Rgb(137, 180, 250))
+                .add_modifier(Modifier::BOLD),
             bookmark: Style::default()
                 .fg(Color::Rgb(166, 227, 161)) // Green
                 .add_modifier(Modifier::BOLD),
-            author: Style::default().fg(Color::Rgb(250, 179, 135)), // Peach
-            timestamp: Style::default().fg(Color::Rgb(166, 173, 200)), // Subtext
-            commit_id_dim: Style::default().fg(Color::Rgb(88, 91, 112)), // Surface
+            author: Style::default()
+                .fg(Color::Rgb(250, 179, 135)) // Peach
+                .add_modifier(Modifier::BOLD),
+            timestamp: Style::default()
+                .fg(Color::Rgb(166, 173, 200)) // Subtext
+                .add_modifier(Modifier::DIM),
+            commit_id_dim: Style::default()
+                .fg(Color::Rgb(88, 91, 112)) // Surface
+                .add_modifier(Modifier::DIM),
 
             diff_header: Style::default()
                 .fg(Color::Rgb(137, 180, 250))
@@ -77,6 +91,10 @@ impl Default for Theme {
             header_logo: Style::default()
                 .bg(Color::Rgb(137, 180, 250))
                 .fg(Color::Rgb(17, 17, 27)) // Crust
+                .add_modifier(Modifier::BOLD),
+            header_active: Style::default()
+                .bg(Color::Rgb(166, 227, 161)) // Green
+                .fg(Color::Rgb(17, 17, 27))
                 .add_modifier(Modifier::BOLD),
             header_item: Style::default()
                 .bg(Color::Rgb(49, 50, 68)) // Surface
@@ -92,14 +110,24 @@ impl Default for Theme {
             footer_segment_val: Style::default()
                 .bg(Color::Rgb(30, 30, 46))
                 .fg(Color::Rgb(205, 214, 244)),
+            footer_group_name: Style::default()
+                .fg(Color::Rgb(166, 173, 200)) // Subtext
+                .add_modifier(Modifier::DIM),
             footer: Style::default()
                 .bg(Color::Rgb(17, 17, 27))
                 .fg(Color::Rgb(166, 173, 200)),
 
-            status_ready: Style::default().fg(Color::Rgb(166, 227, 161)),
-            status_info: Style::default().fg(Color::Rgb(137, 180, 250)),
+            status_ready: Style::default()
+                .bg(Color::Rgb(166, 227, 161))
+                .fg(Color::Rgb(17, 17, 27))
+                .add_modifier(Modifier::BOLD),
+            status_info: Style::default()
+                .bg(Color::Rgb(137, 180, 250))
+                .fg(Color::Rgb(17, 17, 27))
+                .add_modifier(Modifier::BOLD),
             status_error: Style::default()
-                .fg(Color::Rgb(243, 139, 168))
+                .bg(Color::Rgb(243, 139, 168))
+                .fg(Color::Rgb(17, 17, 27))
                 .add_modifier(Modifier::BOLD),
 
             highlight: Style::default()
