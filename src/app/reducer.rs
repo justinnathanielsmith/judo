@@ -344,6 +344,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.repo = Some(*repo_status);
             state.is_loading_more = false;
             state.has_more = true;
+            state.mode = AppMode::Normal;
+            state.active_tasks.retain(|t| !t.contains("Syncing"));
             refresh_derived_state(state);
             // If nothing selected, select the working copy (or HEAD)
             if state.log_list_state.selected().is_none() {
@@ -409,6 +411,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             if state.mode == AppMode::Loading {
                 state.mode = AppMode::Normal;
             }
+        }
+
+        Action::ExternalChangeDetected => {
+            state.mode = AppMode::Loading;
+            state.current_diff = None;
+            state.active_tasks.push("Syncing external changes...".to_string());
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
 
         Action::Tick => {

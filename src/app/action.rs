@@ -68,4 +68,5 @@ pub enum Action {
     OperationStarted(String),     // "Squashing..." (sets loading state)
     OperationCompleted(Result<String, String>), // Success/Failure message
     ErrorOccurred(String),        // General error reporting
+    ExternalChangeDetected,       // External change to the repo (jj op heads)
 }

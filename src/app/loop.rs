@@ -10,6 +10,7 @@ use crate::theme::Theme;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, MouseButton, MouseEventKind};
+use notify::{Watcher, RecursiveMode};
 use ratatui::{backend::Backend, Terminal};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -26,6 +27,20 @@ pub async fn run_loop<B: Backend>(
     let (action_tx, mut action_rx) = mpsc::channel(100);
     let mut interval = interval(TICK_RATE);
     let theme = Theme::default();
+
+    // Repository Watcher
+    let (notify_tx, mut notify_rx) = mpsc::channel(1);
+    let mut watcher = notify::recommended_watcher(move |res| {
+        if let Ok(_) = res {
+            let _ = notify_tx.blocking_send(());
+        }
+    })?;
+    
+    let repo_path = adapter.workspace_root();
+    let op_heads_path = repo_path.join(".jj").join("repo").join("op_heads");
+    if op_heads_path.exists() {
+        watcher.watch(&op_heads_path, RecursiveMode::NonRecursive)?;
+    }
 
     // User input channel
     let (event_tx, mut event_rx) = mpsc::channel(100);
@@ -56,6 +71,9 @@ pub async fn run_loop<B: Backend>(
         // --- 2. Event Handling (TEA Runtime) ---
         let action = tokio::select! {
             _ = interval.tick() => Some(Action::Tick),
+
+            // External Changes
+            Some(_) = notify_rx.recv() => Some(Action::ExternalChangeDetected),
 
             // User Input
             Some(res) = event_rx.recv() => {
@@ -144,6 +162,7 @@ pub async fn run_loop<B: Backend>(
                             _ => None,
                         }
                     },
+                    crate::app::state::AppMode::Loading => None,
                     crate::app::state::AppMode::Diff => {
                         match event {
                             Event::Key(key) => {

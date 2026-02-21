@@ -24,6 +24,7 @@ use tokio::sync::{Mutex, Semaphore};
 
 pub struct JjAdapter {
     workspace: Arc<Mutex<Workspace>>,
+    workspace_root: std::path::PathBuf,
     _user_settings: UserSettings,
     diff_semaphore: Arc<Semaphore>,
 }
@@ -92,8 +93,11 @@ impl JjAdapter {
             &working_copy_factories,
         )?;
 
+        let workspace_root = workspace.workspace_root().to_path_buf();
+
         Ok(Self {
             workspace: Arc::new(Mutex::new(workspace)),
+            workspace_root,
             _user_settings: user_settings,
             diff_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DIFFS)),
         })
@@ -513,6 +517,10 @@ impl VcsFacade for JjAdapter {
         if let Some(b) = bookmark { cmd.arg("-b").arg(b); }
         let output = cmd.output().await?;
         if output.status.success() { Ok(()) } else { Err(anyhow!("jj git push failed")) }
+    }
+
+    fn workspace_root(&self) -> std::path::PathBuf {
+        self.workspace_root.clone()
     }
 }
 
