@@ -178,15 +178,47 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return Some(Command::InitRepo);
         }
         Action::EditRevision(commit_id) => {
+            if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::Edit(row.commit_id.clone()));
+                    }
+                }
+                return None;
+            }
             return Some(Command::Edit(commit_id));
         }
         Action::SquashRevision(commit_id) => {
+            if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::Squash(row.commit_id.clone()));
+                    }
+                }
+                return None;
+            }
             return Some(Command::Squash(commit_id));
         }
         Action::NewRevision(commit_id) => {
+            if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::New(row.commit_id.clone()));
+                    }
+                }
+                return None;
+            }
             return Some(Command::New(commit_id));
         }
         Action::AbandonRevision(commit_id) => {
+            if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::Abandon(row.commit_id.clone()));
+                    }
+                }
+                return None;
+            }
             return Some(Command::Abandon(commit_id));
         }
         Action::Undo => {
@@ -261,6 +293,16 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return Some(Command::SetBookmark(commit_id, name));
         }
         Action::DeleteBookmark(name) => {
+            if name.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        if let Some(bookmark) = row.bookmarks.first() {
+                            return Some(Command::DeleteBookmark(bookmark.clone()));
+                        }
+                    }
+                }
+                return None;
+            }
             return Some(Command::DeleteBookmark(name));
         }
 

@@ -9,6 +9,25 @@ pub struct KeyConfig {
     pub custom: Option<HashMap<String, String>>,
 }
 
+impl KeyConfig {
+    pub fn load() -> Self {
+        if let Some(mut config_path) = home::home_dir() {
+            config_path.push(".config");
+            config_path.push("judo");
+            config_path.push("config.toml");
+
+            if config_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(config_path) {
+                    if let Ok(config) = toml::from_str(&content) {
+                        return config;
+                    }
+                }
+            }
+        }
+        Self::default()
+    }
+}
+
 impl Default for KeyConfig {
     fn default() -> Self {
         Self {
@@ -18,59 +37,75 @@ impl Default for KeyConfig {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct KeyMap {
-    // Maps Mode -> (Key -> Action)
-    // For simplicity, let's start with a global map and override by mode if needed.
     pub global: HashMap<KeyEvent, Action>,
     pub diff_mode: HashMap<KeyEvent, Action>,
 }
 
 impl KeyMap {
-    pub fn from_config(_config: &KeyConfig) -> Self {
-        // In a real app, we would load from a file or use the profile.
-        // For now, let's implement the default "vim" profile.
+    pub fn from_config(config: &KeyConfig) -> Self {
+        let mut map = match config.profile.as_str() {
+            "vim" | _ => Self::vim_profile(),
+        };
+
+        if let Some(custom) = &config.custom {
+            for (key_str, action_str) in custom {
+                if let (Some(key), Some(action)) = (parse_key(key_str), parse_action(action_str)) {
+                    map.global.insert(key, action);
+                }
+            }
+        }
+
+        map
+    }
+
+    fn vim_profile() -> Self {
         let mut global = HashMap::new();
         let mut diff_mode = HashMap::new();
 
-        // --- Global / Normal Mode ---
-        global.insert(key('q'), Action::Quit);
-        global.insert(key(KeyCode::Enter), Action::ToggleDiffs);
-        global.insert(key(KeyCode::Tab), Action::FocusDiff);
-        global.insert(key('l'), Action::FocusDiff);
-        global.insert(key('j'), Action::SelectNext);
-        global.insert(key(KeyCode::Down), Action::SelectNext);
-        global.insert(key('k'), Action::SelectPrev);
-        global.insert(key(KeyCode::Up), Action::SelectPrev);
-        global.insert(key('s'), Action::SnapshotWorkingCopy);
-        global.insert(key('S'), Action::EnterSquashMode);
-        global.insert(key('e'), Action::EditRevision(crate::domain::models::CommitId("".to_string()))); // Placeholder
-        global.insert(key('n'), Action::NewRevision(crate::domain::models::CommitId("".to_string()))); // Placeholder
-        global.insert(key('a'), Action::AbandonRevision(crate::domain::models::CommitId("".to_string()))); // Placeholder
-        global.insert(key('b'), Action::SetBookmarkIntent);
-        global.insert(key('B'), Action::DeleteBookmark("".to_string())); // Placeholder
-        global.insert(key('d'), Action::DescribeRevisionIntent);
-        global.insert(key('m'), Action::FilterMine);
-        global.insert(key('t'), Action::FilterTrunk);
-        global.insert(key('c'), Action::FilterConflicts);
-        global.insert(key('u'), Action::Undo);
-        global.insert(key('U'), Action::Redo);
-        global.insert(key('f'), Action::Fetch);
-        global.insert(key('/'), Action::EnterFilterMode);
-        global.insert(key('p'), Action::PushIntent);
-        global.insert(key('?'), Action::ToggleHelp);
-        global.insert(key(KeyCode::PageDown), Action::ScrollDiffDown(10));
-        global.insert(key(KeyCode::PageUp), Action::ScrollDiffUp(10));
-        global.insert(key('['), Action::PrevHunk);
-        global.insert(key(']'), Action::NextHunk);
-        global.insert(key(KeyCode::Esc), Action::CancelMode);
+        global.insert(key_char('q'), Action::Quit);
+        global.insert(key_code(KeyCode::Enter), Action::ToggleDiffs);
+        global.insert(key_code(KeyCode::Tab), Action::FocusDiff);
+        global.insert(key_char('l'), Action::FocusDiff);
+        global.insert(key_char('j'), Action::SelectNext);
+        global.insert(key_code(KeyCode::Down), Action::SelectNext);
+        global.insert(key_char('k'), Action::SelectPrev);
+        global.insert(key_code(KeyCode::Up), Action::SelectPrev);
+        global.insert(key_char('s'), Action::SnapshotWorkingCopy);
+        global.insert(key_char('S'), Action::EnterSquashMode);
+        global.insert(key_char('e'), Action::EditRevision(crate::domain::models::CommitId("".to_string())));
+        global.insert(key_char('n'), Action::NewRevision(crate::domain::models::CommitId("".to_string())));
+        global.insert(key_char('a'), Action::AbandonRevision(crate::domain::models::CommitId("".to_string())));
+        global.insert(key_char('b'), Action::SetBookmarkIntent);
+        global.insert(key_char('B'), Action::DeleteBookmark("".to_string()));
+        global.insert(key_char('d'), Action::DescribeRevisionIntent);
+        global.insert(key_char('m'), Action::FilterMine);
+        global.insert(key_char('t'), Action::FilterTrunk);
+        global.insert(key_char('c'), Action::FilterConflicts);
+        global.insert(key_char('u'), Action::Undo);
+        global.insert(key_char('U'), Action::Redo);
+        global.insert(key_char('f'), Action::Fetch);
+        global.insert(key_char('/'), Action::EnterFilterMode);
+        global.insert(key_char('p'), Action::PushIntent);
+        global.insert(key_char('?'), Action::ToggleHelp);
+        global.insert(key_code(KeyCode::PageDown), Action::ScrollDiffDown(10));
+        global.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
+        global.insert(key_char('['), Action::PrevHunk);
+        global.insert(key_char(']'), Action::NextHunk);
+        global.insert(key_code(KeyCode::Esc), Action::CancelMode);
 
-        // --- Diff Mode Overrides ---
-        diff_mode.insert(key('h'), Action::FocusGraph);
-        diff_mode.insert(key(KeyCode::Tab), Action::FocusGraph);
-        diff_mode.insert(key('j'), Action::SelectNextFile);
-        diff_mode.insert(key(KeyCode::Down), Action::SelectNextFile);
-        diff_mode.insert(key('k'), Action::SelectPrevFile);
-        diff_mode.insert(key(KeyCode::Up), Action::SelectPrevFile);
+        diff_mode.insert(key_char('h'), Action::FocusGraph);
+        diff_mode.insert(key_code(KeyCode::Tab), Action::FocusGraph);
+        diff_mode.insert(key_char('j'), Action::SelectNextFile);
+        diff_mode.insert(key_code(KeyCode::Down), Action::SelectNextFile);
+        diff_mode.insert(key_char('k'), Action::SelectPrevFile);
+        diff_mode.insert(key_code(KeyCode::Up), Action::SelectPrevFile);
+        diff_mode.insert(key_code(KeyCode::PageDown), Action::ScrollDiffDown(10));
+        diff_mode.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
+        diff_mode.insert(key_char('['), Action::PrevHunk);
+        diff_mode.insert(key_char(']'), Action::NextHunk);
+        diff_mode.insert(key_code(KeyCode::Esc), Action::CancelMode);
 
         Self { global, diff_mode }
     }
@@ -85,6 +120,56 @@ impl KeyMap {
     }
 }
 
-fn key(code: impl Into<KeyCode>) -> KeyEvent {
-    KeyEvent::new(code.into(), KeyModifiers::empty())
+fn key_code(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::empty())
+}
+
+fn key_char(c: char) -> KeyEvent {
+    KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty())
+}
+
+fn parse_key(s: &str) -> Option<KeyEvent> {
+    match s.to_lowercase().as_str() {
+        "enter" => Some(key_code(KeyCode::Enter)),
+        "tab" => Some(key_code(KeyCode::Tab)),
+        "esc" => Some(key_code(KeyCode::Esc)),
+        "up" => Some(key_code(KeyCode::Up)),
+        "down" => Some(key_code(KeyCode::Down)),
+        "left" => Some(key_code(KeyCode::Left)),
+        "right" => Some(key_code(KeyCode::Right)),
+        "pgup" | "pageup" => Some(key_code(KeyCode::PageUp)),
+        "pgdn" | "pagedown" => Some(key_code(KeyCode::PageDown)),
+        s if s.len() == 1 => Some(key_char(s.chars().next().unwrap())),
+        _ => None,
+    }
+}
+
+fn parse_action(s: &str) -> Option<Action> {
+    match s.to_lowercase().as_str() {
+        "quit" => Some(Action::Quit),
+        "togglediffs" => Some(Action::ToggleDiffs),
+        "focusdiff" => Some(Action::FocusDiff),
+        "focusgraph" => Some(Action::FocusGraph),
+        "selectnext" => Some(Action::SelectNext),
+        "selectprev" => Some(Action::SelectPrev),
+        "selectnextfile" => Some(Action::SelectNextFile),
+        "selectprevfile" => Some(Action::SelectPrevFile),
+        "snapshot" => Some(Action::SnapshotWorkingCopy),
+        "edit" => Some(Action::EditRevision(crate::domain::models::CommitId("".to_string()))),
+        "new" => Some(Action::NewRevision(crate::domain::models::CommitId("".to_string()))),
+        "describe" => Some(Action::DescribeRevisionIntent),
+        "abandon" => Some(Action::AbandonRevision(crate::domain::models::CommitId("".to_string()))),
+        "setbookmark" => Some(Action::SetBookmarkIntent),
+        "deletebookmark" => Some(Action::DeleteBookmark("".to_string())),
+        "undo" => Some(Action::Undo),
+        "redo" => Some(Action::Redo),
+        "fetch" => Some(Action::Fetch),
+        "push" => Some(Action::PushIntent),
+        "filter" => Some(Action::EnterFilterMode),
+        "help" => Some(Action::ToggleHelp),
+        "nexthunk" => Some(Action::NextHunk),
+        "prevhunk" => Some(Action::PrevHunk),
+        "cancel" => Some(Action::CancelMode),
+        _ => None,
+    }
 }

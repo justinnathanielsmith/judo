@@ -164,6 +164,15 @@ pub struct AppState<'a> {
     pub keymap: Arc<KeyMap>,
 }
 
+impl<'a> AppState<'a> {
+    pub fn new(config: KeyConfig) -> Self {
+        Self {
+            keymap: Arc::new(KeyMap::from_config(&config)),
+            ..Default::default()
+        }
+    }
+}
+
 impl<'a> Default for AppState<'a> {
     fn default() -> Self {
         Self {

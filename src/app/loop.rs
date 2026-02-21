@@ -291,43 +291,30 @@ pub fn map_event_to_action(
         }
         crate::app::state::AppMode::Diff => {
             match event {
-                Event::Key(key) => match key.code {
-                    KeyCode::Esc => Some(Action::CancelMode),
-                    KeyCode::Char('q') => Some(Action::Quit),
-                    KeyCode::Char('h') | KeyCode::Tab => Some(Action::FocusGraph),
-                    KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNextFile),
-                    KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrevFile),
-                    KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
-                    KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
-                    KeyCode::Char('[') => Some(Action::PrevHunk),
-                    KeyCode::Char(']') => Some(Action::NextHunk),
-                    KeyCode::Char('m') | KeyCode::Enter => {
-                        if let (Some(repo), Some(idx)) =
-                            (&app_state.repo, app_state.log_list_state.selected())
-                        {
-                            if let Some(row) = repo.graph.get(idx) {
-                                if let Some(file_idx) = app_state.selected_file_index {
-                                    if let Some(file) = row.changed_files.get(file_idx) {
-                                        if file.status == crate::domain::models::FileStatus::Conflicted
-                                        {
-                                            Some(Action::ResolveConflict(file.path.clone()))
-                                        } else {
-                                            None
+                Event::Key(key) => {
+                    if let Some(action) = app_state.keymap.get_action(key, app_state.mode) {
+                        return Some(action);
+                    }
+                    match key.code {
+                        KeyCode::Char('m') | KeyCode::Enter => {
+                            if let (Some(repo), Some(idx)) =
+                                (&app_state.repo, app_state.log_list_state.selected())
+                            {
+                                if let Some(row) = repo.graph.get(idx) {
+                                    if let Some(file_idx) = app_state.selected_file_index {
+                                        if let Some(file) = row.changed_files.get(file_idx) {
+                                            if file.status == crate::domain::models::FileStatus::Conflicted
+                                            {
+                                                return Some(Action::ResolveConflict(file.path.clone()));
+                                            }
                                         }
-                                    } else {
-                                        None
                                     }
-                                } else {
-                                    None
                                 }
-                            } else {
-                                None
                             }
-                        } else {
                             None
                         }
+                        _ => None,
                     }
-                    _ => None,
                 },
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::ScrollUp => Some(Action::ScrollDiffUp(1)),
@@ -404,90 +391,11 @@ pub fn map_event_to_action(
         }
         _ => match event {
             Event::Resize(w, h) => Some(Action::Resize(w, h)),
-            Event::Key(key) => match key.code {
-                KeyCode::Char('q') => Some(Action::Quit),
-                KeyCode::Enter => Some(Action::ToggleDiffs),
-                KeyCode::Tab | KeyCode::Char('l') => Some(Action::FocusDiff),
-                KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
-                KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrev),
-                KeyCode::Char('s') => Some(Action::SnapshotWorkingCopy),
-                KeyCode::Char('S') => {
-                    if let (Some(repo), Some(idx)) =
-                        (&app_state.repo, app_state.log_list_state.selected())
-                    {
-                        repo.graph
-                            .get(idx)
-                            .map(|row| Action::SquashRevision(row.commit_id.clone()))
-                    } else {
-                        None
-                    }
+            Event::Key(key) => {
+                if let Some(action) = app_state.keymap.get_action(key, app_state.mode) {
+                    return Some(action);
                 }
-                KeyCode::Char('e') => {
-                    if let (Some(repo), Some(idx)) =
-                        (&app_state.repo, app_state.log_list_state.selected())
-                    {
-                        repo.graph
-                            .get(idx)
-                            .map(|row| Action::EditRevision(row.commit_id.clone()))
-                    } else {
-                        None
-                    }
-                }
-                KeyCode::Char('n') => {
-                    if let (Some(repo), Some(idx)) =
-                        (&app_state.repo, app_state.log_list_state.selected())
-                    {
-                        repo.graph
-                            .get(idx)
-                            .map(|row| Action::NewRevision(row.commit_id.clone()))
-                    } else {
-                        None
-                    }
-                }
-                KeyCode::Char('a') => {
-                    if let (Some(repo), Some(idx)) =
-                        (&app_state.repo, app_state.log_list_state.selected())
-                    {
-                        repo.graph
-                            .get(idx)
-                            .map(|row| Action::AbandonRevision(row.commit_id.clone()))
-                    } else {
-                        None
-                    }
-                }
-                KeyCode::Char('b') => Some(Action::SetBookmarkIntent),
-                KeyCode::Char('B') => {
-                    if let (Some(repo), Some(idx)) =
-                        (&app_state.repo, app_state.log_list_state.selected())
-                    {
-                        if let Some(row) = repo.graph.get(idx) {
-                            // For now, delete the first bookmark if exists
-                            row.bookmarks
-                                .first()
-                                .map(|bookmark| Action::DeleteBookmark(bookmark.clone()))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-                KeyCode::Char('d') => Some(Action::DescribeRevisionIntent),
-                KeyCode::Char('m') => Some(Action::FilterMine),
-                KeyCode::Char('t') => Some(Action::FilterTrunk),
-                KeyCode::Char('c') => Some(Action::FilterConflicts),
-                KeyCode::Char('u') => Some(Action::Undo),
-                KeyCode::Char('U') => Some(Action::Redo),
-                KeyCode::Char('f') => Some(Action::Fetch),
-                KeyCode::Char('/') => Some(Action::EnterFilterMode),
-                KeyCode::Char('p') => Some(Action::PushIntent),
-                KeyCode::Char('?') => Some(Action::ToggleHelp),
-                KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
-                KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
-                KeyCode::Char('[') => Some(Action::PrevHunk),
-                KeyCode::Char(']') => Some(Action::NextHunk),
-                KeyCode::Esc => Some(Action::CancelMode),
-                _ => None,
+                None
             },
             Event::Mouse(mouse) => {
                 let area = ratatui::layout::Rect::new(0, 0, terminal_size.width, terminal_size.height);
@@ -1092,6 +1000,28 @@ mod tests {
             .returning(|_| Ok("diff content".to_string()));
         mock.expect_snapshot()
             .returning(|| Ok("snapshot".to_string()));
+        mock.expect_new_child()
+            .returning(|_| Ok(()));
+        mock.expect_edit()
+            .returning(|_| Ok(()));
+        mock.expect_squash()
+            .returning(|_| Ok(()));
+        mock.expect_abandon()
+            .returning(|_| Ok(()));
+        mock.expect_set_bookmark()
+            .returning(|_, _| Ok(()));
+        mock.expect_delete_bookmark()
+            .returning(|_| Ok(()));
+        mock.expect_undo()
+            .returning(|| Ok(()));
+        mock.expect_redo()
+            .returning(|| Ok(()));
+        mock.expect_fetch()
+            .returning(|| Ok(()));
+        mock.expect_push()
+            .returning(|_| Ok(()));
+        mock.expect_describe_revision()
+            .returning(|_, _| Ok(()));
 
         let adapter = Arc::new(mock);
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();

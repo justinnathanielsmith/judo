@@ -28,7 +28,8 @@ async fn main() -> Result<()> {
     // This happens BEFORE terminal setup so if it fails (e.g. corrupt config),
     // we don't leave the terminal in raw mode.
     let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?);
-    let mut app_state = AppState::default();
+    let key_config = judo::app::keymap::KeyConfig::load();
+    let mut app_state = AppState::new(key_config);
 
     if !adapter.is_valid().await {
         app_state.mode = judo::app::state::AppMode::NoRepo;

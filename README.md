@@ -5,7 +5,8 @@
 ## Features
 
 - **Interactive Revision Graph**: Visualize your commit history with a navigable graph.
-- **Integrated Diff View**: Inspect changes between revisions with hunk-level navigation and conflict resolution.
+- **Integrated Diff View**: Inspect changes between revisions with hunk-level navigation, conflict resolution, and fluid visual highlights when jumping between hunks.
+- **Customizable Keybindings**: Tailor the TUI to your muscle memory with configurable keybinding profiles.
 - **Snapshotting**: Effortlessly create snapshots of your working copy.
 - **VCS Operations**:
   - **Edit & New**: Seamlessly move your working copy or create new child revisions.
@@ -45,7 +46,15 @@ cargo run
 
 Launch `judo` from within any Jujutsu-initialized repository.
 
-### Keybindings
+## Configuration
+
+Judo supports configurable keybinding profiles via a local configuration file. By default, it uses a **Vim-style** profile (`j`/`k` for navigation), but you can customize it by creating or modifying the configuration in your user directory.
+
+### Keybinding Profiles
+
+The TUI supports different keymaps for different modes (e.g., Normal Mode, Diff Mode).
+
+## Keybindings
 
 #### Navigation & Focus
 | Key | Action |
