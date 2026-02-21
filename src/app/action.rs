@@ -33,6 +33,8 @@ pub enum Action {
     Undo,                               // `jj undo`
     Redo,                               // `jj redo`
     Fetch,                              // `jj git fetch`
+    PushIntent,                         // Trigger push (may prompt)
+    Push(Option<String>),               // `jj git push [-b <bookmark>]`
     LoadMoreGraph,                      // Trigger pagination
 
     // --- UI Mode Transitions ---

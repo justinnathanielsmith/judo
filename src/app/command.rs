@@ -15,4 +15,5 @@ pub enum Command {
     Undo,
     Redo,
     Fetch,
+    Push(Option<String>),
 }

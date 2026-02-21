@@ -31,4 +31,5 @@ pub trait VcsFacade: Send + Sync {
     async fn redo(&self) -> Result<()>;
 
     async fn fetch(&self) -> Result<()>;
+    async fn push(&self, bookmark: Option<String>) -> Result<()>;
 }

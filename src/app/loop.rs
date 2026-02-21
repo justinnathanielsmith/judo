@@ -242,6 +242,7 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Char('u') => Some(Action::Undo),
                                     KeyCode::Char('U') => Some(Action::Redo),
                                     KeyCode::Char('f') => Some(Action::Fetch),
+                                    KeyCode::Char('p') => Some(Action::PushIntent),
                                     KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                                     KeyCode::Char('[') => Some(Action::PrevHunk),
@@ -656,6 +657,29 @@ async fn handle_command(
                     Ok(_) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok("Fetch successful".to_string())))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Push(bookmark) => {
+            let bookmark_clone = bookmark.clone();
+            tokio::spawn(async move {
+                let msg = if let Some(ref b) = bookmark_clone {
+                    format!("Pushing {}...", b)
+                } else {
+                    "Pushing...".to_string()
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.push(bookmark_clone).await {
+                    Ok(_) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok("Push successful".to_string())))
                             .await;
                     }
                     Err(e) => {

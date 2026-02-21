@@ -110,6 +110,43 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::Fetch => {
             return Some(Command::Fetch);
         }
+        Action::PushIntent => {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    if row.bookmarks.is_empty() {
+                        // Push without bookmark (will push current working copy or as configured)
+                        return Some(Command::Push(None));
+                    } else if row.bookmarks.len() == 1 {
+                        // Push the single bookmark
+                        return Some(Command::Push(Some(row.bookmarks[0].clone())));
+                    } else {
+                        // Multiple bookmarks: open context menu for selection
+                        let mut actions = Vec::new();
+                        for bookmark in &row.bookmarks {
+                            actions.push((
+                                format!("Push bookmark: {}", bookmark),
+                                Action::Push(Some(bookmark.clone())),
+                            ));
+                        }
+                        actions.push(("Push All".to_string(), Action::Push(None)));
+
+                        // Position it near the selection if possible, or just center-ish
+                        state.mode = AppMode::ContextMenu;
+                        state.context_menu = Some(super::state::ContextMenuState {
+                            commit_id: row.commit_id.clone(),
+                            x: 10, // Default position, loop.rs might override if we had mouse pos
+                            y: 10,
+                            selected_index: 0,
+                            actions,
+                        });
+                    }
+                }
+            }
+        }
+        Action::Push(bookmark) => {
+            state.mode = AppMode::Normal;
+            return Some(Command::Push(bookmark));
+        }
         Action::DescribeRevisionIntent => {
             state.mode = AppMode::Input;
             state.text_area = AppTextArea::default();

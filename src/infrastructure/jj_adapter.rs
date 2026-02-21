@@ -839,6 +839,29 @@ impl VcsFacade for JjAdapter {
             Err(anyhow!("jj git fetch failed: {}", err))
         }
     }
+
+    async fn push(&self, bookmark: Option<String>) -> Result<()> {
+        let ws_root = {
+            let ws = self.workspace.lock().await;
+            ws.workspace_root().to_path_buf()
+        };
+
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("git").arg("push").current_dir(ws_root);
+
+        if let Some(b) = bookmark {
+            cmd.arg("-b").arg(b);
+        }
+
+        let output = cmd.output().await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj git push failed: {}", err))
+        }
+    }
 }
 
 #[cfg(test)]
