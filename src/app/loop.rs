@@ -1,4 +1,5 @@
 use crate::app::{action::Action, command::Command, reducer, state::AppState, ui};
+use crate::components::revision_graph::calculate_row_height;
 use crate::domain::vcs::VcsFacade;
 use crate::theme::Theme;
 
@@ -352,11 +353,7 @@ pub fn map_event_to_action(
                                         let row = &repo.graph[i];
                                         let is_selected =
                                             app_state.log_list_state.selected() == Some(i);
-                                        let row_height = 2 + if is_selected && app_state.show_diffs {
-                                            row.changed_files.len()
-                                        } else {
-                                            0
-                                        };
+                                        let row_height = calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
 
                                         if clicked_row >= current_y
                                             && clicked_row < current_y + row_height
@@ -448,7 +445,7 @@ pub fn map_event_to_action(
                                     let row = &repo.graph[i];
                                     let is_selected =
                                         app_state.log_list_state.selected() == Some(i);
-                                    let row_height = ui::calculate_row_height(
+                                    let row_height = calculate_row_height(
                                         row,
                                         is_selected,
                                         app_state.show_diffs,
@@ -499,7 +496,7 @@ pub fn map_event_to_action(
                                     let row = &repo.graph[i];
                                     let is_selected =
                                         app_state.log_list_state.selected() == Some(i);
-                                    let row_height = ui::calculate_row_height(
+                                    let row_height = calculate_row_height(
                                         row,
                                         is_selected,
                                         app_state.show_diffs,

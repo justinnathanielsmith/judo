@@ -1,6 +1,5 @@
 use crate::app::state::{AppMode, Panel};
-use crate::app::ui;
-use crate::domain::models::{FileStatus, RepoStatus};
+use crate::domain::models::{FileStatus, GraphRow, RepoStatus};
 use crate::theme::{glyphs, Theme};
 use ratatui::{
     buffer::Buffer,
@@ -11,6 +10,15 @@ use ratatui::{
         Block, BorderType, Borders, Cell, Paragraph, Row, StatefulWidget, Table, TableState, Widget,
     },
 };
+
+pub fn calculate_row_height(row: &GraphRow, is_selected: bool, show_diffs: bool) -> u16 {
+    let num_files = if is_selected && show_diffs {
+        row.changed_files.len()
+    } else {
+        0
+    };
+    2 + num_files as u16
+}
 
 pub struct RevisionGraph<'a> {
     pub repo: &'a RepoStatus,
@@ -57,7 +65,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
 
         for (i, row) in self.repo.graph.iter().enumerate() {
             let is_selected = state.selected() == Some(i);
-            let row_height = ui::calculate_row_height(row, is_selected, self.show_diffs);
+            let row_height = calculate_row_height(row, is_selected, self.show_diffs);
 
             // Compute age-based brightness for this commit's connector lines.
             let age_days = (now_secs - row.timestamp_secs).max(0) as f32 / 86_400.0;

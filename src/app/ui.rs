@@ -5,22 +5,12 @@ use crate::components::header::Header;
 use crate::components::modals::ModalManager;
 use crate::components::revision_graph::RevisionGraphPanel;
 use crate::components::welcome::Welcome;
-use crate::domain::models::GraphRow;
 use crate::theme::Theme;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame,
 };
-
-pub fn calculate_row_height(row: &GraphRow, is_selected: bool, show_diffs: bool) -> u16 {
-    let num_files = if is_selected && show_diffs {
-        row.changed_files.len()
-    } else {
-        0
-    };
-    2 + num_files as u16
-}
 
 pub struct AppLayout {
     pub main: Vec<Rect>,
@@ -59,10 +49,6 @@ pub fn get_layout(area: Rect, app_state: &AppState) -> AppLayout {
 }
 
 pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
-    if f.area().width == 0 || f.area().height == 0 {
-        return;
-    }
-
     if app_state.mode == AppMode::NoRepo {
         let welcome = Welcome { app_state, theme };
         f.render_widget(welcome, f.area());
@@ -72,32 +58,28 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     let layout = get_layout(f.area(), app_state);
 
     // --- Header ---
-    if layout.main[0].width > 0 && layout.main[0].height > 0 {
-        let header = Header {
-            state: &app_state.header_state,
-            theme,
-            terminal_width: f.area().width,
-        };
-        f.render_widget(header, layout.main[0]);
-    }
+    let header = Header {
+        state: &app_state.header_state,
+        theme,
+        terminal_width: f.area().width,
+    };
+    f.render_widget(header, layout.main[0]);
 
     // --- Left: Revision Graph Panel ---
-    if layout.body[0].width > 0 && layout.body[0].height > 0 {
-        let panel = RevisionGraphPanel {
-            repo: app_state.repo.as_ref(),
-            theme,
-            show_diffs: app_state.show_diffs,
-            selected_file_index: app_state.selected_file_index,
-            spinner: &app_state.spinner,
-            focused_panel: app_state.focused_panel,
-            mode: app_state.mode,
-            revset: app_state.revset.as_deref(),
-        };
-        f.render_stateful_widget(panel, layout.body[0], &mut app_state.log_list_state);
-    }
+    let panel = RevisionGraphPanel {
+        repo: app_state.repo.as_ref(),
+        theme,
+        show_diffs: app_state.show_diffs,
+        selected_file_index: app_state.selected_file_index,
+        spinner: &app_state.spinner,
+        focused_panel: app_state.focused_panel,
+        mode: app_state.mode,
+        revset: app_state.revset.as_deref(),
+    };
+    f.render_stateful_widget(panel, layout.body[0], &mut app_state.log_list_state);
 
     // --- Right: Diff View Panel ---
-    if app_state.show_diffs && layout.body[1].width > 0 && layout.body[1].height > 0 {
+    if app_state.show_diffs {
         let panel = DiffViewPanel {
             diff_content: app_state.current_diff.as_deref(),
             scroll_offset: app_state.diff_scroll,
@@ -110,7 +92,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     }
 
     // --- Footer ---
-    if layout.main.len() > 2 && layout.main[2].width > 0 && layout.main[2].height > 0 {
+    if layout.main.len() > 2 {
         let footer = Footer {
             state: app_state,
             theme,
