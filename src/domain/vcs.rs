@@ -34,6 +34,8 @@ pub trait VcsFacade: Send + Sync {
 
     async fn fetch(&self) -> Result<()>;
     async fn push(&self, bookmark: Option<String>) -> Result<()>;
+    async fn init_repo(&self) -> Result<()>;
 
+    async fn is_valid(&self) -> bool;
     fn workspace_root(&self) -> std::path::PathBuf;
 }

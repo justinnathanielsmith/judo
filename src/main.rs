@@ -8,6 +8,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 
 use judo::app::{r#loop::run_loop, state::AppState};
+use judo::domain::vcs::VcsFacade;
 use judo::infrastructure;
 
 fn setup_panic_hook() {
@@ -26,8 +27,12 @@ async fn main() -> Result<()> {
     // Initialize adapter to verify repo context
     // This happens BEFORE terminal setup so if it fails (e.g. corrupt config),
     // we don't leave the terminal in raw mode.
-    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?)
-        as std::sync::Arc<dyn judo::domain::vcs::VcsFacade>;
+    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?);
+    let mut app_state = AppState::default();
+
+    if !adapter.is_valid().await {
+        app_state.mode = judo::app::state::AppMode::NoRepo;
+    }
 
     // Setup terminal
     enable_raw_mode()?;
@@ -37,8 +42,6 @@ async fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // Run app
-    let app_state = AppState::default();
-
     let res = run_loop(&mut terminal, app_state, adapter).await;
 
     // Restore terminal

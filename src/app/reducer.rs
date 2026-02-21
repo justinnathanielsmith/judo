@@ -172,6 +172,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::SnapshotWorkingCopy => {
             return Some(Command::Snapshot);
         }
+        Action::InitRepo => {
+            return Some(Command::InitRepo);
+        }
         Action::EditRevision(commit_id) => {
             return Some(Command::Edit(commit_id));
         }
@@ -905,6 +908,24 @@ mod tests {
             assert_eq!(state.context_menu, None, "Context menu should be cleared from {:?}", mode);
             assert!(state.text_area.is_empty(), "Text area should be cleared from {:?}", mode);
         }
+    }
+
+    #[test]
+    fn test_toggle_help() {
+        let mut state = AppState::default();
+        assert_eq!(state.mode, AppMode::Normal);
+
+        update(&mut state, Action::ToggleHelp);
+        assert_eq!(state.mode, AppMode::Help);
+
+        update(&mut state, Action::ToggleHelp);
+        assert_eq!(state.mode, AppMode::Normal);
+        
+        // Ensure CancelMode also exits Help
+        update(&mut state, Action::ToggleHelp);
+        assert_eq!(state.mode, AppMode::Help);
+        update(&mut state, Action::CancelMode);
+        assert_eq!(state.mode, AppMode::Normal);
     }
 }
 

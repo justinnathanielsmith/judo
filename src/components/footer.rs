@@ -229,6 +229,35 @@ impl<'a> Footer<'a> {
                 name: "LOADING",
                 items: vec![],
             }],
+            AppMode::Help => vec![FooterGroup {
+                name: "HELP",
+                items: vec![
+                    FooterItem {
+                        key: "q/Esc/?",
+                        desc: "close",
+                    },
+                ],
+            }],
+            AppMode::NoRepo => vec![
+                FooterGroup {
+                    name: "INIT",
+                    items: vec![
+                        FooterItem {
+                            key: "i/ENTER",
+                            desc: "initialize",
+                        },
+                    ],
+                },
+                FooterGroup {
+                    name: "APP",
+                    items: vec![
+                        FooterItem {
+                            key: "q/Esc",
+                            desc: "quit",
+                        },
+                    ],
+                },
+            ],
         }
     }
 }

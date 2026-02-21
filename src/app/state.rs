@@ -20,6 +20,7 @@ pub enum AppMode {
     ContextMenu,   // Right-click menu for actions
     FilterInput,   // Inputting a revset filter
     Help,          // Showing the help overlay
+    NoRepo,        // No repository found, showing welcome screen
 }
 
 #[derive(Debug, Clone, PartialEq)]

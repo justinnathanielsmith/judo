@@ -41,6 +41,7 @@ pub enum Action {
     Push(Option<String>),               // `jj git push [-b <bookmark>]`
     ResolveConflict(String),            // `jj resolve --tool ... <path>`
     LoadMoreGraph,                      // Trigger pagination
+    InitRepo,                           // `jj git init --colocate`
 
     // --- UI Mode Transitions ---
     EnterCommandMode,                          // Open command palette (:)

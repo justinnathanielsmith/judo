@@ -17,4 +17,5 @@ pub enum Command {
     Fetch,
     Push(Option<String>),
     ResolveConflict(String),
+    InitRepo,
 }

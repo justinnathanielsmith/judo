@@ -62,12 +62,14 @@ pub async fn run_loop_with_events<B: Backend>(
     }
 
     // Initial Load
-    handle_command(
-        Command::LoadRepo(None, 100, None),
-        adapter.clone(),
-        action_tx.clone(),
-    )
-    .await?;
+    if app_state.mode != crate::app::state::AppMode::NoRepo {
+        handle_command(
+            Command::LoadRepo(None, 100, None),
+            adapter.clone(),
+            action_tx.clone(),
+        )
+        .await?;
+    }
 
     loop {
         // --- 1. Render ---
@@ -262,6 +264,16 @@ pub fn map_event_to_action(
                             Some(Action::CloseContextMenu)
                         }
                     }
+                    _ => None,
+                },
+                _ => None,
+            }
+        }
+        crate::app::state::AppMode::NoRepo => {
+            match event {
+                Event::Key(key) => match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => Some(Action::Quit),
+                    KeyCode::Char('i') | KeyCode::Enter => Some(Action::InitRepo),
                     _ => None,
                 },
                 _ => None,
@@ -928,6 +940,25 @@ pub(crate) async fn handle_command(
         }
         Command::ResolveConflict(_) => {
             // Handled specially in run_loop to allow TUI suspension
+        }
+        Command::InitRepo => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted("Initializing repository...".to_string()))
+                    .await;
+                match adapter.init_repo().await {
+                    Ok(_) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok("Repository initialized".to_string())))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .await;
+                    }
+                }
+            });
         }
     }
     Ok(())
