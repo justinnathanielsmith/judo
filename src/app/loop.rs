@@ -43,8 +43,9 @@ pub async fn run_loop<B: Backend>(
         }
     });
 
-    // Initial fetch
-    handle_command(Command::LoadRepo, adapter.clone(), action_tx.clone()).await?;
+    // Initial Load
+    handle_command(Command::LoadRepo(None, 100), adapter.clone(), action_tx.clone()).await?;
+
 
     loop {
         // --- 1. Render ---
@@ -384,11 +385,16 @@ async fn handle_command(
     tx: mpsc::Sender<Action>,
 ) -> Result<()> {
     match command {
-        Command::LoadRepo => {
+        Command::LoadRepo(heads, limit) => {
+            let is_batch = heads.is_some();
             tokio::spawn(async move {
-                match adapter.get_operation_log().await {
+                match adapter.get_operation_log(heads, limit).await {
                     Ok(repo) => {
-                        let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        if is_batch {
+                            let _ = tx.send(Action::GraphBatchLoaded(Box::new(repo))).await;
+                        } else {
+                            let _ = tx.send(Action::RepoLoaded(Box::new(repo))).await;
+                        }
                     }
                     Err(e) => {
                         let _ = tx

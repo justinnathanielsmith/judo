@@ -5,7 +5,11 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait VcsFacade: Send + Sync {
     // Returns the graph for the main view
-    async fn get_operation_log(&self) -> Result<RepoStatus>;
+    async fn get_operation_log(
+        &self,
+        heads: Option<Vec<CommitId>>,
+        limit: usize,
+    ) -> Result<RepoStatus>;
 
     // Get diff for a specific commit
     async fn get_commit_diff(&self, commit_id: &CommitId) -> Result<String>;

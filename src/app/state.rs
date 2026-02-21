@@ -120,6 +120,8 @@ pub struct AppState<'a> {
     // --- JJ Data (The "Source of Truth") ---
     // We wrap this in Option because we might start before the repo is loaded.
     pub repo: Option<RepoStatus>,
+    pub is_loading_more: bool,
+    pub has_more: bool,
 
     // --- UI State (Selection, Scroll) ---
     // We keep this separate so it persists even if `repo` data refreshes.
@@ -158,6 +160,8 @@ impl<'a> Default for AppState<'a> {
             status_message: None,
             status_clear_time: None,
             repo: None,
+            is_loading_more: false,
+            has_more: true,
             log_list_state: TableState::default(),
             current_diff: None,
             is_loading_diff: false,

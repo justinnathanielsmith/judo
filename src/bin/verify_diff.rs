@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     let adapter = JjAdapter::new()?;
 
     println!("Fetching operation log...");
-    let log = adapter.get_operation_log().await?;
+    let log = adapter.get_operation_log(None, 100).await?;
     let wc_id = &log.working_copy_id;
     println!("Working Copy ID: {}", wc_id);
 

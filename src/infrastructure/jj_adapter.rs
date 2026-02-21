@@ -113,14 +113,19 @@ impl JjAdapter {
 
 #[async_trait]
 impl VcsFacade for JjAdapter {
- async fn get_operation_log(&self) -> Result<RepoStatus> {
-     // Workspace is !Sync, so we lock it to access loader
-     let repo = {
-         let ws = self.workspace.lock().await;
-         let op_id = ws.working_copy().operation_id();
-         let op = ws.repo_loader().load_operation(&op_id)?;
-         ws.repo_loader().load_at(&op)?
-     };        let op_id = repo.operation().id().clone().hex();
+    async fn get_operation_log(
+        &self,
+        heads: Option<Vec<CommitId>>,
+        limit: usize,
+    ) -> Result<RepoStatus> {
+        // Workspace is !Sync, so we lock it to access loader
+        let repo = {
+            let ws = self.workspace.lock().await;
+            let op_id = ws.working_copy().operation_id();
+            let op = ws.repo_loader().load_operation(&op_id)?;
+            ws.repo_loader().load_at(&op)?
+        };
+        let op_id = repo.operation().id().clone().hex();
 
         let (workspace_id, _) = repo
             .view()
@@ -135,16 +140,24 @@ impl VcsFacade for JjAdapter {
 
         // Phase 1: Blocking Graph Traversal (Pre-loading objects)
         let commit_infos = tokio::task::spawn_blocking(move || {
-            let mut visited = HashSet::new();
+            let mut visited = HashSet::<jj_lib::backend::CommitId>::new();
             let mut queue = VecDeque::new();
             let mut results = Vec::new();
 
-            for head_id in repo_arc.view().heads() {
-                queue.push_back(head_id.clone());
+            if let Some(heads) = heads {
+                for head in heads {
+                    if let Some(id) = jj_lib::backend::CommitId::try_from_hex(&head.0) {
+                        queue.push_back(id);
+                    }
+                }
+            } else {
+                for head_id in repo_arc.view().heads() {
+                    queue.push_back(head_id.clone());
+                }
             }
 
             while let Some(id) = queue.pop_front() {
-                if visited.contains(&id) || results.len() >= 100 {
+                if visited.contains(&id) || results.len() >= limit {
                     continue;
                 }
                 visited.insert(id.clone());
@@ -152,19 +165,20 @@ impl VcsFacade for JjAdapter {
                 let commit = repo_arc.store().get_commit(&id)?;
                 let mut parent_ids_domain = Vec::new();
                 for parent_id in commit.parent_ids() {
-                     parent_ids_domain.push(CommitId(parent_id.hex()));
-                     queue.push_back(parent_id.clone());
+                    parent_ids_domain.push(CommitId(parent_id.hex()));
+                    queue.push_back(parent_id.clone());
                 }
 
                 let first_parent = commit.parents().next().transpose()?;
-                
+
                 // Pre-load trees and metadata needed for Phase 2
                 let tree = commit.tree();
                 let parent_tree = first_parent.as_ref().map(|p| p.tree());
                 let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
-                
+
                 // Logic from refactor: heads or root commits are immutable
-                let is_immutable = repo_arc.view().heads().contains(&id) || commit.parents().next().is_none();
+                let is_immutable =
+                    repo_arc.view().heads().contains(&id) || commit.parents().next().is_none();
 
                 let bookmarks = repo_arc
                     .view()
@@ -173,10 +187,19 @@ impl VcsFacade for JjAdapter {
                     .map(|(name, _)| name.as_str().to_string())
                     .collect::<Vec<_>>();
 
-                results.push((commit, tree, parent_tree, parent_ids_domain, is_working_copy, is_immutable, bookmarks));
+                results.push((
+                    commit,
+                    tree,
+                    parent_tree,
+                    parent_ids_domain,
+                    is_working_copy,
+                    is_immutable,
+                    bookmarks,
+                ));
             }
             Ok::<_, anyhow::Error>(results)
-        }).await??;
+        })
+        .await??;
 
         // Phase 2: Async Detail Expansion (Parallel Diffing)
         let graph_rows = futures::stream::iter(commit_infos)
@@ -758,7 +781,7 @@ mod tests {
         let adapter = JjAdapter::load_at(path.to_path_buf())?;
 
         // Get initial state
-        let status = adapter.get_operation_log().await?;
+        let status = adapter.get_operation_log(None, 100).await?;
 
         let parent_commit = status.graph.first().ok_or_else(|| anyhow!("Graph is empty"))?;
         let parent_id = parent_commit.commit_id.clone();
@@ -767,7 +790,7 @@ mod tests {
         adapter.new_child(&parent_id).await?;
 
         // Verify
-        let new_status = adapter.get_operation_log().await?;
+        let new_status = adapter.get_operation_log(None, 100).await?;
 
         // Find a commit that has parent_id as parent
         let child_commit = new_status.graph.iter().find(|row| {
@@ -849,7 +872,7 @@ mod tests {
             locked_ws.finish(new_repo.operation().id().clone())?;
         }
 
-        let log = adapter.get_operation_log().await?;
+        let log = adapter.get_operation_log(None, 100).await?;
 
         assert_eq!(log.graph.len(), 100, "Should return 100 commits (capped)");
 
@@ -867,14 +890,14 @@ mod tests {
         Workspace::init_simple(&user_settings, path)?;
         let adapter = JjAdapter::load_at(path.to_path_buf())?;
 
-        let status = adapter.get_operation_log().await?;
+        let status = adapter.get_operation_log(None, 100).await?;
         let commit_id = status.graph.first().unwrap().commit_id.clone();
 
         // Set bookmark
         adapter.set_bookmark(&commit_id, "test-bookmark").await?;
 
         // Verify bookmark exists
-        let status = adapter.get_operation_log().await?;
+        let status = adapter.get_operation_log(None, 100).await?;
         let commit = status.graph.first().unwrap();
         assert!(commit.bookmarks.contains(&"test-bookmark".to_string()));
 
@@ -882,7 +905,7 @@ mod tests {
         adapter.delete_bookmark("test-bookmark").await?;
 
         // Verify bookmark is gone
-        let status = adapter.get_operation_log().await?;
+        let status = adapter.get_operation_log(None, 100).await?;
         let commit = status.graph.first().unwrap();
         assert!(!commit.bookmarks.contains(&"test-bookmark".to_string()));
 
@@ -900,25 +923,25 @@ mod tests {
         Workspace::init_simple(&user_settings, path)?;
         let adapter = JjAdapter::load_at(path.to_path_buf())?;
 
-        let initial_status = adapter.get_operation_log().await?;
+        let initial_status = adapter.get_operation_log(None, 100).await?;
         let initial_op_id = initial_status.operation_id;
 
         // Perform an operation (e.g., set a bookmark)
         let commit_id = initial_status.graph.first().unwrap().commit_id.clone();
         adapter.set_bookmark(&commit_id, "undo-test").await?;
 
-        let mid_status = adapter.get_operation_log().await?;
+        let mid_status = adapter.get_operation_log(None, 100).await?;
         let mid_op_id = mid_status.operation_id;
         assert_ne!(initial_op_id, mid_op_id);
 
         // Undo
         adapter.undo().await?;
-        let undo_status = adapter.get_operation_log().await?;
+        let undo_status = adapter.get_operation_log(None, 100).await?;
         assert_eq!(undo_status.operation_id, initial_op_id);
 
         // Redo
         adapter.redo().await?;
-        let redo_status = adapter.get_operation_log().await?;
+        let redo_status = adapter.get_operation_log(None, 100).await?;
         assert_eq!(redo_status.operation_id, mid_op_id);
 
         Ok(())

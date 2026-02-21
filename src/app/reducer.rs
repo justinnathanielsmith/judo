@@ -192,15 +192,59 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
 
+        Action::LoadMoreGraph => {
+            if state.is_loading_more || !state.has_more {
+                return None;
+            }
+            if let Some(repo) = &state.repo {
+                use std::collections::HashSet;
+                let existing_ids: HashSet<crate::domain::models::CommitId> =
+                    repo.graph.iter().map(|r| r.commit_id.clone()).collect();
+                let mut heads = Vec::new();
+                for row in &repo.graph {
+                    for parent in &row.parents {
+                        if !existing_ids.contains(parent) {
+                            heads.push(parent.clone());
+                        }
+                    }
+                }
+                if !heads.is_empty() {
+                    state.is_loading_more = true;
+                    // Deduplicate heads
+                    heads.sort_by(|a, b| a.0.cmp(&b.0));
+                    heads.dedup();
+                    return Some(Command::LoadRepo(Some(heads), 100));
+                } else {
+                    state.has_more = false;
+                }
+            }
+        }
+
         // --- Async Results ---
         Action::RepoLoaded(repo_status) => {
             state.repo = Some(*repo_status);
+            state.is_loading_more = false;
+            state.has_more = true;
             refresh_derived_state(state);
             // If nothing selected, select the working copy (or HEAD)
             if state.log_list_state.selected().is_none() {
                 state.log_list_state.select(Some(0));
             }
             return handle_selection(state);
+        }
+        Action::GraphBatchLoaded(repo_status) => {
+            state.is_loading_more = false;
+            if let Some(repo) = &mut state.repo {
+                use std::collections::HashSet;
+                let existing_ids: HashSet<crate::domain::models::CommitId> =
+                    repo.graph.iter().map(|r| r.commit_id.clone()).collect();
+                for row in repo_status.graph {
+                    if !existing_ids.contains(&row.commit_id) {
+                        repo.graph.push(row);
+                    }
+                }
+                refresh_derived_state(state);
+            }
         }
         Action::DiffLoaded(commit_id, diff) => {
             state.diff_cache.insert(commit_id, diff.clone());
@@ -231,7 +275,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     state.status_message = Some(msg);
                     state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
                     state.diff_cache.clear(); // Clear cache as operations might change history
-                    return Some(Command::LoadRepo);
+                    return Some(Command::LoadRepo(None, 100));
                 }
                 Err(err) => state.last_error = Some(err),
             }
@@ -255,6 +299,17 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 }
             }
             refresh_derived_state(state);
+
+            // Pagination: check if we are near the end of the graph
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if idx + 20 >= repo.graph.len() && !state.is_loading_more && state.has_more {
+                     // We need to trigger LoadMoreGraph. Reducer can't dispatch actions.
+                     // But we can return a command! 
+                     // Wait, Tick doesn't usually return a command, but it can.
+                     // Let's check update() signature.
+                     return update(state, Action::LoadMoreGraph);
+                }
+            }
         }
 
         _ => {}
