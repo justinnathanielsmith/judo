@@ -80,6 +80,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 let mut lines = diff.lines().enumerate().skip(current_line + 1);
                 if let Some((idx, _)) = lines.find(|(_, line)| line.starts_with("@@")) {
                     state.diff_scroll = idx as u16;
+                    state.hunk_highlight_time = Some(Instant::now());
                 }
             }
         }
@@ -91,6 +92,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     let mut prev_lines = lines[..current_line].iter().rev();
                     if let Some((idx, _)) = prev_lines.find(|(_, line)| line.starts_with("@@")) {
                         state.diff_scroll = *idx as u16;
+                        state.hunk_highlight_time = Some(Instant::now());
                     }
                 }
             }
@@ -447,6 +449,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 if Instant::now() >= clear_time {
                     state.status_message = None;
                     state.status_clear_time = None;
+                }
+            }
+            if let Some(highlight_time) = state.hunk_highlight_time {
+                if highlight_time.elapsed() >= Duration::from_millis(200) {
+                    state.hunk_highlight_time = None;
                 }
             }
             refresh_derived_state(state);
@@ -930,6 +937,31 @@ mod tests {
         assert_eq!(state.mode, AppMode::Help);
         update(&mut state, Action::CancelMode);
         assert_eq!(state.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn test_hunk_navigation_highlight() {
+        let mut state = AppState {
+            current_diff: Some("@@ hunk1\nline1\n@@ hunk2\nline2".to_string()),
+            diff_scroll: 0,
+            ..Default::default()
+        };
+
+        // Test NextHunk
+        update(&mut state, Action::NextHunk);
+        assert_eq!(state.diff_scroll, 2);
+        assert!(state.hunk_highlight_time.is_some());
+
+        // Test Tick clears highlight
+        state.hunk_highlight_time = Some(Instant::now() - Duration::from_millis(201));
+        update(&mut state, Action::Tick);
+        assert!(state.hunk_highlight_time.is_none());
+
+        // Test PrevHunk
+        state.diff_scroll = 2;
+        update(&mut state, Action::PrevHunk);
+        assert_eq!(state.diff_scroll, 0);
+        assert!(state.hunk_highlight_time.is_some());
     }
 }
 

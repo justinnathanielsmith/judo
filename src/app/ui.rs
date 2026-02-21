@@ -183,6 +183,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
             diff_content: app_state.current_diff.as_deref(),
             scroll_offset: app_state.diff_scroll,
             theme,
+            hunk_highlight_time: app_state.hunk_highlight_time,
         };
         f.render_widget(diff_view, diff_block.inner(layout.body[1]));
         f.render_widget(diff_block, layout.body[1]);

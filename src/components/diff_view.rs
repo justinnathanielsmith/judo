@@ -5,11 +5,13 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Paragraph, Widget, Wrap},
 };
+use std::time::Instant;
 
 pub struct DiffView<'a> {
     pub diff_content: Option<&'a str>,
     pub scroll_offset: u16,
     pub theme: &'a Theme,
+    pub hunk_highlight_time: Option<Instant>,
 }
 
 impl<'a> Widget for DiffView<'a> {
@@ -42,9 +44,14 @@ impl<'a> Widget for DiffView<'a> {
             }
         };
 
+        let is_highlighting = self
+            .hunk_highlight_time
+            .map(|t| t.elapsed().as_millis() < 200)
+            .unwrap_or(false);
+
         let mut lines = Vec::new();
-        for line in content.lines() {
-            let style = if line.starts_with("Bookmarks:") {
+        for (i, line) in content.lines().enumerate() {
+            let mut style = if line.starts_with("Bookmarks:") {
                 self.theme.bookmark
             } else if line.starts_with("Commit ID:")
                 || line.starts_with("Change ID:")
@@ -69,6 +76,11 @@ impl<'a> Widget for DiffView<'a> {
             } else {
                 self.theme.diff_context
             };
+
+            if is_highlighting && i == self.scroll_offset as usize {
+                style = style.add_modifier(ratatui::style::Modifier::REVERSED);
+            }
+
             lines.push(Line::from(Span::styled(line, style)));
         }
 
