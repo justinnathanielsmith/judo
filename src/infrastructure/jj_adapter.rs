@@ -164,64 +164,80 @@ impl VcsFacade for JjAdapter {
 
             if let Some(revset_str) = revset {
                 let output = std::process::Command::new("jj")
+                    .arg("--color")
+                    .arg("never")
+                    .arg("--no-pager")
+                    .arg("--repository")
+                    .arg(".")
                     .arg("log")
                     .arg("-r")
                     .arg(&revset_str)
                     .arg("-T")
-                    .arg("commit_id\n")
+                    .arg("commit_id ++ \"\\n\"")
                     .arg("--no-graph")
                     .current_dir(ws_root)
                     .output();
 
-                if let Ok(output) = output {
-                    if output.status.success() {
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        let ids: Vec<String> = stdout
-                            .lines()
-                            .map(|l| l.trim().to_string())
-                            .filter(|l| !l.is_empty())
-                            .collect();
+                match output {
+                    Ok(output) => {
+                        if output.status.success() {
+                            let stdout = String::from_utf8_lossy(&output.stdout);
+                            let ids: Vec<String> = stdout
+                                .lines()
+                                .map(|l| l.trim().to_string())
+                                .filter(|l| !l.is_empty())
+                                .collect();
 
-                        for id_hex in ids.iter().take(limit) {
-                            if let Some(id) = JjCommitId::try_from_hex(id_hex) {
-                                let commit = repo_arc.store().get_commit(&id)?;
-                                let mut parent_ids_domain = Vec::new();
-                                for parent_id in commit.parent_ids() {
-                                    parent_ids_domain.push(CommitId(parent_id.hex()));
+                            for id_hex in ids.iter().take(limit) {
+                                if let Some(id) = JjCommitId::try_from_hex(id_hex) {
+                                    let commit = match repo_arc.store().get_commit(&id) {
+                                        Ok(c) => c,
+                                        Err(_) => continue, // skip corrupt/unreadable commits
+                                    };
+                                    let mut parent_ids_domain = Vec::new();
+                                    for parent_id in commit.parent_ids() {
+                                        parent_ids_domain.push(CommitId(parent_id.hex()));
+                                    }
+
+                                    let first_parent = match commit.parents().next().transpose() {
+                                        Ok(p) => p,
+                                        Err(_) => None,
+                                    };
+                                    let tree = commit.tree();
+                                    let parent_tree = first_parent.as_ref().map(|p| p.tree());
+                                    let is_working_copy =
+                                        Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
+                                    let is_immutable = repo_arc.view().heads().contains(&id)
+                                        || commit.parents().next().is_none();
+
+                                    let bookmarks = repo_arc
+                                        .view()
+                                        .local_bookmarks()
+                                        .filter(|(_, target)| {
+                                            target.added_ids().any(|added_id| added_id == &id)
+                                        })
+                                        .map(|(name, _)| name.as_str().to_string())
+                                        .collect::<Vec<_>>();
+
+                                    results.push((
+                                        commit,
+                                        tree,
+                                        parent_tree,
+                                        parent_ids_domain,
+                                        is_working_copy,
+                                        is_immutable,
+                                        bookmarks,
+                                    ));
                                 }
-
-                                let first_parent = commit.parents().next().transpose()?;
-                                let tree = commit.tree();
-                                let parent_tree = first_parent.as_ref().map(|p| p.tree());
-                                let is_working_copy =
-                                    Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
-                                let is_immutable = repo_arc.view().heads().contains(&id)
-                                    || commit.parents().next().is_none();
-
-                                let bookmarks = repo_arc
-                                    .view()
-                                    .local_bookmarks()
-                                    .filter(|(_, target)| {
-                                        target.added_ids().any(|added_id| added_id == &id)
-                                    })
-                                    .map(|(name, _)| name.as_str().to_string())
-                                    .collect::<Vec<_>>();
-
-                                results.push((
-                                    commit,
-                                    tree,
-                                    parent_tree,
-                                    parent_ids_domain,
-                                    is_working_copy,
-                                    is_immutable,
-                                    bookmarks,
-                                ));
                             }
+                            return Ok(results);
+                        } else {
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            return Err(anyhow!("Jujutsu error: {}", stderr.trim()));
                         }
-                        return Ok(results);
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        return Err(anyhow!("Jujutsu error: {}", stderr.trim()));
+                    }
+                    Err(e) => {
+                        return Err(anyhow!("Failed to execute 'jj' command: {}. Is 'jj' installed and in your PATH?", e));
                     }
                 }
             }
@@ -248,14 +264,20 @@ impl VcsFacade for JjAdapter {
                 }
                 visited.insert(id.clone());
 
-                let commit = repo_arc.store().get_commit(&id)?;
+                let commit = match repo_arc.store().get_commit(&id) {
+                    Ok(c) => c,
+                    Err(_) => continue, // skip corrupt/unreadable commits
+                };
                 let mut parent_ids_domain = Vec::new();
                 for parent_id in commit.parent_ids() {
                     parent_ids_domain.push(CommitId(parent_id.hex()));
                     queue.push_back(parent_id.clone());
                 }
 
-                let first_parent = commit.parents().next().transpose()?;
+                let first_parent = match commit.parents().next().transpose() {
+                    Ok(p) => p,
+                    Err(_) => None,
+                };
                 let tree = commit.tree();
                 let parent_tree = first_parent.as_ref().map(|p| p.tree());
                 let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);

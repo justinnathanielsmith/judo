@@ -109,17 +109,47 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
 
     if layout.body[0].width > 0 && layout.body[0].height > 0 {
         if let Some(repo) = &app_state.repo {
-            let graph = RevisionGraph {
-                repo,
-                theme,
-                show_diffs: app_state.show_diffs,
-                selected_file_index: app_state.selected_file_index,
-            };
-            f.render_stateful_widget(
-                graph,
-                graph_block.inner(layout.body[0]),
-                &mut app_state.log_list_state,
-            );
+            if repo.graph.is_empty() {
+                let message = if let Some(revset) = &app_state.revset {
+                    if revset == "conflicts()" {
+                        " 🎉 No Conflicts Found "
+                    } else {
+                        &format!(" No results for: {} ", revset)
+                    }
+                } else {
+                    " Repository is empty "
+                };
+
+                let inner_area = graph_block.inner(layout.body[0]);
+                let lines = vec![
+                    Line::from(""),
+                    Line::from(Span::styled(message, theme.status_info)),
+                    Line::from(""),
+                ];
+                let p = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
+
+                let centered_area = Rect {
+                    x: inner_area.x,
+                    y: (inner_area.y + inner_area.height / 2).saturating_sub(1),
+                    width: inner_area.width,
+                    height: 3.min(inner_area.height),
+                };
+                if centered_area.width > 0 && centered_area.height > 0 {
+                    f.render_widget(p, centered_area);
+                }
+            } else {
+                let graph = RevisionGraph {
+                    repo,
+                    theme,
+                    show_diffs: app_state.show_diffs,
+                    selected_file_index: app_state.selected_file_index,
+                };
+                f.render_stateful_widget(
+                    graph,
+                    graph_block.inner(layout.body[0]),
+                    &mut app_state.log_list_state,
+                );
+            }
         } else {
             let logo_ascii = [
                 r"   _ _   _ ___   ___ ",

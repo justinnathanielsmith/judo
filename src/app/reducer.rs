@@ -126,16 +126,22 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::FilterMine => {
             state.revset = Some("mine()".to_string());
             state.log_list_state.select(Some(0));
+            state.status_message = Some("Filtering: mine()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
         Action::FilterTrunk => {
             state.revset = Some("trunk()".to_string());
             state.log_list_state.select(Some(0));
+            state.status_message = Some("Filtering: trunk()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
         Action::FilterConflicts => {
             state.revset = Some("conflicts()".to_string());
             state.log_list_state.select(Some(0));
+            state.status_message = Some("Filtering: conflicts()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
         Action::FocusDiff => {
@@ -469,10 +475,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::ErrorOccurred(err) => {
             state.last_error = Some(err);
             if state.mode == AppMode::Loading {
-                state.mode = if state.repo.is_some() { AppMode::Normal } else { AppMode::NoRepo };
-            }
-            if state.repo.is_some() {
-                return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+                state.mode = if state.repo.is_some() {
+                    AppMode::Normal
+                } else {
+                    AppMode::NoRepo
+                };
             }
         }
 
