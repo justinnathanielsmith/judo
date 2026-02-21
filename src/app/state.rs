@@ -1,10 +1,12 @@
 use super::action::Action;
+use super::keymap::{KeyConfig, KeyMap};
 use crate::domain::models::{CommitId, RepoStatus};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::{TableState, Widget};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 use std::time::Instant;
 use tui_textarea::{CursorMove, TextArea};
 
@@ -157,6 +159,9 @@ pub struct AppState<'a> {
     // --- Animation ---
     pub frame_count: u64,
     pub hunk_highlight_time: Option<Instant>,
+
+    // --- Config ---
+    pub keymap: Arc<KeyMap>,
 }
 
 impl<'a> Default for AppState<'a> {
@@ -188,6 +193,7 @@ impl<'a> Default for AppState<'a> {
             context_menu: None,
             frame_count: 0,
             hunk_highlight_time: None,
+            keymap: Arc::new(KeyMap::from_config(&KeyConfig::default())),
         }
     }
 }
