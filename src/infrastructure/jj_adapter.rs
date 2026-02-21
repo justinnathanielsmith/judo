@@ -305,14 +305,15 @@ impl VcsFacade for JjAdapter {
         ));
 
         let mut parents = commit.parents();
+        let tree = commit.tree();
 
         let parent_tree = if let Some(parent) = parents.next() {
             parent?.tree()
         } else {
-            return Ok("Root commit - diff not supported yet".to_string());
+            // For the root commit (which has no parents), we compare its tree
+            // with itself to produce an empty diff gracefully.
+            tree.clone()
         };
-
-        let tree = commit.tree();
 
         let entries = parent_tree
             .diff_stream(&tree, &EverythingMatcher)
@@ -1075,6 +1076,36 @@ mod tests {
         assert!(diff.contains("~ Modified regular file test.txt"));
         assert!(diff.contains("Line 2"));
         assert!(diff.contains("Line 2 modified"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_commit_diff_root() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        Workspace::init_simple(&user_settings, path)?;
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        // Get the root commit ID
+        let root_commit_id = {
+            let workspace = adapter.workspace.lock().await;
+            let repo = workspace.repo_loader().load_at_head()?;
+            repo.store().root_commit_id().clone()
+        };
+
+        let commit_id = CommitId(root_commit_id.hex());
+
+        let diff = adapter.get_commit_diff(&commit_id).await?;
+
+        // Root commit should have no diff entries but should contain the header
+        assert!(diff.contains("Commit ID:"));
+        // It shouldn't contain the error message anymore
+        assert!(!diff.contains("Root commit - diff not supported yet"));
 
         Ok(())
     }
