@@ -114,12 +114,15 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             // Line 3+: Files
             if is_selected && self.show_diffs {
                 for file in &row.changed_files {
-                    let style = match file.status {
-                        FileStatus::Added => self.theme.diff_add,
-                        FileStatus::Modified => self.theme.diff_modify,
-                        FileStatus::Deleted => self.theme.diff_remove,
+                    let (prefix, style) = match file.status {
+                        FileStatus::Added => ("+ ", self.theme.diff_add),
+                        FileStatus::Modified => ("~ ", self.theme.diff_modify),
+                        FileStatus::Deleted => ("- ", self.theme.diff_remove),
                     };
-                    detail_lines.push(Line::from(Span::styled(file.path.to_string(), style)));
+                    detail_lines.push(Line::from(Span::styled(
+                        format!("{}{}", prefix, file.path),
+                        style,
+                    )));
                 }
             }
 
