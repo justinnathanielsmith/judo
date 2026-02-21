@@ -10,8 +10,19 @@ use std::io;
 use judo::app::{r#loop::run_loop, state::AppState};
 use judo::infrastructure;
 
+fn setup_panic_hook() {
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
+        original_hook(panic_info);
+    }));
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    setup_panic_hook();
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
