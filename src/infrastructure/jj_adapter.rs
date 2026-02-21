@@ -218,12 +218,16 @@ impl VcsFacade for JjAdapter {
                      let mut stream = p_tree.diff_stream(&tree, &EverythingMatcher);
                      while let Some(entry) = stream.next().await {
                          let status = if let Ok(values) = entry.values {
-                            if values.before.is_absent() {
-                                FileStatus::Added
-                            } else if values.after.is_absent() {
-                                FileStatus::Deleted
+                            if !values.after.is_resolved() {
+                                FileStatus::Conflicted
                             } else {
-                                FileStatus::Modified
+                                if values.before.is_absent() {
+                                    FileStatus::Added
+                                } else if values.after.is_absent() {
+                                    FileStatus::Deleted
+                                } else {
+                                    FileStatus::Modified
+                                }
                             }
                         } else {
                             FileStatus::Modified

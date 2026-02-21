@@ -20,6 +20,7 @@ pub struct Theme {
     pub diff_hunk: Style,
     pub diff_context: Style,
     pub diff_modify: Style,
+    pub diff_conflict: Style,
 
     pub author: Style,
     pub timestamp: Style,
@@ -97,6 +98,9 @@ impl Default for Theme {
             diff_hunk: Style::default().fg(Color::Rgb(148, 226, 213)),   // Teal
             diff_context: Style::default().fg(Color::Rgb(205, 214, 244)), // Text
             diff_modify: Style::default().fg(Color::Rgb(249, 226, 175)),
+            diff_conflict: Style::default()
+                .fg(Color::Rgb(243, 139, 168)) // Red
+                .add_modifier(Modifier::BOLD),
 
             header_logo: Style::default()
                 .bg(Color::Rgb(137, 180, 250))

@@ -118,6 +118,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                         FileStatus::Added => ("+ ", self.theme.diff_add),
                         FileStatus::Modified => ("~ ", self.theme.diff_modify),
                         FileStatus::Deleted => ("- ", self.theme.diff_remove),
+                        FileStatus::Conflicted => ("! ", self.theme.diff_conflict),
                     };
                     detail_lines.push(Line::from(Span::styled(
                         format!("{}{}", prefix, file.path),

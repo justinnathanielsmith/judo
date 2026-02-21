@@ -14,6 +14,7 @@ pub enum FileStatus {
     Added,
     Modified,
     Deleted,
+    Conflicted,
 }
 
 #[derive(Debug, Clone, PartialEq)]
