@@ -169,7 +169,7 @@ impl VcsFacade for JjAdapter {
                     .arg("-r")
                     .arg(&revset_str)
                     .arg("-T")
-                    .arg("commit_id + '\\n'")
+                    .arg("commit_id\n")
                     .arg("--no-graph")
                     .current_dir(ws_root)
                     .output();
@@ -241,7 +241,10 @@ impl VcsFacade for JjAdapter {
             }
 
             while let Some(id) = queue.pop_front() {
-                if visited.contains(&id) || results.len() >= limit {
+                if results.len() >= limit {
+                    break;
+                }
+                if visited.contains(&id) {
                     continue;
                 }
                 visited.insert(id.clone());
