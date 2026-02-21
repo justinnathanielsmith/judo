@@ -231,31 +231,25 @@ impl<'a> Footer<'a> {
             }],
             AppMode::Help => vec![FooterGroup {
                 name: "HELP",
-                items: vec![
-                    FooterItem {
-                        key: "q/Esc/?",
-                        desc: "close",
-                    },
-                ],
+                items: vec![FooterItem {
+                    key: "q/Esc/?",
+                    desc: "close",
+                }],
             }],
             AppMode::NoRepo => vec![
                 FooterGroup {
                     name: "INIT",
-                    items: vec![
-                        FooterItem {
-                            key: "i/ENTER",
-                            desc: "initialize",
-                        },
-                    ],
+                    items: vec![FooterItem {
+                        key: "i/ENTER",
+                        desc: "initialize",
+                    }],
                 },
                 FooterGroup {
                     name: "APP",
-                    items: vec![
-                        FooterItem {
-                            key: "q/Esc",
-                            desc: "quit",
-                        },
-                    ],
+                    items: vec![FooterItem {
+                        key: "q/Esc",
+                        desc: "quit",
+                    }],
                 },
             ],
         }
@@ -286,15 +280,9 @@ impl<'a> Widget for Footer<'a> {
             ));
             spans.push(Span::raw(" "));
         }
-        spans.push(Span::styled(
-            state.header_state.wc_info.clone(),
-            theme.header_item,
-        ));
+        spans.push(Span::styled(&state.header_state.wc_text, theme.header_item));
         spans.push(Span::raw(" "));
-        spans.push(Span::styled(
-            format!(" OP: {} ", state.header_state.op_id),
-            theme.header_item,
-        ));
+        spans.push(Span::styled(&state.header_state.op_text, theme.header_item));
         spans.push(Span::raw(" "));
 
         // Background tasks

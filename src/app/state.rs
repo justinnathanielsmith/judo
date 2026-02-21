@@ -112,13 +112,25 @@ impl<'a> Widget for &AppTextArea<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HeaderState {
-    pub repo_name: String,
-    pub branch: String,
-    pub op_id: String,
-    pub wc_info: String,
-    pub stats: String,
+    pub repo_text: String,
+    pub branch_text: String,
+    pub stats_text: String,
+    pub wc_text: String,
+    pub op_text: String,
+}
+
+impl Default for HeaderState {
+    fn default() -> Self {
+        Self {
+            repo_text: " no repo ".to_string(),
+            branch_text: " (detached) ".to_string(),
+            stats_text: "".to_string(),
+            wc_text: " Loading... ".to_string(),
+            op_text: " OP: ........ ".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

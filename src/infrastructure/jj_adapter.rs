@@ -320,7 +320,9 @@ impl VcsFacade for JjAdapter {
                     let datetime =
                         chrono::DateTime::from_timestamp(timestamp_secs, 0).unwrap_or_default();
                     let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
-                    let commit_id = CommitId(commit.id().hex());
+                    let commit_id_str = commit.id().hex();
+                    let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
+                    let commit_id = CommitId(commit_id_str);
 
                     let mut changed_files = Vec::new();
                     if let Some(p_tree) = parent_tree {
@@ -350,9 +352,13 @@ impl VcsFacade for JjAdapter {
                         }
                     }
 
+                    let change_id_short = change_id[..8.min(change_id.len())].to_string();
+
                     GraphRow {
                         commit_id,
+                        commit_id_short,
                         change_id,
+                        change_id_short,
                         description,
                         author,
                         timestamp,

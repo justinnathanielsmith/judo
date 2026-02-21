@@ -30,13 +30,17 @@ pub struct GraphRowVisual {
     pub connector_lanes: Vec<bool>,
     // New fields for advanced rendering
     pub parent_columns: Vec<usize>,
+    pub parent_min: usize,
+    pub parent_max: usize,
     pub continuing_lanes: Vec<(usize, usize)>, // (from_lane, to_lane)
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GraphRow {
     pub commit_id: CommitId,
+    pub commit_id_short: String,
     pub change_id: String,
+    pub change_id_short: String,
     pub description: String, // Full description now
     pub author: String,
     pub timestamp: String,

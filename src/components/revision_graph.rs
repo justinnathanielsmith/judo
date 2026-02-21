@@ -17,6 +17,7 @@ pub struct RevisionGraph<'a> {
     pub theme: &'a Theme,
     pub show_diffs: bool,
     pub selected_file_index: Option<usize>,
+    pub now_secs: i64,
 }
 
 /// Returns a copy of `style` with its `Color::Rgb` foreground dimmed by `factor` (0.0–1.0).
@@ -51,7 +52,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
-        let now_secs = chrono::Utc::now().timestamp();
+        let now_secs = self.now_secs;
         let mut rows: Vec<Row> = Vec::new();
 
         for (i, row) in self.repo.graph.iter().enumerate() {
@@ -106,13 +107,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 let mut connector_line = Vec::new();
 
                 let parent_cols = &row.visual.parent_columns;
-                let mut sorted_parents = parent_cols.clone();
-                sorted_parents.sort();
-
-                let min_p = sorted_parents.first().cloned().unwrap_or(row.visual.column);
-                let max_p = sorted_parents.last().cloned().unwrap_or(row.visual.column);
-                let range_min = min_p.min(row.visual.column);
-                let range_max = max_p.max(row.visual.column);
+                let range_min = row.visual.parent_min;
+                let range_max = row.visual.parent_max;
 
                 for lane_idx in 0..max_lanes {
                     let lane_style =
@@ -193,8 +189,6 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             let mut detail_lines = Vec::new();
 
             // Line 1: ChangeId Author Timestamp CommitId
-            let change_id_short = row.change_id.get(0..8).unwrap_or(&row.change_id);
-            let commit_id_short = row.commit_id.0.get(0..8).unwrap_or(&row.commit_id.0);
 
             let change_id_style = if row.is_working_copy {
                 self.theme.change_id_wc
@@ -212,12 +206,13 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             };
 
             let mut line_1_details = vec![
-                Span::styled(format!("{} ", type_glyph), change_id_style),
-                Span::styled(change_id_short.to_string(), change_id_style),
+                Span::styled(type_glyph, change_id_style),
+                Span::styled(" ", change_id_style),
+                Span::styled(&row.change_id_short, change_id_style),
                 Span::raw(" "),
-                Span::styled(row.author.clone(), self.theme.author),
+                Span::styled(&row.author, self.theme.author),
                 Span::raw(" "),
-                Span::styled(row.timestamp.clone(), self.theme.timestamp),
+                Span::styled(&row.timestamp, self.theme.timestamp),
                 Span::raw(" "),
             ];
 
@@ -227,10 +222,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 line_1_details.push(Span::raw(" "));
             }
 
-            line_1_details.push(Span::styled(
-                commit_id_short.to_string(),
-                self.theme.commit_id_dim,
-            ));
+            line_1_details.push(Span::styled(&row.commit_id_short, self.theme.commit_id_dim));
             detail_lines.push(Line::from(line_1_details));
 
             // Line 2: Description
@@ -241,7 +233,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     self.theme.timestamp,
                 )));
             } else {
-                detail_lines.push(Line::from(Span::raw(description.to_string())));
+                detail_lines.push(Line::from(Span::raw(description)));
             }
 
             // Line 3+: Files
@@ -257,10 +249,10 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     if is_file_selected {
                         style = self.theme.list_selected;
                     }
-                    detail_lines.push(Line::from(Span::styled(
-                        format!("{}{}", prefix, file.path),
-                        style,
-                    )));
+                    detail_lines.push(Line::from(vec![
+                        Span::styled(prefix, style),
+                        Span::styled(&file.path, style),
+                    ]));
                 }
             }
 
@@ -392,6 +384,7 @@ impl<'a> StatefulWidget for RevisionGraphPanel<'a> {
                     theme: self.theme,
                     show_diffs: self.show_diffs,
                     selected_file_index: self.selected_file_index,
+                    now_secs: chrono::Utc::now().timestamp(),
                 };
                 StatefulWidget::render(graph, inner, buf, state);
             }

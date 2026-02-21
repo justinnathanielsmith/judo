@@ -1,7 +1,7 @@
 use super::{
     action::Action,
     command::Command,
-    state::{AppMode, AppState, AppTextArea, Panel},
+    state::{AppMode, AppState, AppTextArea, HeaderState, Panel},
 };
 use std::time::{Duration, Instant};
 
@@ -588,24 +588,33 @@ fn refresh_derived_state(state: &mut AppState) {
         let mutable_count = repo.graph.iter().filter(|r| !r.is_immutable).count();
         let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
 
-        state.header_state.repo_name = repo.repo_name.clone();
+        let repo_name = if repo.repo_name.is_empty() {
+            "no repo".to_string()
+        } else {
+            repo.repo_name.clone()
+        };
+        state.header_state.repo_text = format!(" {} ", repo_name);
 
         // Find branch/bookmark of working copy
         let wc_id = &repo.working_copy_id;
-        state.header_state.branch = repo
+        let branch_name = repo
             .graph
             .iter()
             .find(|r| r.commit_id == *wc_id)
             .and_then(|r| r.bookmarks.first())
             .cloned()
-            .unwrap_or_else(|| "no bookmark".to_string());
+            .unwrap_or_else(|| "(detached)".to_string());
+        state.header_state.branch_text =
+            format!(" {} {} ", crate::theme::glyphs::BRANCH, branch_name);
 
-        state.header_state.op_id = repo.operation_id[..8.min(repo.operation_id.len())].to_string();
-        state.header_state.wc_info = format!(
-            " WC: {} ",
-            &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())]
-        );
-        state.header_state.stats = format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count);
+        let short_op = &repo.operation_id[..8.min(repo.operation_id.len())];
+        state.header_state.op_text = format!(" OP: {} ", short_op);
+
+        let short_wc = &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())];
+        state.header_state.wc_text = format!(" WC: {} ", short_wc);
+
+        state.header_state.stats_text =
+            format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count);
 
         // --- Calculate Graph Lanes (Business logic extracted from View) ---
         let mut active_commits: Vec<Option<String>> = Vec::new();
@@ -658,7 +667,19 @@ fn refresh_derived_state(state: &mut AppState) {
                 };
                 parent_cols.push(parent_lane);
             }
-            row.visual.parent_columns = parent_cols;
+            row.visual.parent_columns = parent_cols.clone();
+            row.visual.parent_min = parent_cols
+                .iter()
+                .cloned()
+                .min()
+                .unwrap_or(row.visual.column)
+                .min(row.visual.column);
+            row.visual.parent_max = parent_cols
+                .iter()
+                .cloned()
+                .max()
+                .unwrap_or(row.visual.column)
+                .max(row.visual.column);
 
             // Map continuing lanes to their new positions (they shouldn't move in this simple model)
             row.visual.continuing_lanes = continuing.into_iter().map(|i| (i, i)).collect();
@@ -666,9 +687,7 @@ fn refresh_derived_state(state: &mut AppState) {
             row.visual.connector_lanes = active_commits.iter().map(|l| l.is_some()).collect();
         }
     } else {
-        state.header_state.op_id = "........".to_string();
-        state.header_state.wc_info = " Loading... ".to_string();
-        state.header_state.stats = "".to_string();
+        state.header_state = HeaderState::default();
     }
 }
 
@@ -683,7 +702,9 @@ mod tests {
             graph.push(GraphRow {
                 timestamp_secs: 0,
                 commit_id: CommitId(format!("commit-{}", i)),
+                commit_id_short: format!("c{}", i),
                 change_id: format!("change-{}", i),
+                change_id_short: format!("ch{}", i),
                 description: "desc".to_string(),
                 author: "author".to_string(),
                 timestamp: "time".to_string(),
@@ -777,7 +798,9 @@ mod tests {
             .map(|i| GraphRow {
                 timestamp_secs: 0,
                 commit_id: CommitId(format!("commit{}", i)),
+                commit_id_short: format!("c{}", i),
                 change_id: format!("change{}", i),
+                change_id_short: format!("ch{}", i),
                 description: format!("desc{}", i),
                 author: "author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
@@ -890,7 +913,7 @@ mod tests {
         refresh_derived_state(&mut state);
 
         // After refresh
-        assert_eq!(state.header_state.op_id, "op");
+        assert_eq!(state.header_state.op_text, " OP: op ");
         assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.column, 0);
         assert_eq!(
             state.repo.as_ref().unwrap().graph[0].visual.active_lanes,
@@ -1081,24 +1104,28 @@ mod tests {
         // A (0) -> B (0), C (1)
         graph.push(GraphRow {
             commit_id: CommitId("A".to_string()),
+            commit_id_short: "A".to_string(),
             parents: vec![CommitId("B".to_string()), CommitId("C".to_string())],
             ..GraphRow::default()
         });
         // B (0) -> D (0)
         graph.push(GraphRow {
             commit_id: CommitId("B".to_string()),
+            commit_id_short: "B".to_string(),
             parents: vec![CommitId("D".to_string())],
             ..GraphRow::default()
         });
         // C (1) -> D (0)
         graph.push(GraphRow {
             commit_id: CommitId("C".to_string()),
+            commit_id_short: "C".to_string(),
             parents: vec![CommitId("D".to_string())],
             ..GraphRow::default()
         });
         // D (0)
         graph.push(GraphRow {
             commit_id: CommitId("D".to_string()),
+            commit_id_short: "D".to_string(),
             parents: vec![],
             ..GraphRow::default()
         });

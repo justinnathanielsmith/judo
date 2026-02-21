@@ -30,33 +30,20 @@ impl<'a> Widget for Header<'a> {
         let sep_branch_stats = Style::default().fg(branch_bg).bg(stats_bg);
         let sep_stats_base = Style::default().fg(stats_bg).bg(base_bg);
 
-        let repo_name = if self.state.repo_name.is_empty() {
-            "no repo".to_string()
-        } else {
-            self.state.repo_name.clone()
-        };
-        let branch_name = if self.state.branch.is_empty() {
-            "(detached)".to_string()
-        } else {
-            self.state.branch.clone()
-        };
-        let stats_text = self.state.stats.clone();
+        let logo_span = Span::styled(format!(" {} JUDO ", glyphs::REPO), self.theme.header_logo);
 
         let spans = vec![
             // Logo segment
-            Span::styled(format!(" {} JUDO ", glyphs::REPO), self.theme.header_logo),
+            logo_span,
             Span::styled(glyphs::SEP_RIGHT, sep_logo_repo),
             // Repo segment
-            Span::styled(format!(" {} ", repo_name), self.theme.header_repo),
+            Span::styled(&self.state.repo_text, self.theme.header_repo),
             Span::styled(glyphs::SEP_RIGHT, sep_repo_branch),
             // Branch segment
-            Span::styled(
-                format!(" {} {} ", glyphs::BRANCH, branch_name),
-                self.theme.header_branch,
-            ),
+            Span::styled(&self.state.branch_text, self.theme.header_branch),
             Span::styled(glyphs::SEP_RIGHT, sep_branch_stats),
             // Stats segment
-            Span::styled(format!(" {} ", stats_text), self.theme.header_stats),
+            Span::styled(&self.state.stats_text, self.theme.header_stats),
             Span::styled(glyphs::SEP_RIGHT, sep_stats_base),
             // Fill rest of line
             Span::styled(" ".repeat(self.terminal_width as usize), self.theme.header),
