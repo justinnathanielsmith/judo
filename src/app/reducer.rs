@@ -405,7 +405,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::OperationCompleted(result) => {
             state.active_tasks.pop();
             if state.mode == AppMode::Loading {
-                state.mode = AppMode::Normal;
+                state.mode = if state.repo.is_some() { AppMode::Normal } else { AppMode::NoRepo };
             }
             match result {
                 Ok(msg) => {
@@ -416,16 +416,20 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 }
                 Err(err) => {
                     state.last_error = Some(err);
-                    return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+                    if state.repo.is_some() {
+                        return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+                    }
                 }
             }
         }
         Action::ErrorOccurred(err) => {
             state.last_error = Some(err);
             if state.mode == AppMode::Loading {
-                state.mode = AppMode::Normal;
+                state.mode = if state.repo.is_some() { AppMode::Normal } else { AppMode::NoRepo };
             }
-            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+            if state.repo.is_some() {
+                return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+            }
         }
 
         Action::ExternalChangeDetected => {

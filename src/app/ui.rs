@@ -2,6 +2,7 @@ use crate::app::state::{AppMode, AppState};
 use crate::components::diff_view::DiffView;
 use crate::components::footer::Footer;
 use crate::components::revision_graph::RevisionGraph;
+use crate::components::welcome::Welcome;
 use crate::domain::models::GraphRow;
 use crate::theme::Theme;
 
@@ -60,7 +61,11 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     }
 
     if app_state.mode == AppMode::NoRepo {
-        draw_no_repo(f, app_state, theme);
+        let welcome = Welcome {
+            app_state,
+            theme,
+        };
+        f.render_widget(welcome, f.area());
         return;
     }
 
@@ -449,68 +454,4 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         .block(block);
 
     f.render_widget(table, help_area);
-}
-
-fn draw_no_repo(f: &mut Frame, app_state: &AppState, theme: &Theme) {
-    let area = f.area();
-    let logo_ascii = [
-        r"   _ _   _ ___   ___ ",
-        r"  | | | | |   \ / _ \",
-        r" _| | |_| | |) | (_) |",
-        r"|___|_____|___/ \___/ ",
-    ];
-
-    let mut lines: Vec<Line> = logo_ascii
-        .iter()
-        .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
-        .collect();
-
-    lines.push(Line::from(""));
-    lines.push(Line::from(vec![
-        Span::styled(" JUDO ", theme.header_logo),
-        Span::raw(" - The Jujutsu TUI"),
-    ]));
-    lines.push(Line::from(""));
-    lines.push(Line::from(Span::styled(
-        "No Jujutsu repository found in the current directory.",
-        theme.status_error,
-    )));
-    lines.push(Line::from(""));
-    lines.push(Line::from(vec![
-        Span::raw("Press "),
-        Span::styled("i", theme.footer_segment_key),
-        Span::raw(" or "),
-        Span::styled("Enter", theme.footer_segment_key),
-        Span::raw(" to initialize a new colocated repository"),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled(" (jj git init --colocate) ", theme.header_item),
-    ]));
-    lines.push(Line::from(""));
-    lines.push(Line::from(vec![
-        Span::raw("Press "),
-        Span::styled("q", theme.footer_segment_key),
-        Span::raw(" or "),
-        Span::styled("Esc", theme.footer_segment_key),
-        Span::raw(" to quit"),
-    ]));
-
-    if let Some(err) = &app_state.last_error {
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(format!("Error: {}", err), theme.status_error)));
-    }
-
-    let paragraph = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
-
-    let logo_height = 15;
-    let centered_area = Rect {
-        x: area.x,
-        y: (area.y + area.height / 2).saturating_sub(logo_height / 2),
-        width: area.width,
-        height: logo_height.min(area.height),
-    };
-
-    if centered_area.width > 0 && centered_area.height > 0 {
-        f.render_widget(paragraph, centered_area);
-    }
 }

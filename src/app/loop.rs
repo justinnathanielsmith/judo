@@ -1052,8 +1052,8 @@ mod tests {
         let action2 = rx.recv().await.unwrap();
         crate::app::reducer::update(&mut state, action2);
 
-        // Mode should reset and error should be set
-        assert_eq!(state.mode, crate::app::state::AppMode::Normal);
+        // Mode should reset to NoRepo (since no repo in state) and error should be set
+        assert_eq!(state.mode, crate::app::state::AppMode::NoRepo);
         assert!(state.last_error.is_some());
         assert!(state.last_error.unwrap().contains("Error: Snapshot failed"));
     }
