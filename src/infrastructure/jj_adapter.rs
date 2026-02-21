@@ -27,7 +27,7 @@ pub struct JjAdapter {
     _user_settings: UserSettings,
 }
 
-const _MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
+const MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
 
 impl JjAdapter {
     pub fn new() -> Result<Self> {
@@ -351,19 +351,42 @@ impl VcsFacade for JjAdapter {
             }
 
             let mut before_content = Vec::new();
+            let mut before_is_binary = false;
             for value in values.before.iter() {
                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
-                    let mut reader = repo.store().read_file(&repo_path, id).await?;
+                    let mut reader = repo.store().read_file(&repo_path, id).await?.take(MAX_DIFF_SIZE);
+                    let mut chunk = vec![0u8; 1024];
+                    let n = reader.read(&mut chunk).await?;
+                    chunk.truncate(n);
+                    if is_binary(&chunk) {
+                        before_is_binary = true;
+                        break;
+                    }
+                    before_content.extend_from_slice(&chunk);
                     reader.read_to_end(&mut before_content).await?;
                 }
             }
 
             let mut after_content = Vec::new();
+            let mut after_is_binary = false;
             for value in values.after.iter() {
                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
-                    let mut reader = repo.store().read_file(&repo_path, id).await?;
+                    let mut reader = repo.store().read_file(&repo_path, id).await?.take(MAX_DIFF_SIZE);
+                    let mut chunk = vec![0u8; 1024];
+                    let n = reader.read(&mut chunk).await?;
+                    chunk.truncate(n);
+                    if is_binary(&chunk) {
+                        after_is_binary = true;
+                        break;
+                    }
+                    after_content.extend_from_slice(&chunk);
                     reader.read_to_end(&mut after_content).await?;
                 }
+            }
+
+            if before_is_binary || after_is_binary {
+                output.push_str("    (binary file)\n\n");
+                continue;
             }
 
             let before_str = String::from_utf8_lossy(&before_content);
@@ -499,4 +522,30 @@ mod tests {
         assert!(child_commit.is_some());
         Ok(())
     }
+
+    #[test]
+    fn test_is_binary() {
+        assert!(!is_binary(b"this is some text"));
+        assert!(!is_binary(b"this is some text with \n newlines and \t tabs"));
+        assert!(is_binary(&[0, 1, 2, 3])); // Null byte
+        assert!(is_binary(&[1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 14, 15])); // Many control chars
+        
+        // UTF-8 should NOT be binary
+        assert!(!is_binary("🦀 rust is great".as_bytes()));
+    }
+}
+
+fn is_binary(chunk: &[u8]) -> bool {
+    if chunk.is_empty() {
+        return false;
+    }
+    if chunk.contains(&0) {
+        return true;
+    }
+    let non_printable = chunk.iter().filter(|&&b| {
+        (b < 32 && !b.is_ascii_whitespace()) || b == 127
+    }).count();
+
+    // If more than 10% are control characters (excluding whitespace), it's likely binary.
+    non_printable * 100 / chunk.len() > 10
 }
