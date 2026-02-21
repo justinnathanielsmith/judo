@@ -166,8 +166,28 @@ impl<'a> Widget for Footer<'a> {
             Span::styled("  READY  ", theme.status_ready)
         };
 
+        let mut spans = vec![status_span, Span::raw(" ")];
+
+        // Repo context (Workspace, WC & Operation)
+        if !state.workspace_id.is_empty() {
+             spans.push(Span::styled(format!(" {} ", state.workspace_id), theme.header_item));
+             spans.push(Span::raw(" "));
+        }
+        spans.push(Span::styled(state.header_state.wc_info.clone(), theme.header_item));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(format!(" OP: {} ", state.header_state.op_id), theme.header_item));
+        spans.push(Span::raw(" "));
+
+        // Background tasks
+        if !state.active_tasks.is_empty() {
+             let tasks_text = format!(" {} tasks: {} ", state.spinner, state.active_tasks.join(", "));
+             spans.push(Span::styled(tasks_text, theme.status_info));
+             spans.push(Span::raw("  "));
+        } else {
+             spans.push(Span::raw("  "));
+        }
+
         let groups = self.get_groups();
-        let mut spans = vec![status_span, Span::raw("  ")];
 
         let available_width = area.width.saturating_sub(4); // Margin
         let mut current_width = spans.iter().map(|s| s.width()).sum::<usize>();

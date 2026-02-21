@@ -56,13 +56,8 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     // --- Header ---
     let header = Paragraph::new(Line::from(vec![
         Span::styled(" JUDO ", theme.header_logo),
-        Span::styled(
-            format!(" Op: {} ", app_state.header_state.op_id),
-            theme.header_item,
-        ),
-        Span::styled(app_state.header_state.wc_info.clone(), theme.header_item),
         Span::styled(app_state.header_state.stats.clone(), theme.header),
-        Span::styled(" ".repeat(f.area().width as usize), theme.header),
+        Span::styled(" ".repeat((f.area().width as usize).saturating_sub(app_state.header_state.stats.len() + 6)), theme.header),
     ]))
     .style(theme.header);
     f.render_widget(header, layout.main[0]);

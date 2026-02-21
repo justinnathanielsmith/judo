@@ -323,6 +323,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 
         // --- Async Results ---
         Action::RepoLoaded(repo_status) => {
+            state.workspace_id = repo_status.workspace_id.clone();
             state.repo = Some(*repo_status);
             state.is_loading_more = false;
             state.has_more = true;
@@ -366,11 +367,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::OperationStarted(msg) => {
+            state.active_tasks.push(msg.clone());
             state.status_message = Some(msg);
             state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             state.mode = AppMode::Loading;
         }
         Action::OperationCompleted(result) => {
+            state.active_tasks.pop();
             match result {
                 Ok(msg) => {
                     state.status_message = Some(msg);
@@ -542,6 +545,7 @@ mod tests {
         }
         RepoStatus {
             operation_id: "op".to_string(),
+            workspace_id: "default".to_string(),
             working_copy_id: CommitId("wc".to_string()),
             graph,
         }
@@ -634,6 +638,7 @@ mod tests {
 
         RepoStatus {
             operation_id: "op".to_string(),
+            workspace_id: "default".to_string(),
             working_copy_id: CommitId("commit0".to_string()),
             graph,
         }

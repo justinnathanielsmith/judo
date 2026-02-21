@@ -287,6 +287,7 @@ impl VcsFacade for JjAdapter {
 
         Ok(RepoStatus {
             operation_id: op_id,
+            workspace_id: workspace_id.as_str().to_string(),
             working_copy_id: wc_id,
             graph: graph_rows,
         })

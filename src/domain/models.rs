@@ -48,6 +48,7 @@ pub struct GraphRow {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RepoStatus {
     pub operation_id: String,
+    pub workspace_id: String,
     pub working_copy_id: CommitId,
     pub graph: Vec<GraphRow>,
 }

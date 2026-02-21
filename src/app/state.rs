@@ -117,6 +117,8 @@ pub struct AppState<'a> {
     pub last_error: Option<String>,
     pub status_message: Option<String>, // "Snapshot created."
     pub status_clear_time: Option<Instant>,
+    pub workspace_id: String,
+    pub active_tasks: Vec<String>,
 
     // --- JJ Data (The "Source of Truth") ---
     // We wrap this in Option because we might start before the repo is loaded.
@@ -162,6 +164,8 @@ impl<'a> Default for AppState<'a> {
             last_error: None,
             status_message: None,
             status_clear_time: None,
+            workspace_id: "".to_string(),
+            active_tasks: Vec::new(),
             repo: None,
             revset: None,
             is_loading_more: false,
