@@ -446,6 +446,19 @@ pub async fn run_loop<B: Backend>(
 
                     // 2. Run external tool
                     // We'll use 'jj resolve' which uses the configured tool
+                    // SECURITY: Validate path to prevent path traversal
+                    if path.contains("..") {
+                        crossterm::terminal::enable_raw_mode()?;
+                        crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::terminal::EnterAlternateScreen,
+                            crossterm::cursor::Hide
+                        )?;
+                        terminal.clear()?;
+                        let _ = action_tx.send(Action::OperationCompleted(Err(format!("Invalid path: {}", path)))).await;
+                        continue;
+                    }
+
                     let mut child = std::process::Command::new("jj")
                         .arg("resolve")
                         .arg(&path)

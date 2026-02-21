@@ -280,8 +280,14 @@ impl VcsFacade for JjAdapter {
                             FileStatus::Modified
                         };
 
+                        let path = entry.path.as_internal_file_string().to_string();
+                        // SECURITY: Validate path to prevent path traversal
+                        if path.contains("..") {
+                            continue;
+                        }
+
                         changed_files.push(FileChange {
-                            path: entry.path.as_internal_file_string().to_string(),
+                            path,
                             status,
                         });
                      }
@@ -362,6 +368,10 @@ impl VcsFacade for JjAdapter {
             let _permit = self.diff_semaphore.acquire().await.map_err(|e| anyhow!(e))?;
             let repo_path = entry.path;
             let path_str = repo_path.as_internal_file_string();
+            // SECURITY: Validate path to prevent path traversal
+            if path_str.contains("..") {
+                continue;
+            }
             let values = entry.values?;
 
             output.push_str(&format!("File: {}\n", path_str));
