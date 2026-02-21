@@ -8,6 +8,7 @@ pub struct Theme {
     pub graph_node_mutable: Style,
     pub graph_node_immutable: Style,
     pub graph_line: Style,
+    pub graph_lanes: Vec<Style>,
 
     pub change_id_mutable: Style,
     pub change_id_immutable: Style,
@@ -59,6 +60,15 @@ impl Default for Theme {
                 .fg(Color::Rgb(137, 180, 250))
                 .add_modifier(Modifier::BOLD),
             graph_line: Style::default().fg(Color::Rgb(108, 112, 134)),           // Surface
+            graph_lanes: vec![
+                Style::default().fg(Color::Rgb(243, 139, 168)), // Red
+                Style::default().fg(Color::Rgb(166, 227, 161)), // Green
+                Style::default().fg(Color::Rgb(249, 226, 175)), // Yellow
+                Style::default().fg(Color::Rgb(137, 180, 250)), // Blue
+                Style::default().fg(Color::Rgb(203, 166, 247)), // Mauve
+                Style::default().fg(Color::Rgb(148, 226, 213)), // Teal
+                Style::default().fg(Color::Rgb(250, 179, 135)), // Peach
+            ],
 
             change_id_mutable: Style::default()
                 .fg(Color::Rgb(203, 166, 247))

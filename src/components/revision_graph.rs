@@ -31,9 +31,10 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             // Graph Line 1: Node symbol and existing pipes
             let mut line_1_graph = Vec::new();
             for (lane_idx, is_active) in row.visual.active_lanes.iter().enumerate() {
+                let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
                 if lane_idx == row.visual.column {
                     let (symbol, style) = if row.is_working_copy {
-                        ("@", self.theme.graph_node_wc)
+                        ("◉", self.theme.graph_node_wc)
                     } else if row.is_immutable {
                         ("◆", self.theme.graph_node_immutable)
                     } else {
@@ -41,7 +42,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     };
                     line_1_graph.push(Span::styled(symbol, style));
                 } else if *is_active {
-                    line_1_graph.push(Span::styled("│", self.theme.graph_line));
+                    line_1_graph.push(Span::styled("│", lane_style));
                 } else {
                     line_1_graph.push(Span::raw(" "));
                 }
@@ -53,9 +54,10 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             // Subsequent Graph Lines: Connector pipes
             for _ in 1..row_height {
                 let mut connector_line = Vec::new();
-                for is_active in row.visual.connector_lanes.iter() {
+                for (lane_idx, is_active) in row.visual.connector_lanes.iter().enumerate() {
+                    let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
                     if *is_active {
-                        connector_line.push(Span::styled("│", self.theme.graph_line));
+                        connector_line.push(Span::styled("│", lane_style));
                     } else {
                         connector_line.push(Span::raw(" "));
                     }
@@ -128,7 +130,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             );
         }
 
-        let table = Table::new(rows, [Constraint::Length(12), Constraint::Min(0)])
+        let table = Table::new(rows, [Constraint::Length(16), Constraint::Min(0)])
             .row_highlight_style(self.theme.highlight)
             .highlight_symbol(">> ");
 
