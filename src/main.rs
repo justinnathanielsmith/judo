@@ -23,6 +23,12 @@ fn setup_panic_hook() {
 async fn main() -> Result<()> {
     setup_panic_hook();
 
+    // Initialize adapter to verify repo context
+    // This happens BEFORE terminal setup so if it fails (e.g. corrupt config),
+    // we don't leave the terminal in raw mode.
+    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?)
+        as std::sync::Arc<dyn judo::domain::vcs::VcsFacade>;
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -32,10 +38,6 @@ async fn main() -> Result<()> {
 
     // Run app
     let app_state = AppState::default();
-
-    // Initialize adapter to verify repo context
-    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?)
-        as std::sync::Arc<dyn judo::domain::vcs::VcsFacade>;
 
     let res = run_loop(&mut terminal, app_state, adapter).await;
 

@@ -2,7 +2,7 @@ use crate::domain::{
     models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus},
     vcs::VcsFacade,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use jj_lib::{
     backend::{CommitId as JjCommitId, TreeValue},
@@ -41,12 +41,11 @@ impl JjAdapter {
     fn load_at(cwd: std::path::PathBuf) -> Result<Self> {
         let mut config = jj_lib::config::StackedConfig::with_defaults();
 
-        if let Ok(layer) = jj_lib::config::ConfigLayer::parse(
+        let layer = jj_lib::config::ConfigLayer::parse(
             jj_lib::config::ConfigSource::Default,
             crate::infrastructure::defaults::DEFAULT_FALLBACK_CONFIG,
-        ) {
-            config.add_layer(layer);
-        }
+        ).context("Failed to parse internal fallback config (this is a Judo bug)")?;
+        config.add_layer(layer);
 
         let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
         if let Ok(home_dir) = home {
@@ -57,14 +56,13 @@ impl JjAdapter {
             ];
             for path in paths {
                 if path.exists() {
-                    if let Ok(text) = std::fs::read_to_string(&path) {
-                        if let Ok(layer) = jj_lib::config::ConfigLayer::parse(
-                            jj_lib::config::ConfigSource::User,
-                            &text,
-                        ) {
-                            config.add_layer(layer);
-                        }
-                    }
+                    let text = std::fs::read_to_string(&path)
+                        .with_context(|| format!("Failed to read user config at {:?}", path))?;
+                    let layer = jj_lib::config::ConfigLayer::parse(
+                        jj_lib::config::ConfigSource::User,
+                        &text,
+                    ).with_context(|| format!("Failed to parse user config at {:?}", path))?;
+                    config.add_layer(layer);
                 }
             }
         }
@@ -73,14 +71,13 @@ impl JjAdapter {
         while let Some(path) = current {
             let jj_repo_config = path.join(".jj").join("repo").join("config.toml");
             if jj_repo_config.is_file() {
-                if let Ok(text) = std::fs::read_to_string(&jj_repo_config) {
-                    if let Ok(layer) = jj_lib::config::ConfigLayer::parse(
-                        jj_lib::config::ConfigSource::User,
-                        &text,
-                    ) {
-                        config.add_layer(layer);
-                    }
-                }
+                let text = std::fs::read_to_string(&jj_repo_config)
+                    .with_context(|| format!("Failed to read repo config at {:?}", jj_repo_config))?;
+                let layer = jj_lib::config::ConfigLayer::parse(
+                    jj_lib::config::ConfigSource::User,
+                    &text,
+                ).with_context(|| format!("Failed to parse repo config at {:?}", jj_repo_config))?;
+                config.add_layer(layer);
                 break;
             }
             current = path.parent();
