@@ -394,6 +394,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::OperationCompleted(result) => {
             state.active_tasks.pop();
+            if state.mode == AppMode::Loading {
+                state.mode = AppMode::Normal;
+            }
             match result {
                 Ok(msg) => {
                     state.status_message = Some(msg);
@@ -401,10 +404,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     state.diff_cache.clear(); // Clear cache as operations might change history
                     return Some(Command::LoadRepo(None, 100, state.revset.clone()));
                 }
-                Err(err) => state.last_error = Some(err),
-            }
-            if state.mode == AppMode::Loading {
-                state.mode = AppMode::Normal;
+                Err(err) => {
+                    state.last_error = Some(err);
+                    return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+                }
             }
         }
         Action::ErrorOccurred(err) => {
@@ -412,6 +415,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             if state.mode == AppMode::Loading {
                 state.mode = AppMode::Normal;
             }
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
 
         Action::ExternalChangeDetected => {
