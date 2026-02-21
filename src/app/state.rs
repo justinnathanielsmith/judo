@@ -29,6 +29,32 @@ pub struct ContextMenuState {
     pub actions: Vec<(String, Action)>,
 }
 
+impl ContextMenuState {
+    pub fn calculate_rect(&self, terminal_area: Rect) -> Rect {
+        let longest_action = self
+            .actions
+            .iter()
+            .map(|(name, _)| name.len())
+            .max()
+            .unwrap_or(0) as u16;
+        let menu_width = longest_action + 6;
+        let menu_height = self.actions.len() as u16 + 2;
+
+        let mut x = self.x;
+        let mut y = self.y;
+
+        if x + menu_width > terminal_area.width {
+            x = terminal_area.width.saturating_sub(menu_width);
+        }
+
+        if y + menu_height > terminal_area.height {
+            y = y.saturating_sub(menu_height);
+        }
+
+        Rect::new(x, y, menu_width, menu_height)
+    }
+}
+
 #[derive(Default)]
 pub struct AppTextArea<'a>(pub TextArea<'a>);
 
@@ -89,6 +115,7 @@ pub struct AppState<'a> {
     pub mode: AppMode,
     pub last_error: Option<String>,
     pub status_message: Option<String>, // "Snapshot created."
+    pub status_clear_time: Option<Instant>,
 
     // --- JJ Data (The "Source of Truth") ---
     // We wrap this in Option because we might start before the repo is loaded.
@@ -129,6 +156,7 @@ impl<'a> Default for AppState<'a> {
             mode: AppMode::Normal,
             last_error: None,
             status_message: None,
+            status_clear_time: None,
             repo: None,
             log_list_state: TableState::default(),
             current_diff: None,

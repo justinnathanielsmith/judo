@@ -178,35 +178,37 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         let area = centered_rect(60, 20, f.area());
         f.render_widget(Clear, area);
         let title = if app_state.mode == AppMode::BookmarkInput {
-            " Set Bookmark "
+            " SET BOOKMARK "
         } else {
-            " Describe Revision "
+            " DESCRIBE REVISION "
         };
         let block = Block::default()
-            .title(title)
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(title, theme.header_active),
+                Span::raw(" "),
+            ]))
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(theme.border_focus);
-        app_state.text_area.set_block(block);
-        f.render_widget(&app_state.text_area, area);
+
+        let inner_area = block.inner(area);
+        // Add some padding inside the block
+        let padded_area = Rect {
+            x: inner_area.x + 1,
+            y: inner_area.y + 1,
+            width: inner_area.width.saturating_sub(2),
+            height: inner_area.height.saturating_sub(2),
+        };
+
+        f.render_widget(block, area);
+        app_state.text_area.set_block(Block::default());
+        f.render_widget(&app_state.text_area, padded_area);
     }
 
     // --- Context Menu Popup ---
     if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
-        let menu_width = 20;
-        let menu_height = menu.actions.len() as u16 + 2;
-
-        // Position adjustment to keep menu on screen
-        let mut x = menu.x;
-        let mut y = menu.y;
-        if x + menu_width > f.area().width {
-            x = f.area().width.saturating_sub(menu_width);
-        }
-        if y + menu_height > f.area().height {
-            y = f.area().height.saturating_sub(menu_height);
-        }
-
-        let area = Rect::new(x, y, menu_width, menu_height);
+        let area = menu.calculate_rect(f.area());
         f.render_widget(Clear, area);
 
         let items: Vec<ListItem> = menu

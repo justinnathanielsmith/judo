@@ -104,22 +104,15 @@ pub async fn run_loop<B: Backend>(
                                 match mouse.kind {
                                     MouseEventKind::Down(MouseButton::Left) => {
                                         if let Some(menu) = &app_state.context_menu {
-                                            let menu_width = 20;
-                                            let menu_height = menu.actions.len() as u16 + 2;
+                                            let size = terminal.size()?;
+                                            let area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
+                                            let menu_area = menu.calculate_rect(area);
 
-                                            let mut x = menu.x;
-                                            let mut y = menu.y;
-                                            if x + menu_width > terminal.size()?.width {
-                                                x = terminal.size()?.width.saturating_sub(menu_width);
-                                            }
-                                            if y + menu_height > terminal.size()?.height {
-                                                y = terminal.size()?.height.saturating_sub(menu_height);
-                                            }
-
-                                            if mouse.column >= x && mouse.column < x + menu_width
-                                                && mouse.row > y && mouse.row < y + menu_height - 1
+                                            if mouse.column >= menu_area.x && mouse.column < menu_area.x + menu_area.width
+                                                && mouse.row >= menu_area.y && mouse.row < menu_area.y + menu_area.height
                                             {
-                                                let clicked_idx = (mouse.row - (y + 1)) as usize;
+                                                // Adjust for borders: top/left border is at y/x, so content starts at y+1
+                                                let clicked_idx = (mouse.row.saturating_sub(menu_area.y + 1)) as usize;
                                                 Some(Action::SelectContextMenuAction(clicked_idx))
                                             } else {
                                                 Some(Action::CloseContextMenu)

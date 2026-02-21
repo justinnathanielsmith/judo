@@ -3,6 +3,9 @@ use super::{
     command::Command,
     state::{AppMode, AppState, AppTextArea},
 };
+use std::time::{Duration, Instant};
+
+const STATUS_CLEAR_DURATION: Duration = Duration::from_secs(3);
 
 pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
     match action {
@@ -219,12 +222,14 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::OperationStarted(msg) => {
             state.status_message = Some(msg);
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             state.mode = AppMode::Loading;
         }
         Action::OperationCompleted(result) => {
             match result {
                 Ok(msg) => {
                     state.status_message = Some(msg);
+                    state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
                     state.diff_cache.clear(); // Clear cache as operations might change history
                     return Some(Command::LoadRepo);
                 }
@@ -243,6 +248,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 
         Action::Tick => {
             state.frame_count = state.frame_count.wrapping_add(1);
+            if let Some(clear_time) = state.status_clear_time {
+                if Instant::now() >= clear_time {
+                    state.status_message = None;
+                    state.status_clear_time = None;
+                }
+            }
             refresh_derived_state(state);
         }
 
