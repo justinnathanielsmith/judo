@@ -20,14 +20,16 @@ use jj_lib::matchers::EverythingMatcher;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 
 pub struct JjAdapter {
     workspace: Arc<Mutex<Workspace>>,
     _user_settings: UserSettings,
+    diff_semaphore: Arc<Semaphore>,
 }
 
 const MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
+const MAX_CONCURRENT_DIFFS: usize = 4;
 
 impl JjAdapter {
     pub fn new() -> Result<Self> {
@@ -93,6 +95,7 @@ impl JjAdapter {
         Ok(Self {
             workspace: Arc::new(Mutex::new(workspace)),
             _user_settings: user_settings,
+            diff_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DIFFS)),
         })
     }
 }
@@ -334,6 +337,7 @@ impl VcsFacade for JjAdapter {
 
         let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
         while let Some(entry) = stream.next().await {
+            let _permit = self.diff_semaphore.acquire().await.map_err(|e| anyhow!(e))?;
             let repo_path = entry.path;
             let path_str = repo_path.as_internal_file_string();
             let values = entry.values?;
