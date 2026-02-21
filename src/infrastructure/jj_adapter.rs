@@ -285,7 +285,7 @@ impl VcsFacade for JjAdapter {
 
         let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
         while let Some(entry) = stream.next().await {
-            let path_str = entry.path.as_internal_file_string();
+            let path_str = entry.path.as_internal_file_string().to_string();
 
             let diff = entry.values?;
 
@@ -321,71 +321,77 @@ impl VcsFacade for JjAdapter {
                 }
             }
 
-            // Simple binary check: check for null bytes in the first 1KB
-            let is_binary = old_content
-                .iter()
-                .chain(new_content.iter())
-                .take(1024)
-                .any(|&b| b == 0);
+            let diff_output = tokio::task::spawn_blocking(move || {
+                let mut file_output = String::new();
+                // Simple binary check: check for null bytes in the first 1KB
+                let is_binary = old_content
+                    .iter()
+                    .chain(new_content.iter())
+                    .take(1024)
+                    .any(|&b| b == 0);
 
-            if is_binary {
-                output.push_str(&format!("Binary file {}\n\n", path_str));
-            } else {
-                let old_text = String::from_utf8_lossy(&old_content);
-                let new_text = String::from_utf8_lossy(&new_content);
-
-                use similar::{ChangeTag, TextDiff};
-
-                let diff = TextDiff::from_lines(&old_text, &new_text);
-
-                if old_content.is_empty() {
-                    output.push_str(&format!("+ Added regular file {}:\n", path_str));
-                } else if new_content.is_empty() {
-                    output.push_str(&format!("- Deleted regular file {}:\n", path_str));
+                if is_binary {
+                    file_output.push_str(&format!("Binary file {}\n\n", path_str));
                 } else {
-                    output.push_str(&format!("~ Modified regular file {}:\n", path_str));
-                }
+                    let old_text = String::from_utf8_lossy(&old_content);
+                    let new_text = String::from_utf8_lossy(&new_content);
 
-                if diff.ratio() < 1.0 || old_text != new_text {
-                    let mut first_group = true;
-                    for group in diff.grouped_ops(3) {
-                        if !first_group {
-                            output.push_str("    ...\n");
-                        }
-                        first_group = false;
+                    use similar::{ChangeTag, TextDiff};
 
-                        for op in group {
-                            for change in diff.iter_changes(&op) {
-                                match change.tag() {
-                                    ChangeTag::Delete => {
-                                        output.push_str(&format!(
-                                            "{:4}     : {}",
-                                            change.old_index().unwrap() + 1,
-                                            change.value()
-                                        ));
-                                    }
-                                    ChangeTag::Insert => {
-                                        output.push_str(&format!(
-                                            "    {:5}: {}",
-                                            change.new_index().unwrap() + 1,
-                                            change.value()
-                                        ));
-                                    }
-                                    ChangeTag::Equal => {
-                                        output.push_str(&format!(
-                                            "{:4}{:5}: {}",
-                                            change.old_index().unwrap() + 1,
-                                            change.new_index().unwrap() + 1,
-                                            change.value()
-                                        ));
+                    let diff = TextDiff::from_lines(&old_text, &new_text);
+
+                    if old_content.is_empty() {
+                        file_output.push_str(&format!("+ Added regular file {}:\n", path_str));
+                    } else if new_content.is_empty() {
+                        file_output.push_str(&format!("- Deleted regular file {}:\n", path_str));
+                    } else {
+                        file_output.push_str(&format!("~ Modified regular file {}:\n", path_str));
+                    }
+
+                    if diff.ratio() < 1.0 || old_text != new_text {
+                        let mut first_group = true;
+                        for group in diff.grouped_ops(3) {
+                            if !first_group {
+                                file_output.push_str("    ...\n");
+                            }
+                            first_group = false;
+
+                            for op in group {
+                                for change in diff.iter_changes(&op) {
+                                    match change.tag() {
+                                        ChangeTag::Delete => {
+                                            file_output.push_str(&format!(
+                                                "{:4}     : {}",
+                                                change.old_index().unwrap() + 1,
+                                                change.value()
+                                            ));
+                                        }
+                                        ChangeTag::Insert => {
+                                            file_output.push_str(&format!(
+                                                "    {:5}: {}",
+                                                change.new_index().unwrap() + 1,
+                                                change.value()
+                                            ));
+                                        }
+                                        ChangeTag::Equal => {
+                                            file_output.push_str(&format!(
+                                                "{:4}{:5}: {}",
+                                                change.old_index().unwrap() + 1,
+                                                change.new_index().unwrap() + 1,
+                                                change.value()
+                                            ));
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
+                file_output
+            })
+            .await?;
 
+            output.push_str(&diff_output);
             output.push('\n');
         }
 
@@ -397,28 +403,34 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn describe_revision(&self, change_id: &str, message: &str) -> Result<()> {
-        let workspace = self.workspace.lock().await;
-        let repo = workspace.repo_loader().load_at_head()?;
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
 
-        // Assume change_id param is actually a Commit ID hex for now.
-        let commit_id =
-            JjCommitId::try_from_hex(change_id).ok_or_else(|| anyhow!("Invalid commit ID"))?;
+        let change_id = change_id.to_string();
+        let message = message.to_string();
 
-        let commit = repo.store().get_commit(&commit_id)?;
+        tokio::task::spawn_blocking(move || {
+            let commit_id = JjCommitId::try_from_hex(&change_id)
+                .ok_or_else(|| anyhow!("Invalid commit ID"))?;
 
-        let mut tx = repo.start_transaction();
-        let mut_repo = tx.repo_mut();
+            let commit = repo.store().get_commit(&commit_id)?;
 
-        mut_repo
-            .rewrite_commit(&commit)
-            .set_description(message)
-            .write()?;
+            let mut tx = repo.start_transaction();
+            let mut_repo = tx.repo_mut();
 
-        mut_repo.rebase_descendants()?;
+            mut_repo
+                .rewrite_commit(&commit)
+                .set_description(message)
+                .write()?;
 
-        tx.commit("describe revision")?;
+            mut_repo.rebase_descendants()?;
 
-        Ok(())
+            tx.commit("describe revision")?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn snapshot(&self) -> Result<String> {
@@ -445,47 +457,69 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn edit(&self, commit_id: &CommitId) -> Result<()> {
-        let workspace = self.workspace.lock().await;
-        let repo = workspace.repo_loader().load_at_head()?;
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
 
-        let id =
-            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
-        let commit = repo.store().get_commit(&id)?;
+        let commit_id_hex = commit_id.0.clone();
 
-        let mut tx = repo.start_transaction();
-        let mut_repo = tx.repo_mut();
+        tokio::task::spawn_blocking(move || {
+            let id = JjCommitId::try_from_hex(&commit_id_hex)
+                .ok_or_else(|| anyhow!("Invalid commit ID"))?;
+            let commit = repo.store().get_commit(&id)?;
 
-        // In jj, "editing" a commit means making it the working copy
-        // Find workspace_id from repo view
-        let (workspace_id, _) = repo
-            .view()
-            .wc_commit_ids()
-            .iter()
-            .next()
-            .ok_or_else(|| anyhow!("No working copy found in view"))?;
+            let mut tx = repo.start_transaction();
+            let mut_repo = tx.repo_mut();
 
-        mut_repo.set_wc_commit(workspace_id.clone(), commit.id().clone())?;
+            // In jj, "editing" a commit means making it the working copy
+            // Find workspace_id from repo view
+            let (workspace_id, _) = repo
+                .view()
+                .wc_commit_ids()
+                .iter()
+                .next()
+                .ok_or_else(|| anyhow!("No working copy found in view"))?;
 
-        tx.commit("edit revision")?;
-        Ok(())
+            mut_repo.set_wc_commit(workspace_id.clone(), commit.id().clone())?;
+
+            tx.commit("edit revision")?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn squash(&self, commit_id: &CommitId) -> Result<()> {
-        let workspace = self.workspace.lock().await;
-        let repo = workspace.repo_loader().load_at_head()?;
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
 
-        let id =
-            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
-        let commit = repo.store().get_commit(&id)?;
+        let commit_id_hex = commit_id.0.clone();
 
-        let mut parents = commit.parents();
-        let parent = parents
-            .next()
-            .ok_or_else(|| anyhow!("Cannot squash root commit"))??;
+        let (commit, parent_id) = tokio::task::spawn_blocking({
+            let repo = repo.clone();
+            move || {
+                let id = JjCommitId::try_from_hex(&commit_id_hex)
+                    .ok_or_else(|| anyhow!("Invalid commit ID"))?;
+                let commit = repo.store().get_commit(&id)?;
+
+                let parent_id = {
+                    let mut parents = commit.parents();
+                    let parent = parents
+                        .next()
+                        .ok_or_else(|| anyhow!("Cannot squash root commit"))??;
+                    parent.id().clone()
+                };
+
+                Ok::<_, anyhow::Error>((commit, parent_id))
+            }
+        })
+        .await??;
 
         // Merge the trees
         let merged_tree = {
-            let parent_commit = repo.store().get_commit(parent.id())?;
+            let parent_commit = repo.store().get_commit(&parent_id)?;
             let parent_tree = parent_commit.tree();
             let commit_tree = commit.tree();
             jj_lib::merged_tree::MergedTree::merge(jj_lib::merge::Merge::from_removes_adds(
@@ -498,73 +532,90 @@ impl VcsFacade for JjAdapter {
             .await?
         };
 
-        let mut tx = repo.start_transaction();
-        let mut_repo = tx.repo_mut();
+        tokio::task::spawn_blocking(move || {
+            let mut tx = repo.start_transaction();
+            let mut_repo = tx.repo_mut();
 
-        // Squash commit into its parent
-        let parent_commit = repo.store().get_commit(parent.id())?;
+            // Squash commit into its parent
+            let parent_commit = mut_repo.store().get_commit(&parent_id)?;
 
-        // Combine descriptions
-        let mut new_description = parent_commit.description().to_string();
-        if !new_description.ends_with('\n') && !new_description.is_empty() {
-            new_description.push('\n');
-        }
-        new_description.push_str(commit.description());
+            // Combine descriptions
+            let mut new_description = parent_commit.description().to_string();
+            if !new_description.ends_with('\n') && !new_description.is_empty() {
+                new_description.push('\n');
+            }
+            new_description.push_str(commit.description());
 
-        mut_repo
-            .rewrite_commit(&parent_commit)
-            .set_tree(merged_tree)
-            .set_description(new_description)
-            .write()?;
+            mut_repo
+                .rewrite_commit(&parent_commit)
+                .set_tree(merged_tree)
+                .set_description(new_description)
+                .write()?;
 
-        mut_repo.rebase_descendants()?;
-        // Abandon the squashed commit
-        mut_repo.record_abandoned_commit(&commit);
+            mut_repo.rebase_descendants()?;
+            // Abandon the squashed commit
+            mut_repo.record_abandoned_commit(&commit);
 
-        tx.commit("squash revision")?;
-        Ok(())
+            tx.commit("squash revision")?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn new_child(&self, commit_id: &CommitId) -> Result<()> {
-        let workspace = self.workspace.lock().await;
-        let repo = workspace.repo_loader().load_at_head()?;
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
 
-        let id =
-            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
-        let commit = repo.store().get_commit(&id)?;
+        let commit_id_hex = commit_id.0.clone();
 
-        let mut tx = repo.start_transaction();
-        let mut_repo = tx.repo_mut();
+        tokio::task::spawn_blocking(move || {
+            let id = JjCommitId::try_from_hex(&commit_id_hex)
+                .ok_or_else(|| anyhow!("Invalid commit ID"))?;
+            let commit = repo.store().get_commit(&id)?;
 
-        // Resolve tree
-        let tree = jj_lib::merged_tree::MergedTree::new(
-            repo.store().clone(),
-            commit.tree_ids().clone(),
-            jj_lib::conflict_labels::ConflictLabels::unlabeled(),
-        );
+            let mut tx = repo.start_transaction();
+            let mut_repo = tx.repo_mut();
 
-        mut_repo.new_commit(vec![id], tree).write()?;
+            // Resolve tree
+            let tree = jj_lib::merged_tree::MergedTree::new(
+                repo.store().clone(),
+                commit.tree_ids().clone(),
+                jj_lib::conflict_labels::ConflictLabels::unlabeled(),
+            );
 
-        tx.commit("new revision")?;
-        Ok(())
+            mut_repo.new_commit(vec![id], tree).write()?;
+
+            tx.commit("new revision")?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn abandon(&self, commit_id: &CommitId) -> Result<()> {
-        let workspace = self.workspace.lock().await;
-        let repo = workspace.repo_loader().load_at_head()?;
+        let repo = {
+            let workspace = self.workspace.lock().await;
+            workspace.repo_loader().load_at_head()?
+        };
 
-        let id =
-            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
-        let commit = repo.store().get_commit(&id)?;
+        let commit_id_hex = commit_id.0.clone();
 
-        let mut tx = repo.start_transaction();
-        let mut_repo = tx.repo_mut();
+        tokio::task::spawn_blocking(move || {
+            let id = JjCommitId::try_from_hex(&commit_id_hex)
+                .ok_or_else(|| anyhow!("Invalid commit ID"))?;
+            let commit = repo.store().get_commit(&id)?;
 
-        mut_repo.record_abandoned_commit(&commit);
-        mut_repo.rebase_descendants()?;
+            let mut tx = repo.start_transaction();
+            let mut_repo = tx.repo_mut();
 
-        tx.commit("abandon revision")?;
-        Ok(())
+            mut_repo.record_abandoned_commit(&commit);
+            mut_repo.rebase_descendants()?;
+
+            tx.commit("abandon revision")?;
+            Ok(())
+        })
+        .await?
     }
 
     async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
