@@ -37,30 +37,41 @@ pub fn get_layout(area: Rect, show_diffs: bool) -> AppLayout {
         .split(area)
         .to_vec();
 
-    let body = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(if show_diffs {
-            [Constraint::Percentage(50), Constraint::Percentage(50)]
-        } else {
-            [Constraint::Percentage(100), Constraint::Percentage(0)]
-        })
-        .split(main[1])
-        .to_vec();
+    let body = if main.len() > 1 {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(if show_diffs {
+                [Constraint::Percentage(50), Constraint::Percentage(50)]
+            } else {
+                [Constraint::Percentage(100), Constraint::Percentage(0)]
+            })
+            .split(main[1])
+            .to_vec()
+    } else {
+        vec![Rect::default(), Rect::default()]
+    };
 
     AppLayout { main, body }
 }
 
 pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
+    if f.area().width == 0 || f.area().height == 0 {
+        return;
+    }
     let layout = get_layout(f.area(), app_state.show_diffs);
 
     // --- Header ---
-    let header = Paragraph::new(Line::from(vec![
-        Span::styled(" JUDO ", theme.header_logo),
-        Span::styled(app_state.header_state.stats.clone(), theme.header),
-        Span::styled(" ".repeat((f.area().width as usize).saturating_sub(app_state.header_state.stats.len() + 6)), theme.header),
-    ]))
-    .style(theme.header);
-    f.render_widget(header, layout.main[0]);
+    if layout.main[0].width > 0 && layout.main[0].height > 0 {
+        let stats_len = app_state.header_state.stats.len();
+        let padding = (f.area().width as usize).saturating_sub(stats_len + 6);
+        let header = Paragraph::new(Line::from(vec![
+            Span::styled(" JUDO ", theme.header_logo),
+            Span::styled(app_state.header_state.stats.clone(), theme.header),
+            Span::styled(" ".repeat(padding), theme.header),
+        ]))
+        .style(theme.header);
+        f.render_widget(header, layout.main[0]);
+    }
 
     // Left: Revision Graph
     let (graph_border, graph_title_style) = if app_state.mode == AppMode::Normal {
@@ -85,52 +96,56 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         .border_type(BorderType::Rounded)
         .border_style(graph_border);
 
-    if let Some(repo) = &app_state.repo {
-        let graph = RevisionGraph {
-            repo,
-            theme,
-            show_diffs: app_state.show_diffs,
-            selected_file_index: app_state.selected_file_index,
-        };
-        f.render_stateful_widget(
-            graph,
-            graph_block.inner(layout.body[0]),
-            &mut app_state.log_list_state,
-        );
-    } else {
-        let logo_ascii = [
-            r"   _ _   _ ___   ___ ",
-            r"  | | | | |   \ / _ \",
-            r" _| | |_| | |) | (_) |",
-            r"|___|_____|___/ \___/ ",
-        ];
+    if layout.body[0].width > 0 && layout.body[0].height > 0 {
+        if let Some(repo) = &app_state.repo {
+            let graph = RevisionGraph {
+                repo,
+                theme,
+                show_diffs: app_state.show_diffs,
+                selected_file_index: app_state.selected_file_index,
+            };
+            f.render_stateful_widget(
+                graph,
+                graph_block.inner(layout.body[0]),
+                &mut app_state.log_list_state,
+            );
+        } else {
+            let logo_ascii = [
+                r"   _ _   _ ___   ___ ",
+                r"  | | | | |   \ / _ \",
+                r" _| | |_| | |) | (_) |",
+                r"|___|_____|___/ \___/ ",
+            ];
 
-        let mut lines: Vec<Line> = logo_ascii
-            .iter()
-            .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
-            .collect();
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(app_state.spinner.clone(), theme.header_logo),
-            Span::raw(" Loading Jujutsu Repository... "),
-        ]));
+            let mut lines: Vec<Line> = logo_ascii
+                .iter()
+                .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
+                .collect();
+            lines.push(Line::from(""));
+            lines.push(Line::from(vec![
+                Span::styled(app_state.spinner.clone(), theme.header_logo),
+                Span::raw(" Loading Jujutsu Repository... "),
+            ]));
 
-        let loading = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
+            let loading = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
 
-        let area = layout.body[0];
-        let logo_height = 6;
-        let centered_area = Rect {
-            x: area.x,
-            y: area.y + area.height / 2 - (logo_height / 2),
-            width: area.width,
-            height: logo_height,
-        };
-        f.render_widget(loading, centered_area);
+            let area = layout.body[0];
+            let logo_height = 6;
+            let centered_area = Rect {
+                x: area.x,
+                y: (area.y + area.height / 2).saturating_sub(logo_height / 2),
+                width: area.width,
+                height: logo_height.min(area.height),
+            };
+            if centered_area.width > 0 && centered_area.height > 0 {
+                f.render_widget(loading, centered_area);
+            }
+        }
+        f.render_widget(graph_block, layout.body[0]);
     }
-    f.render_widget(graph_block, layout.body[0]);
 
     // Right: Diff View
-    if app_state.show_diffs {
+    if app_state.show_diffs && layout.body[1].width > 0 && layout.body[1].height > 0 {
         let (diff_border, diff_title_style) = if app_state.mode == AppMode::Diff {
             (theme.border_focus, theme.header_active)
         } else {
@@ -163,123 +178,141 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
     }
 
     // --- Footer ---
-    let footer = Footer {
-        state: app_state,
-        theme,
-    };
-    f.render_widget(footer, layout.main[2]);
+    if layout.main.len() > 2 && layout.main[2].width > 0 && layout.main[2].height > 0 {
+        let footer = Footer {
+            state: app_state,
+            theme,
+        };
+        f.render_widget(footer, layout.main[2]);
+    }
 
     // --- Input Modal ---
-    if app_state.mode == AppMode::Input || app_state.mode == AppMode::BookmarkInput {
+    if (app_state.mode == AppMode::Input || app_state.mode == AppMode::BookmarkInput) && f.area().width > 0 && f.area().height > 0 {
         let area = centered_rect(60, 20, f.area());
-        f.render_widget(Clear, area);
-        let title = if app_state.mode == AppMode::BookmarkInput {
-            " SET BOOKMARK "
-        } else {
-            " DESCRIBE REVISION "
-        };
-        let block = Block::default()
-            .title(Line::from(vec![
-                Span::raw(" "),
-                Span::styled(title, theme.header_active),
-                Span::raw(" "),
-            ]))
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(theme.border_focus);
+        if area.width > 0 && area.height > 0 {
+            f.render_widget(Clear, area);
+            let title = if app_state.mode == AppMode::BookmarkInput {
+                " SET BOOKMARK "
+            } else {
+                " DESCRIBE REVISION "
+            };
+            let block = Block::default()
+                .title(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled(title, theme.header_active),
+                    Span::raw(" "),
+                ]))
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(theme.border_focus);
 
-        let inner_area = block.inner(area);
-        // Add some padding inside the block
-        let padded_area = Rect {
-            x: inner_area.x + 1,
-            y: inner_area.y + 1,
-            width: inner_area.width.saturating_sub(2),
-            height: inner_area.height.saturating_sub(2),
-        };
+            let inner_area = block.inner(area);
+            // Add some padding inside the block
+            let padded_area = Rect {
+                x: inner_area.x + 1,
+                y: inner_area.y + 1,
+                width: inner_area.width.saturating_sub(2),
+                height: inner_area.height.saturating_sub(2),
+            };
 
-        f.render_widget(block, area);
-        app_state.text_area.set_block(Block::default());
-        f.render_widget(&app_state.text_area, padded_area);
+            f.render_widget(block, area);
+            app_state.text_area.set_block(Block::default());
+            if padded_area.width > 0 && padded_area.height > 0 {
+                f.render_widget(&app_state.text_area, padded_area);
+            }
+        }
     }
 
     // --- Filter Input Modal ---
-    if app_state.mode == AppMode::FilterInput {
+    if app_state.mode == AppMode::FilterInput && f.area().width > 0 && f.area().height > 0 {
         let area = centered_rect_fixed_height(60, 3, f.area());
-        f.render_widget(Clear, area);
-        let block = Block::default()
-            .title(Line::from(vec![
-                Span::raw(" "),
-                Span::styled(" FILTER (REVSET) ", theme.header_active),
-                Span::raw(" "),
-            ]))
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(theme.border_focus);
+        if area.width > 0 && area.height > 0 {
+            f.render_widget(Clear, area);
+            let block = Block::default()
+                .title(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled(" FILTER (REVSET) ", theme.header_active),
+                    Span::raw(" "),
+                ]))
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(theme.border_focus);
 
-        let inner_area = block.inner(area);
-        f.render_widget(block, area);
-        app_state.text_area.set_block(Block::default());
-        f.render_widget(&app_state.text_area, inner_area);
+            let inner_area = block.inner(area);
+            f.render_widget(block, area);
+            app_state.text_area.set_block(Block::default());
+            if inner_area.width > 0 && inner_area.height > 0 {
+                f.render_widget(&app_state.text_area, inner_area);
+            }
+        }
     }
 
     // --- Context Menu Popup ---
     if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
-        let area = menu.calculate_rect(f.area());
-        f.render_widget(Clear, area);
+        if f.area().width > 0 && f.area().height > 0 {
+            let area = menu.calculate_rect(f.area());
+            if area.width > 0 && area.height > 0 {
+                f.render_widget(Clear, area);
 
-        let items: Vec<ListItem> = menu
-            .actions
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _))| {
-                if i == menu.selected_index {
-                    ListItem::new(format!("> {}", name)).style(theme.list_selected)
-                } else {
-                    ListItem::new(format!("  {}", name)).style(theme.list_item)
-                }
-            })
-            .collect();
+                let items: Vec<ListItem> = menu
+                    .actions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (name, _))| {
+                        if i == menu.selected_index {
+                            ListItem::new(format!("> {}", name)).style(theme.list_selected)
+                        } else {
+                            ListItem::new(format!("  {}", name)).style(theme.list_item)
+                        }
+                    })
+                    .collect();
 
-        let list = List::new(items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .border_style(theme.border_focus),
-        );
-        f.render_widget(list, area);
+                let list = List::new(items).block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Rounded)
+                        .border_style(theme.border_focus),
+                );
+                f.render_widget(list, area);
+            }
+        }
     }
 
     // --- Error Modal ---
     if let Some(err) = &app_state.last_error {
-        let area = centered_rect(60, 20, f.area());
-        f.render_widget(Clear, area);
-        let block = Block::default()
-            .title(Line::from(vec![
-                Span::raw(" "),
-                Span::styled(" ERROR ", theme.status_error),
-                Span::raw(" "),
-            ]))
-            .borders(Borders::ALL)
-            .border_type(BorderType::Double)
-            .border_style(theme.status_error);
+        if f.area().width > 0 && f.area().height > 0 {
+            let area = centered_rect(60, 20, f.area());
+            if area.width > 0 && area.height > 0 {
+                f.render_widget(Clear, area);
+                let block = Block::default()
+                    .title(Line::from(vec![
+                        Span::raw(" "),
+                        Span::styled(" ERROR ", theme.status_error),
+                        Span::raw(" "),
+                    ]))
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Double)
+                    .border_style(theme.status_error);
 
-        // Ensure there's enough height to show the message
-        let text_lines = vec![
-            Line::from(""),
-            Line::from(Span::styled(err.clone(), theme.footer_segment_val)),
-            Line::from(""),
-            Line::from(vec![
-                Span::raw(" Press "),
-                Span::styled("Esc", theme.footer_segment_key),
-                Span::raw(" to acknowledge "),
-            ]),
-        ];
+                // Ensure there's enough height to show the message
+                let text_lines = vec![
+                    Line::from(""),
+                    Line::from(Span::styled(err.clone(), theme.footer_segment_val)),
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::raw(" Press "),
+                        Span::styled("Esc", theme.footer_segment_key),
+                        Span::raw(" to acknowledge "),
+                    ]),
+                ];
 
-        let paragraph = Paragraph::new(text_lines)
-            .alignment(ratatui::layout::Alignment::Center)
-            .block(block);
+                let paragraph = Paragraph::new(text_lines)
+                    .alignment(ratatui::layout::Alignment::Center)
+                    .block(block);
 
-        f.render_widget(paragraph, area);
+                f.render_widget(paragraph, area);
+            }
+        }
     }
 }
 
@@ -287,18 +320,18 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(100u16.saturating_sub(percent_y) / 2),
+            Constraint::Percentage(percent_y.min(100)),
+            Constraint::Percentage(100u16.saturating_sub(percent_y) / 2),
         ])
         .split(r);
 
     Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
+            Constraint::Percentage(percent_x.min(100)),
+            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
 }
@@ -307,8 +340,8 @@ fn centered_rect_fixed_height(percent_x: u16, height: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length((r.height.saturating_sub(height)) / 2),
-            Constraint::Length(height),
+            Constraint::Length(r.height.saturating_sub(height) / 2),
+            Constraint::Length(height.min(r.height)),
             Constraint::Min(0),
         ])
         .split(r);
@@ -316,9 +349,9 @@ fn centered_rect_fixed_height(percent_x: u16, height: u16, r: Rect) -> Rect {
     Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
+            Constraint::Percentage(percent_x.min(100)),
+            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
 }

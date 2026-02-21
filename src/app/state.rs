@@ -38,8 +38,8 @@ impl ContextMenuState {
             .map(|(name, _)| name.len())
             .max()
             .unwrap_or(0) as u16;
-        let menu_width = longest_action + 6;
-        let menu_height = self.actions.len() as u16 + 2;
+        let menu_width = (longest_action + 6).min(terminal_area.width);
+        let menu_height = (self.actions.len() as u16 + 2).min(terminal_area.height);
 
         let mut x = self.x;
         let mut y = self.y;
