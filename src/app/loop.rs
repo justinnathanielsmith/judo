@@ -496,7 +496,7 @@ pub async fn run_loop<B: Backend>(
     Ok(())
 }
 
-async fn handle_command(
+pub(crate) async fn handle_command(
     command: Command,
     adapter: Arc<dyn VcsFacade>,
     tx: mpsc::Sender<Action>,
@@ -814,4 +814,94 @@ async fn handle_command(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::action::Action;
+    use crate::app::command::Command;
+    use crate::domain::models::CommitId;
+    use crate::domain::vcs::MockVcsFacade;
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+
+    #[tokio::test]
+    async fn test_handle_command_error_propagation() {
+        let mut mock = MockVcsFacade::new();
+        let commit_id = CommitId("test-commit".to_string());
+        let commit_id_clone = commit_id.clone();
+
+        // Simulate a failure in get_commit_diff
+        mock.expect_get_commit_diff()
+            .with(mockall::predicate::eq(commit_id_clone))
+            .returning(|_| Err(anyhow::anyhow!("VCS Error")));
+
+        let adapter = Arc::new(mock);
+        let (tx, mut rx) = mpsc::channel(1);
+
+        handle_command(Command::LoadDiff(commit_id), adapter, tx).await.unwrap();
+
+        // We expect a DiffLoaded action with an error message in it
+        let action = rx.recv().await.unwrap();
+        if let Action::DiffLoaded(_, diff) = action {
+            assert!(diff.contains("Error: VCS Error"));
+        } else {
+            panic!("Expected Action::DiffLoaded, got {:?}", action);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_command_success() {
+        let mut mock = MockVcsFacade::new();
+        let commit_id = CommitId("test-commit".to_string());
+        let commit_id_clone = commit_id.clone();
+
+        // Simulate a success
+        mock.expect_get_commit_diff()
+            .with(mockall::predicate::eq(commit_id_clone))
+            .returning(|_| {
+                Ok("Diff Content".to_string())
+            });
+
+        let adapter = Arc::new(mock);
+        let (tx, mut rx) = mpsc::channel(1);
+
+        handle_command(Command::LoadDiff(commit_id), adapter, tx).await.unwrap();
+
+        let action = rx.recv().await.unwrap();
+        if let Action::DiffLoaded(_, diff) = action {
+            assert_eq!(diff, "Diff Content");
+        } else {
+            panic!("Expected Action::DiffLoaded, got {:?}", action);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_full_command_error_to_state() {
+        let mut mock = MockVcsFacade::new();
+        mock.expect_snapshot()
+            .returning(|| Err(anyhow::anyhow!("Snapshot failed")));
+
+        let adapter = Arc::new(mock);
+        let (tx, mut rx) = mpsc::channel(2);
+        let mut state = crate::app::state::AppState::default();
+
+        handle_command(Command::Snapshot, adapter, tx).await.unwrap();
+
+        // 1. First action: OperationStarted
+        let action1 = rx.recv().await.unwrap();
+        crate::app::reducer::update(&mut state, action1);
+        assert_eq!(state.mode, crate::app::state::AppMode::Loading);
+        assert!(state.active_tasks.iter().any(|t| t.contains("Snapshotting")));
+
+        // 2. Second action: OperationCompleted(Err)
+        let action2 = rx.recv().await.unwrap();
+        crate::app::reducer::update(&mut state, action2);
+        
+        // Mode should reset and error should be set
+        assert_eq!(state.mode, crate::app::state::AppMode::Normal);
+        assert!(state.last_error.is_some());
+        assert!(state.last_error.unwrap().contains("Error: Snapshot failed"));
+    }
 }

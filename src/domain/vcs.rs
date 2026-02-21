@@ -2,6 +2,7 @@ use crate::domain::models::{CommitId, RepoStatus};
 use anyhow::Result;
 use async_trait::async_trait;
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait VcsFacade: Send + Sync {
     // Returns the graph for the main view
