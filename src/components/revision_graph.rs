@@ -1,12 +1,15 @@
+use crate::app::state::{AppMode, Panel};
 use crate::app::ui;
 use crate::domain::models::{FileStatus, RepoStatus};
 use crate::theme::{glyphs, Theme};
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Rect},
+    layout::{Alignment, Constraint, Rect},
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Cell, Row, StatefulWidget, Table, TableState},
+    widgets::{
+        Block, BorderType, Borders, Cell, Paragraph, Row, StatefulWidget, Table, TableState, Widget,
+    },
 };
 
 pub struct RevisionGraph<'a> {
@@ -273,5 +276,157 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             .highlight_symbol(" ");
 
         StatefulWidget::render(table, area, buf, state);
+    }
+}
+
+/// Panel wrapper for the revision graph that owns the Block, borders, focus styling,
+/// empty/loading states. Used by `ui.rs` in place of the previously inlined logic.
+pub struct RevisionGraphPanel<'a> {
+    pub repo: Option<&'a crate::domain::models::RepoStatus>,
+    pub theme: &'a Theme,
+    pub show_diffs: bool,
+    pub selected_file_index: Option<usize>,
+    pub spinner: &'a str,
+    pub focused_panel: Panel,
+    pub mode: AppMode,
+    pub revset: Option<&'a str>,
+}
+
+impl<'a> StatefulWidget for RevisionGraphPanel<'a> {
+    type State = TableState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let is_graph_focused = self.focused_panel == Panel::Graph;
+        let is_body_active = self.mode == AppMode::Normal || self.mode == AppMode::Diff;
+
+        let (border_style, title_style, borders, border_type) =
+            if is_graph_focused && is_body_active {
+                (
+                    self.theme.border_focus,
+                    self.theme.header_active,
+                    Borders::ALL,
+                    BorderType::Thick,
+                )
+            } else if is_body_active {
+                (
+                    self.theme.border,
+                    self.theme.header_item,
+                    Borders::RIGHT,
+                    BorderType::Plain,
+                )
+            } else {
+                (
+                    self.theme.commit_id_dim,
+                    self.theme.header_item,
+                    Borders::RIGHT,
+                    BorderType::Rounded,
+                )
+            };
+
+        let title_spans = if is_graph_focused && is_body_active {
+            vec![
+                Span::styled(format!(" {} ", glyphs::FOCUS), self.theme.border_focus),
+                Span::styled("REVISION GRAPH", title_style),
+                Span::raw(" "),
+            ]
+        } else {
+            vec![
+                Span::raw(" "),
+                Span::styled("REVISION GRAPH", title_style),
+                Span::raw(" "),
+            ]
+        };
+
+        let block = Block::default()
+            .title(Line::from(title_spans))
+            .title_bottom(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("j/k", self.theme.footer_segment_key),
+                Span::raw(": navigate "),
+                Span::styled("d", self.theme.footer_segment_key),
+                Span::raw(": describe "),
+            ]))
+            .borders(borders)
+            .border_type(border_type)
+            .border_style(border_style);
+
+        let inner = block.inner(area);
+
+        if let Some(repo) = self.repo {
+            if repo.graph.is_empty() {
+                let message = if let Some(revset) = self.revset {
+                    if revset == "conflicts()" {
+                        " 🎉 No Conflicts Found ".to_string()
+                    } else {
+                        format!(" No results for: {} ", revset)
+                    }
+                } else {
+                    " Repository is empty ".to_string()
+                };
+
+                if inner.width > 0 && inner.height > 0 {
+                    let lines = vec![
+                        Line::from(""),
+                        Line::from(Span::styled(message, self.theme.status_info)),
+                        Line::from(""),
+                    ];
+                    let centered_area = Rect {
+                        x: inner.x,
+                        y: (inner.y + inner.height / 2).saturating_sub(1),
+                        width: inner.width,
+                        height: 3.min(inner.height),
+                    };
+                    if centered_area.width > 0 && centered_area.height > 0 {
+                        Paragraph::new(lines)
+                            .alignment(Alignment::Center)
+                            .render(centered_area, buf);
+                    }
+                }
+            } else if inner.width > 0 && inner.height > 0 {
+                let graph = RevisionGraph {
+                    repo,
+                    theme: self.theme,
+                    show_diffs: self.show_diffs,
+                    selected_file_index: self.selected_file_index,
+                };
+                StatefulWidget::render(graph, inner, buf, state);
+            }
+        } else if inner.width > 0 && inner.height > 0 {
+            // Loading state
+            let logo_ascii = [
+                r"   _ _   _ ___   ___ ",
+                r"  | | | | |   \ / _ \",
+                r" _| | |_| | |) | (_) |",
+                r"|___|_____|___/ \___/ ",
+            ];
+            let mut lines: Vec<Line> = logo_ascii
+                .iter()
+                .map(|l| Line::from(Span::styled(*l, self.theme.header_logo)))
+                .collect();
+            lines.push(Line::from(""));
+            lines.push(Line::from(vec![
+                Span::styled(self.spinner.to_string(), self.theme.header_logo),
+                Span::raw(" Loading Jujutsu Repository... "),
+            ]));
+
+            let logo_height: u16 = 6;
+            let centered_area = Rect {
+                x: inner.x,
+                y: (inner.y + inner.height / 2).saturating_sub(logo_height / 2),
+                width: inner.width,
+                height: logo_height.min(inner.height),
+            };
+            if centered_area.width > 0 && centered_area.height > 0 {
+                Paragraph::new(lines)
+                    .alignment(Alignment::Center)
+                    .render(centered_area, buf);
+            }
+        }
+
+        block.render(area, buf);
     }
 }

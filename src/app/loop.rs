@@ -975,10 +975,12 @@ mod tests {
         mock.expect_get_operation_log()
             .returning(|_, _, _| {
                 Ok(crate::domain::models::RepoStatus {
+                    repo_name: "test-repo".to_string(),
                     operation_id: "test".to_string(),
                     workspace_id: "default".to_string(),
                     working_copy_id: crate::domain::models::CommitId("wc".to_string()),
                     graph: vec![crate::domain::models::GraphRow {
+                        timestamp_secs: 0,
                         commit_id: crate::domain::models::CommitId("wc".to_string()),
                         change_id: "wc".to_string(),
                         description: "desc".to_string(),

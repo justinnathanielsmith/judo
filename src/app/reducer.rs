@@ -466,7 +466,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::OperationCompleted(result) => {
             state.active_tasks.pop();
             if state.mode == AppMode::Loading {
-                state.mode = if state.repo.is_some() { AppMode::Normal } else { AppMode::NoRepo };
+                state.mode = if state.repo.is_some() {
+                    AppMode::Normal
+                } else {
+                    AppMode::NoRepo
+                };
             }
             match result {
                 Ok(msg) => {
@@ -585,10 +589,12 @@ fn refresh_derived_state(state: &mut AppState) {
         let immutable_count = repo.graph.iter().filter(|r| r.is_immutable).count();
 
         state.header_state.repo_name = repo.repo_name.clone();
-        
+
         // Find branch/bookmark of working copy
         let wc_id = &repo.working_copy_id;
-        state.header_state.branch = repo.graph.iter()
+        state.header_state.branch = repo
+            .graph
+            .iter()
             .find(|r| r.commit_id == *wc_id)
             .and_then(|r| r.bookmarks.first())
             .cloned()
@@ -634,11 +640,14 @@ fn refresh_derived_state(state: &mut AppState) {
 
             // Prepare lanes for parents (and for the connector lines)
             active_commits[current_lane] = None;
-            
+
             let mut parent_cols = Vec::new();
             for parent in &row.parents {
                 let parent_id = &parent.0;
-                let parent_lane = if let Some(pos) = active_commits.iter().position(|l| l.as_ref() == Some(parent_id)) {
+                let parent_lane = if let Some(pos) = active_commits
+                    .iter()
+                    .position(|l| l.as_ref() == Some(parent_id))
+                {
                     pos
                 } else if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
                     active_commits[pos] = Some(parent_id.clone());
@@ -672,6 +681,7 @@ mod tests {
         let mut graph = Vec::new();
         for i in 0..count {
             graph.push(GraphRow {
+                timestamp_secs: 0,
                 commit_id: CommitId(format!("commit-{}", i)),
                 change_id: format!("change-{}", i),
                 description: "desc".to_string(),
@@ -765,6 +775,7 @@ mod tests {
     fn create_mock_repo(num_rows: usize) -> RepoStatus {
         let graph = (0..num_rows)
             .map(|i| GraphRow {
+                timestamp_secs: 0,
                 commit_id: CommitId(format!("commit{}", i)),
                 change_id: format!("change{}", i),
                 description: format!("desc{}", i),
@@ -923,6 +934,7 @@ mod tests {
 
         // Reset on commit change
         state.repo.as_mut().unwrap().graph.push(GraphRow {
+            timestamp_secs: 0,
             commit_id: CommitId("c2".to_string()),
             change_id: "ch2".to_string(),
             description: "d2".to_string(),
@@ -1004,10 +1016,27 @@ mod tests {
 
             update(&mut state, Action::CancelMode);
 
-            assert_eq!(state.mode, AppMode::Normal, "Mode should reset to Normal from {:?}", mode);
-            assert_eq!(state.last_error, None, "Error should be cleared from {:?}", mode);
-            assert_eq!(state.context_menu, None, "Context menu should be cleared from {:?}", mode);
-            assert!(state.text_area.is_empty(), "Text area should be cleared from {:?}", mode);
+            assert_eq!(
+                state.mode,
+                AppMode::Normal,
+                "Mode should reset to Normal from {:?}",
+                mode
+            );
+            assert_eq!(
+                state.last_error, None,
+                "Error should be cleared from {:?}",
+                mode
+            );
+            assert_eq!(
+                state.context_menu, None,
+                "Context menu should be cleared from {:?}",
+                mode
+            );
+            assert!(
+                state.text_area.is_empty(),
+                "Text area should be cleared from {:?}",
+                mode
+            );
         }
     }
 
@@ -1038,7 +1067,7 @@ mod tests {
 
         update(&mut state, Action::ToggleHelp);
         assert_eq!(state.mode, AppMode::Normal);
-        
+
         // Ensure CancelMode also exits Help
         update(&mut state, Action::ToggleHelp);
         assert_eq!(state.mode, AppMode::Help);
@@ -1076,6 +1105,7 @@ mod tests {
 
         let mut state = AppState {
             repo: Some(RepoStatus {
+                repo_name: "test-repo".to_string(),
                 operation_id: "op".to_string(),
                 workspace_id: "ws".to_string(),
                 working_copy_id: CommitId("A".to_string()),
@@ -1087,21 +1117,21 @@ mod tests {
         refresh_derived_state(&mut state);
 
         let repo = state.repo.as_ref().unwrap();
-        
+
         // Row A: node at 0, parents [0, 1]
         assert_eq!(repo.graph[0].visual.column, 0);
         assert_eq!(repo.graph[0].visual.parent_columns, vec![0, 1]);
-        
+
         // Row B: node at 0, parent [0]. Lane 1 (C) is active.
         assert_eq!(repo.graph[1].visual.column, 0);
         assert_eq!(repo.graph[1].visual.parent_columns, vec![0]);
         assert_eq!(repo.graph[1].visual.active_lanes, vec![true, true]);
-        
+
         // Row C: node at 1, parent [0]. Lane 0 (D, from B) is active.
         assert_eq!(repo.graph[2].visual.column, 1);
         assert_eq!(repo.graph[2].visual.parent_columns, vec![0]);
         assert_eq!(repo.graph[2].visual.active_lanes, vec![true, true]);
-        
+
         // Row D: node at 0, no parents.
         assert_eq!(repo.graph[3].visual.column, 0);
         assert!(repo.graph[3].visual.parent_columns.is_empty());

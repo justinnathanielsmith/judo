@@ -1,16 +1,16 @@
-use crate::app::state::{AppMode, AppState, Panel};
-use crate::components::diff_view::DiffView;
+use crate::app::state::{AppMode, AppState};
+use crate::components::diff_view::DiffViewPanel;
 use crate::components::footer::Footer;
-use crate::components::revision_graph::RevisionGraph;
+use crate::components::header::Header;
+use crate::components::revision_graph::RevisionGraphPanel;
 use crate::components::welcome::Welcome;
 use crate::domain::models::GraphRow;
-use crate::theme::{glyphs, Theme};
+use crate::theme::Theme;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Row, Table},
     Frame,
 };
 
@@ -72,254 +72,42 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
 
     let layout = get_layout(f.area(), app_state);
 
-    // --- Powerline Header ---
+    // --- Header ---
     if layout.main[0].width > 0 && layout.main[0].height > 0 {
-        // Segment background colors for separator transitions
-        let logo_bg = theme.header_logo.bg.unwrap_or(Color::Reset);
-        let repo_bg = theme.header_repo.bg.unwrap_or(Color::Reset);
-        let branch_bg = theme.header_branch.bg.unwrap_or(Color::Reset);
-        let stats_bg = theme.header_stats.bg.unwrap_or(Color::Reset);
-        let base_bg = theme.header.bg.unwrap_or(Color::Reset);
-
-        // Separator styles: fg = current segment bg, bg = next segment bg
-        let sep_logo_repo = Style::default().fg(logo_bg).bg(repo_bg);
-        let sep_repo_branch = Style::default().fg(repo_bg).bg(branch_bg);
-        let sep_branch_stats = Style::default().fg(branch_bg).bg(stats_bg);
-        let sep_stats_base = Style::default().fg(stats_bg).bg(base_bg);
-
-        let repo_name = if app_state.header_state.repo_name.is_empty() {
-            "no repo".to_string()
-        } else {
-            app_state.header_state.repo_name.clone()
+        let header = Header {
+            state: &app_state.header_state,
+            theme,
+            terminal_width: f.area().width,
         };
-        let branch_name = if app_state.header_state.branch.is_empty() {
-            "(detached)".to_string()
-        } else {
-            app_state.header_state.branch.clone()
-        };
-        let stats_text = app_state.header_state.stats.clone();
-
-        let header_spans = vec![
-            // Logo segment
-            Span::styled(format!(" {} JUDO ", glyphs::REPO), theme.header_logo),
-            Span::styled(glyphs::SEP_RIGHT, sep_logo_repo),
-            // Repo segment
-            Span::styled(format!(" {} ", repo_name), theme.header_repo),
-            Span::styled(glyphs::SEP_RIGHT, sep_repo_branch),
-            // Branch segment
-            Span::styled(
-                format!(" {} {} ", glyphs::BRANCH, branch_name),
-                theme.header_branch,
-            ),
-            Span::styled(glyphs::SEP_RIGHT, sep_branch_stats),
-            // Stats segment
-            Span::styled(format!(" {} ", stats_text), theme.header_stats),
-            Span::styled(glyphs::SEP_RIGHT, sep_stats_base),
-            // Fill rest of line
-            Span::styled(" ".repeat(f.area().width as usize), theme.header),
-        ];
-
-        let header = Paragraph::new(Line::from(header_spans)).style(theme.header);
         f.render_widget(header, layout.main[0]);
     }
 
-    // Left: Revision Graph
-    let is_graph_focused = app_state.focused_panel == Panel::Graph;
-    let is_body_active = app_state.mode == AppMode::Normal || app_state.mode == AppMode::Diff;
-
-    let (graph_border_style, graph_title_style, graph_borders, graph_border_type) =
-        if is_graph_focused && is_body_active {
-            (
-                theme.border_focus,
-                theme.header_active,
-                Borders::ALL,
-                BorderType::Thick,
-            )
-        } else if is_body_active {
-            (
-                theme.border,
-                theme.header_item,
-                Borders::RIGHT,
-                BorderType::Plain,
-            )
-        } else {
-            (
-                theme.commit_id_dim,
-                theme.header_item,
-                Borders::RIGHT,
-                BorderType::Rounded,
-            )
-        };
-
-    // Build graph title with optional focus indicator
-    let graph_title_spans = if is_graph_focused && is_body_active {
-        vec![
-            Span::styled(format!(" {} ", glyphs::FOCUS), theme.border_focus),
-            Span::styled("REVISION GRAPH", graph_title_style),
-            Span::raw(" "),
-        ]
-    } else {
-        vec![
-            Span::raw(" "),
-            Span::styled("REVISION GRAPH", graph_title_style),
-            Span::raw(" "),
-        ]
-    };
-
-    let graph_block = Block::default()
-        .title(Line::from(graph_title_spans))
-        .title_bottom(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("j/k", theme.footer_segment_key),
-            Span::raw(": navigate "),
-            Span::styled("d", theme.footer_segment_key),
-            Span::raw(": describe "),
-        ]))
-        .borders(graph_borders)
-        .border_type(graph_border_type)
-        .border_style(graph_border_style);
-
+    // --- Left: Revision Graph Panel ---
     if layout.body[0].width > 0 && layout.body[0].height > 0 {
-        if let Some(repo) = &app_state.repo {
-            if repo.graph.is_empty() {
-                let message = if let Some(revset) = &app_state.revset {
-                    if revset == "conflicts()" {
-                        " 🎉 No Conflicts Found "
-                    } else {
-                        &format!(" No results for: {} ", revset)
-                    }
-                } else {
-                    " Repository is empty "
-                };
-
-                let inner_area = graph_block.inner(layout.body[0]);
-                let lines = vec![
-                    Line::from(""),
-                    Line::from(Span::styled(message, theme.status_info)),
-                    Line::from(""),
-                ];
-                let p = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
-
-                let centered_area = Rect {
-                    x: inner_area.x,
-                    y: (inner_area.y + inner_area.height / 2).saturating_sub(1),
-                    width: inner_area.width,
-                    height: 3.min(inner_area.height),
-                };
-                if centered_area.width > 0 && centered_area.height > 0 {
-                    f.render_widget(p, centered_area);
-                }
-            } else {
-                let graph = RevisionGraph {
-                    repo,
-                    theme,
-                    show_diffs: app_state.show_diffs,
-                    selected_file_index: app_state.selected_file_index,
-                };
-                f.render_stateful_widget(
-                    graph,
-                    graph_block.inner(layout.body[0]),
-                    &mut app_state.log_list_state,
-                );
-            }
-        } else {
-            let logo_ascii = [
-                r"   _ _   _ ___   ___ ",
-                r"  | | | | |   \ / _ \",
-                r" _| | |_| | |) | (_) |",
-                r"|___|_____|___/ \___/ ",
-            ];
-
-            let mut lines: Vec<Line> = logo_ascii
-                .iter()
-                .map(|l| Line::from(Span::styled(*l, theme.header_logo)))
-                .collect();
-            lines.push(Line::from(""));
-            lines.push(Line::from(vec![
-                Span::styled(app_state.spinner.clone(), theme.header_logo),
-                Span::raw(" Loading Jujutsu Repository... "),
-            ]));
-
-            let loading = Paragraph::new(lines).alignment(ratatui::layout::Alignment::Center);
-
-            let area = layout.body[0];
-            let logo_height = 6;
-            let centered_area = Rect {
-                x: area.x,
-                y: (area.y + area.height / 2).saturating_sub(logo_height / 2),
-                width: area.width,
-                height: logo_height.min(area.height),
-            };
-            if centered_area.width > 0 && centered_area.height > 0 {
-                f.render_widget(loading, centered_area);
-            }
-        }
-        f.render_widget(graph_block, layout.body[0]);
+        let panel = RevisionGraphPanel {
+            repo: app_state.repo.as_ref(),
+            theme,
+            show_diffs: app_state.show_diffs,
+            selected_file_index: app_state.selected_file_index,
+            spinner: &app_state.spinner,
+            focused_panel: app_state.focused_panel,
+            mode: app_state.mode,
+            revset: app_state.revset.as_deref(),
+        };
+        f.render_stateful_widget(panel, layout.body[0], &mut app_state.log_list_state);
     }
 
-    // Right: Diff View
+    // --- Right: Diff View Panel ---
     if app_state.show_diffs && layout.body[1].width > 0 && layout.body[1].height > 0 {
-        let is_diff_focused = app_state.focused_panel == Panel::Diff;
-        let (diff_border_style, diff_title_style, diff_borders, diff_border_type) =
-            if is_diff_focused && is_body_active {
-                (
-                    theme.border_focus,
-                    theme.header_active,
-                    Borders::ALL,
-                    BorderType::Thick,
-                )
-            } else if is_body_active {
-                (
-                    theme.border,
-                    theme.header_item,
-                    Borders::LEFT,
-                    BorderType::Plain,
-                )
-            } else {
-                (
-                    theme.commit_id_dim,
-                    theme.header_item,
-                    Borders::LEFT,
-                    BorderType::Rounded,
-                )
-            };
-
-        // Build diff title with optional focus indicator and DIFF glyph
-        let diff_title_spans = if is_diff_focused && is_body_active {
-            vec![
-                Span::styled(format!(" {} ", glyphs::FOCUS), theme.border_focus),
-                Span::styled(format!("{} DIFF VIEW", glyphs::DIFF), diff_title_style),
-                Span::raw(" "),
-            ]
-        } else {
-            vec![
-                Span::raw(" "),
-                Span::styled(format!("{} DIFF VIEW", glyphs::DIFF), diff_title_style),
-                Span::raw(" "),
-            ]
-        };
-
-        let diff_block = Block::default()
-            .title(Line::from(diff_title_spans))
-            .title_bottom(Line::from(vec![
-                Span::raw(" "),
-                Span::styled("PgUp/PgDn", theme.footer_segment_key),
-                Span::raw(": scroll "),
-                Span::styled("[/]", theme.footer_segment_key),
-                Span::raw(": hunks "),
-            ]))
-            .borders(diff_borders)
-            .border_type(diff_border_type)
-            .border_style(diff_border_style);
-
-        let diff_view = DiffView {
+        let panel = DiffViewPanel {
             diff_content: app_state.current_diff.as_deref(),
             scroll_offset: app_state.diff_scroll,
             theme,
             hunk_highlight_time: app_state.hunk_highlight_time,
+            focused_panel: app_state.focused_panel,
+            mode: app_state.mode,
         };
-        f.render_widget(diff_view, diff_block.inner(layout.body[1]));
-        f.render_widget(diff_block, layout.body[1]);
+        f.render_widget(panel, layout.body[1]);
     }
 
     // --- Footer ---
@@ -371,7 +159,6 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
                 .border_style(theme.border_focus);
 
             let inner_area = block.inner(area);
-            // Add some padding inside the block
             let padded_area = Rect {
                 x: inner_area.x + 1,
                 y: inner_area.y + 1,
@@ -461,7 +248,6 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
                     .border_type(BorderType::Double)
                     .border_style(theme.status_error);
 
-                // Ensure there's enough height to show the message
                 let text_lines = vec![
                     Line::from(""),
                     Line::from(Span::styled(err.clone(), theme.footer_segment_val)),
@@ -530,7 +316,7 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         return;
     }
     draw_drop_shadow(f, help_area);
-    f.render_widget(Clear, help_area); // Clear the background
+    f.render_widget(Clear, help_area);
 
     let block = Block::default()
         .title(Line::from(vec![
@@ -542,7 +328,7 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         .border_type(BorderType::Rounded)
         .border_style(theme.border_focus);
 
-    use ratatui::widgets::{Cell, Row, Table};
+    use ratatui::widgets::Cell;
 
     let key_style = theme.footer_segment_key;
     let desc_style = theme.list_item;
