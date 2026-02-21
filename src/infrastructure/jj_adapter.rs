@@ -98,6 +98,24 @@ impl JjAdapter {
             diff_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DIFFS)),
         })
     }
+
+    async fn validate_commit(&self, commit_id: &CommitId) -> Result<JjCommitId> {
+        let repo = {
+            let ws = self.workspace.lock().await;
+            ws.repo_loader().load_at_head()?
+        };
+        let id = JjCommitId::try_from_hex(&commit_id.0)
+            .ok_or_else(|| anyhow!("Invalid commit ID format: {}", commit_id.0))?;
+        
+        if !repo.view().heads().contains(&id) {
+            // If it's not a head, it might be an ancestor. 
+            // We check if the store has it and if it's visible in the current index.
+            if !repo.index().has_id(&id).map_err(|e| anyhow!(e))? {
+                return Err(anyhow!("Commit {} is no longer valid or has been rewritten/abandoned.", commit_id.0));
+            }
+        }
+        Ok(id)
+    }
 }
 
 #[async_trait]
@@ -420,6 +438,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn edit(&self, commit_id: &CommitId) -> Result<()> {
+        self.validate_commit(commit_id).await?;
         let ws_root = self.workspace.lock().await.workspace_root().to_path_buf();
         let output = tokio::process::Command::new("jj").arg("edit").arg(&commit_id.0)
             .current_dir(ws_root).output().await?;
@@ -427,6 +446,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn squash(&self, commit_id: &CommitId) -> Result<()> {
+        self.validate_commit(commit_id).await?;
         let ws_root = self.workspace.lock().await.workspace_root().to_path_buf();
         let output = tokio::process::Command::new("jj").arg("squash").arg("-r").arg(&commit_id.0)
             .current_dir(ws_root).output().await?;
@@ -434,6 +454,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn new_child(&self, commit_id: &CommitId) -> Result<()> {
+        self.validate_commit(commit_id).await?;
         let ws_root = self.workspace.lock().await.workspace_root().to_path_buf();
         let output = tokio::process::Command::new("jj").arg("new").arg(&commit_id.0)
             .current_dir(ws_root).output().await?;
@@ -441,6 +462,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn abandon(&self, commit_id: &CommitId) -> Result<()> {
+        self.validate_commit(commit_id).await?;
         let ws_root = self.workspace.lock().await.workspace_root().to_path_buf();
         let output = tokio::process::Command::new("jj").arg("abandon").arg(&commit_id.0)
             .current_dir(ws_root).output().await?;
@@ -448,6 +470,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
+        self.validate_commit(commit_id).await?;
         let ws_root = self.workspace.lock().await.workspace_root().to_path_buf();
         let output = tokio::process::Command::new("jj")
             .arg("bookmark").arg("set").arg(name).arg("-r").arg(&commit_id.0)
