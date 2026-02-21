@@ -10,6 +10,7 @@ use jj_lib::{
     local_working_copy::LocalWorkingCopyFactory,
     object_id::ObjectId,
     op_store::RefTarget,
+    op_walk,
     repo::{Repo, StoreFactories},
     settings::UserSettings,
     working_copy::WorkingCopyFactory,
@@ -113,13 +114,13 @@ impl JjAdapter {
 #[async_trait]
 impl VcsFacade for JjAdapter {
  async fn get_operation_log(&self) -> Result<RepoStatus> {
-        // Workspace is !Sync, so we lock it to access loader
-        let repo = {
-            let ws = self.workspace.lock().await;
-            ws.repo_loader().load_at_head()?
-        };
-
-        let op_id = repo.operation().id().clone().hex();
+     // Workspace is !Sync, so we lock it to access loader
+     let repo = {
+         let ws = self.workspace.lock().await;
+         let op_id = ws.working_copy().operation_id();
+         let op = ws.repo_loader().load_operation(&op_id)?;
+         ws.repo_loader().load_at(&op)?
+     };        let op_id = repo.operation().id().clone().hex();
 
         let (workspace_id, _) = repo
             .view()
@@ -409,15 +410,13 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn describe_revision(&self, change_id: &str, message: &str) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let change_id = change_id.to_string();
         let message = message.to_string();
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let commit_id = JjCommitId::try_from_hex(&change_id)
                 .ok_or_else(|| anyhow!("Invalid commit ID"))?;
 
@@ -433,10 +432,13 @@ impl VcsFacade for JjAdapter {
 
             mut_repo.rebase_descendants()?;
 
-            tx.commit("describe revision")?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit("describe revision")?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn snapshot(&self) -> Result<String> {
@@ -463,14 +465,12 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn edit(&self, commit_id: &CommitId) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let commit_id_hex = commit_id.0.clone();
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let id = JjCommitId::try_from_hex(&commit_id_hex)
                 .ok_or_else(|| anyhow!("Invalid commit ID"))?;
             let commit = repo.store().get_commit(&id)?;
@@ -489,17 +489,18 @@ impl VcsFacade for JjAdapter {
 
             mut_repo.set_wc_commit(workspace_id.clone(), commit.id().clone())?;
 
-            tx.commit("edit revision")?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit("edit revision")?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn squash(&self, commit_id: &CommitId) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let commit_id_hex = commit_id.0.clone();
 
@@ -538,7 +539,7 @@ impl VcsFacade for JjAdapter {
             .await?
         };
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let mut tx = repo.start_transaction();
             let mut_repo = tx.repo_mut();
 
@@ -562,21 +563,22 @@ impl VcsFacade for JjAdapter {
             // Abandon the squashed commit
             mut_repo.record_abandoned_commit(&commit);
 
-            tx.commit("squash revision")?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit("squash revision")?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn new_child(&self, commit_id: &CommitId) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let commit_id_hex = commit_id.0.clone();
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let id = JjCommitId::try_from_hex(&commit_id_hex)
                 .ok_or_else(|| anyhow!("Invalid commit ID"))?;
             let commit = repo.store().get_commit(&id)?;
@@ -593,21 +595,22 @@ impl VcsFacade for JjAdapter {
 
             mut_repo.new_commit(vec![id], tree).write()?;
 
-            tx.commit("new revision")?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit("new revision")?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn abandon(&self, commit_id: &CommitId) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let commit_id_hex = commit_id.0.clone();
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let id = JjCommitId::try_from_hex(&commit_id_hex)
                 .ok_or_else(|| anyhow!("Invalid commit ID"))?;
             let commit = repo.store().get_commit(&id)?;
@@ -618,60 +621,99 @@ impl VcsFacade for JjAdapter {
             mut_repo.record_abandoned_commit(&commit);
             mut_repo.rebase_descendants()?;
 
-            tx.commit("abandon revision")?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit("abandon revision")?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let commit_id_hex = commit_id.0.clone();
         let name = name.to_string();
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let id = JjCommitId::try_from_hex(&commit_id_hex)
                 .ok_or_else(|| anyhow!("Invalid commit ID"))?;
 
             let mut tx = repo.start_transaction();
-            tx.repo_mut().set_local_bookmark_target(RefName::new(&name), RefTarget::normal(id));
+            tx.repo_mut()
+                .set_local_bookmark_target(RefName::new(&name), RefTarget::normal(id));
 
-            tx.commit(format!("set bookmark {}", name))?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit(format!("set bookmark {}", name))?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn delete_bookmark(&self, name: &str) -> Result<()> {
-        let repo = {
-            let workspace = self.workspace.lock().await;
-            workspace.repo_loader().load_at_head()?
-        };
+        let mut ws = self.workspace.lock().await;
+        let repo = ws.repo_loader().load_at_head()?;
 
         let name = name.to_string();
 
-        tokio::task::spawn_blocking(move || {
+        let new_repo = tokio::task::spawn_blocking(move || {
             let mut tx = repo.start_transaction();
-            tx.repo_mut().set_local_bookmark_target(RefName::new(&name), RefTarget::absent());
+            tx.repo_mut()
+                .set_local_bookmark_target(RefName::new(&name), RefTarget::absent());
 
-            tx.commit(format!("delete bookmark {}", name))?;
-            Ok(())
+            Ok::<_, anyhow::Error>(tx.commit(format!("delete bookmark {}", name))?)
         })
-        .await?
+        .await??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(new_repo.operation().id().clone())?;
+        Ok(())
     }
 
     async fn undo(&self) -> Result<()> {
-        // TBD: Implementation of operation undo
+        let mut ws = self.workspace.lock().await;
+        let op_id = ws.working_copy().operation_id();
+        let op = ws.repo_loader().load_operation(&op_id)?;
+        let parent_op = op
+            .parents()
+            .next()
+            .ok_or_else(|| anyhow!("No operation to undo"))??;
+
+        let locked_ws = ws.start_working_copy_mutation()?;
+        locked_ws.finish(parent_op.id().clone())?;
         Ok(())
     }
 
     async fn redo(&self) -> Result<()> {
-        // TBD: Implementation of operation redo
-        Ok(())
+        let mut ws = self.workspace.lock().await;
+        let op_id = ws.working_copy().operation_id();
+
+        let op_heads_store = ws.repo_loader().op_heads_store();
+        let heads = op_heads_store.get_op_heads().await?;
+        let loader = ws.repo_loader();
+        let head_ops: Vec<_> = heads
+            .iter()
+            .map(|id| loader.load_operation(id))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut walk = op_walk::walk_ancestors(&head_ops);
+        while let Some(op_result) = walk.next() {
+            let op = op_result?;
+            if op
+                .parents()
+                .any(|p_res| p_res.as_ref().map(|p| p.id()).ok() == Some(&op_id))
+            {
+                let locked_ws = ws.start_working_copy_mutation()?;
+                locked_ws.finish(op.id().clone())?;
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("No operation to redo"))
     }
 }
 
@@ -774,7 +816,7 @@ mod tests {
 
         // Setup 150 commits
         {
-            let workspace = adapter.workspace.lock().await;
+            let mut workspace = adapter.workspace.lock().await;
             let repo = workspace.repo_loader().load_at_head()?;
 
             let mut tx = repo.start_transaction();
@@ -802,7 +844,9 @@ mod tests {
 
             mut_repo.set_wc_commit(workspace_id.clone(), parent_id.clone())?;
 
-            tx.commit("create 150 commits")?;
+            let new_repo = tx.commit("create 150 commits")?;
+            let locked_ws = workspace.start_working_copy_mutation()?;
+            locked_ws.finish(new_repo.operation().id().clone())?;
         }
 
         let log = adapter.get_operation_log().await?;
@@ -841,6 +885,41 @@ mod tests {
         let status = adapter.get_operation_log().await?;
         let commit = status.graph.first().unwrap();
         assert!(!commit.bookmarks.contains(&"test-bookmark".to_string()));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_undo_redo() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path();
+
+        let config = StackedConfig::with_defaults();
+        let user_settings = UserSettings::from_config(config)?;
+
+        Workspace::init_simple(&user_settings, path)?;
+        let adapter = JjAdapter::load_at(path.to_path_buf())?;
+
+        let initial_status = adapter.get_operation_log().await?;
+        let initial_op_id = initial_status.operation_id;
+
+        // Perform an operation (e.g., set a bookmark)
+        let commit_id = initial_status.graph.first().unwrap().commit_id.clone();
+        adapter.set_bookmark(&commit_id, "undo-test").await?;
+
+        let mid_status = adapter.get_operation_log().await?;
+        let mid_op_id = mid_status.operation_id;
+        assert_ne!(initial_op_id, mid_op_id);
+
+        // Undo
+        adapter.undo().await?;
+        let undo_status = adapter.get_operation_log().await?;
+        assert_eq!(undo_status.operation_id, initial_op_id);
+
+        // Redo
+        adapter.redo().await?;
+        let redo_status = adapter.get_operation_log().await?;
+        assert_eq!(redo_status.operation_id, mid_op_id);
 
         Ok(())
     }
