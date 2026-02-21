@@ -20,6 +20,28 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log_list_state.select(Some(i));
             return handle_selection(state);
         }
+        Action::SelectNextFile => {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    let len = row.changed_files.len();
+                    if len > 0 {
+                        let current = state.selected_file_index.unwrap_or(0);
+                        state.selected_file_index = Some((current + 1) % len);
+                    }
+                }
+            }
+        }
+        Action::SelectPrevFile => {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    let len = row.changed_files.len();
+                    if len > 0 {
+                        let current = state.selected_file_index.unwrap_or(0);
+                        state.selected_file_index = Some(if current == 0 { len - 1 } else { current - 1 });
+                    }
+                }
+            }
+        }
         Action::ScrollDiffDown(amount) => {
             if let Some(diff) = &state.current_diff {
                 let max_scroll = diff.lines().count().saturating_sub(1) as u16;
@@ -100,6 +122,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::FocusDiff => {
             if state.show_diffs {
                 state.mode = AppMode::Diff;
+                if state.selected_file_index.is_none() {
+                    state.selected_file_index = Some(0);
+                }
             }
         }
         Action::FocusGraph => {
@@ -179,6 +204,9 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::Push(bookmark) => {
             state.mode = AppMode::Normal;
             return Some(Command::Push(bookmark));
+        }
+        Action::ResolveConflict(path) => {
+            return Some(Command::ResolveConflict(path));
         }
         Action::DescribeRevisionIntent => {
             state.mode = AppMode::Input;
@@ -414,6 +442,7 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
         if let Some(row) = repo.graph.get(idx) {
             let commit_id = row.commit_id.clone();
             state.diff_scroll = 0; // Reset scroll on selection change
+            state.selected_file_index = None;
             if let Some(cached_diff) = state.diff_cache.get(&commit_id) {
                 state.current_diff = Some(cached_diff.clone());
                 state.is_loading_diff = false;
@@ -492,7 +521,7 @@ fn refresh_derived_state(state: &mut AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::{CommitId, GraphRow, RepoStatus};
+    use crate::domain::models::{CommitId, GraphRow, RepoStatus, FileChange, FileStatus};
 
     fn create_dummy_repo(count: usize) -> RepoStatus {
         let mut graph = Vec::new();
@@ -704,5 +733,51 @@ mod tests {
         assert_eq!(state.header_state.op_id, "op");
         assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.column, 0);
         assert_eq!(state.repo.as_ref().unwrap().graph[0].visual.active_lanes, vec![true]);
+    }
+
+    #[test]
+    fn test_file_selection() {
+        let mut repo = create_mock_repo(1);
+        repo.graph[0].changed_files = vec![
+            FileChange { path: "f1".to_string(), status: FileStatus::Added },
+            FileChange { path: "f2".to_string(), status: FileStatus::Modified },
+        ];
+        
+        let mut state = AppState {
+            repo: Some(repo),
+            ..Default::default()
+        };
+        state.log_list_state.select(Some(0));
+
+        // Initial state
+        assert_eq!(state.selected_file_index, None);
+
+        // Select next file
+        update(&mut state, Action::SelectNextFile);
+        assert_eq!(state.selected_file_index, Some(1)); // (0+1)%2 = 1
+
+        update(&mut state, Action::SelectNextFile);
+        assert_eq!(state.selected_file_index, Some(0)); // (1+1)%2 = 0
+
+        // Select prev file
+        update(&mut state, Action::SelectPrevFile);
+        assert_eq!(state.selected_file_index, Some(1)); // (0-1)%2 = 1
+
+        // Reset on commit change
+        state.repo.as_mut().unwrap().graph.push(GraphRow {
+            commit_id: CommitId("c2".to_string()),
+            change_id: "ch2".to_string(),
+            description: "d2".to_string(),
+            author: "a".to_string(),
+            timestamp: "t".to_string(),
+            is_working_copy: false,
+            is_immutable: false,
+            parents: vec![],
+            bookmarks: vec![],
+            changed_files: vec![],
+            visual: crate::domain::models::GraphRowVisual::default(),
+        });
+        update(&mut state, Action::SelectNext);
+        assert_eq!(state.selected_file_index, None);
     }
 }

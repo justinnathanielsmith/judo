@@ -128,6 +128,7 @@ pub struct AppState<'a> {
     // --- UI State (Selection, Scroll) ---
     // We keep this separate so it persists even if `repo` data refreshes.
     pub log_list_state: TableState,
+    pub selected_file_index: Option<usize>,
 
     // --- Derived/Cached Data ---
     // Data fetched lazily based on selection (the "Debounced" content)
@@ -166,6 +167,7 @@ impl<'a> Default for AppState<'a> {
             is_loading_more: false,
             has_more: true,
             log_list_state: TableState::default(),
+            selected_file_index: None,
             current_diff: None,
             is_loading_diff: false,
             diff_scroll: 0,

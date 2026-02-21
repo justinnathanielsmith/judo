@@ -151,12 +151,25 @@ pub async fn run_loop<B: Backend>(
                                     KeyCode::Esc => Some(Action::CancelMode),
                                     KeyCode::Char('q') => Some(Action::Quit),
                                     KeyCode::Char('h') | KeyCode::Tab => Some(Action::FocusGraph),
-                                    KeyCode::Down | KeyCode::Char('j') => Some(Action::ScrollDiffDown(1)),
-                                    KeyCode::Up | KeyCode::Char('k') => Some(Action::ScrollDiffUp(1)),
+                                    KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNextFile),
+                                    KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrevFile),
                                     KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
                                     KeyCode::Char('[') => Some(Action::PrevHunk),
                                     KeyCode::Char(']') => Some(Action::NextHunk),
+                                    KeyCode::Char('m') | KeyCode::Enter => {
+                                        if let (Some(repo), Some(idx)) = (&app_state.repo, app_state.log_list_state.selected()) {
+                                            if let Some(row) = repo.graph.get(idx) {
+                                                if let Some(file_idx) = app_state.selected_file_index {
+                                                    if let Some(file) = row.changed_files.get(file_idx) {
+                                                        if file.status == crate::domain::models::FileStatus::Conflicted {
+                                                            Some(Action::ResolveConflict(file.path.clone()))
+                                                        } else { None }
+                                                    } else { None }
+                                                } else { None }
+                                            } else { None }
+                                        } else { None }
+                                    }
                                     _ => None,
                                 }
                             }
@@ -393,7 +406,42 @@ pub async fn run_loop<B: Backend>(
             }
 
             if let Some(cmd) = command {
-                handle_command(cmd, adapter.clone(), action_tx.clone()).await?;
+                if let Command::ResolveConflict(path) = cmd {
+                    // 1. Suspend TUI
+                    crossterm::terminal::disable_raw_mode()?;
+                    crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::LeaveAlternateScreen,
+                        crossterm::cursor::Show
+                    )?;
+
+                    // 2. Run external tool
+                    // We'll use 'jj resolve' which uses the configured tool
+                    let mut child = std::process::Command::new("jj")
+                        .arg("resolve")
+                        .arg(&path)
+                        .spawn()?;
+                    
+                    let status = child.wait()?;
+
+                    // 3. Resume TUI
+                    crossterm::terminal::enable_raw_mode()?;
+                    crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::EnterAlternateScreen,
+                        crossterm::cursor::Hide
+                    )?;
+                    terminal.clear()?;
+
+                    // 4. Trigger refresh
+                    let _ = action_tx.send(Action::OperationCompleted(if status.success() {
+                        Ok(format!("Resolved {}", path))
+                    } else {
+                        Err(format!("Resolve failed for {}", path))
+                    })).await;
+                } else {
+                    handle_command(cmd, adapter.clone(), action_tx.clone()).await?;
+                }
             }
         }
     }
@@ -709,6 +757,9 @@ async fn handle_command(
                     }
                 }
             });
+        }
+        Command::ResolveConflict(_) => {
+            // Handled specially in run_loop to allow TUI suspension
         }
     }
     Ok(())

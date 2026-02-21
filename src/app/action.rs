@@ -12,6 +12,8 @@ pub enum Action {
     SelectNext,
     SelectPrev,
     SelectIndex(usize),
+    SelectNextFile,
+    SelectPrevFile,
     ScrollDiffUp(u16),
     ScrollDiffDown(u16),
     NextHunk,
@@ -35,6 +37,7 @@ pub enum Action {
     Fetch,                              // `jj git fetch`
     PushIntent,                         // Trigger push (may prompt)
     Push(Option<String>),               // `jj git push [-b <bookmark>]`
+    ResolveConflict(String),            // `jj resolve --tool ... <path>`
     LoadMoreGraph,                      // Trigger pagination
 
     // --- UI Mode Transitions ---

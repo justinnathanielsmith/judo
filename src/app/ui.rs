@@ -95,6 +95,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
             repo,
             theme,
             show_diffs: app_state.show_diffs,
+            selected_file_index: app_state.selected_file_index,
         };
         f.render_stateful_widget(
             graph,

@@ -13,6 +13,7 @@ pub struct RevisionGraph<'a> {
     pub repo: &'a RepoStatus,
     pub theme: &'a Theme,
     pub show_diffs: bool,
+    pub selected_file_index: Option<usize>,
 }
 
 impl<'a> StatefulWidget for RevisionGraph<'a> {
@@ -113,13 +114,17 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
 
             // Line 3+: Files
             if is_selected && self.show_diffs {
-                for file in &row.changed_files {
-                    let (prefix, style) = match file.status {
+                for (file_idx, file) in row.changed_files.iter().enumerate() {
+                    let is_file_selected = self.selected_file_index == Some(file_idx);
+                    let (prefix, mut style) = match file.status {
                         FileStatus::Added => ("+ ", self.theme.diff_add),
                         FileStatus::Modified => ("~ ", self.theme.diff_modify),
                         FileStatus::Deleted => ("- ", self.theme.diff_remove),
                         FileStatus::Conflicted => ("! ", self.theme.diff_conflict),
                     };
+                    if is_file_selected {
+                        style = self.theme.list_selected;
+                    }
                     detail_lines.push(Line::from(Span::styled(
                         format!("{}{}", prefix, file.path),
                         style,

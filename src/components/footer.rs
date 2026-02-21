@@ -91,10 +91,10 @@ impl<'a> Footer<'a> {
                 FooterGroup {
                     name: "NAV",
                     items: vec![
-                        FooterItem { key: "j/k", desc: "scroll" },
+                        FooterItem { key: "j/k", desc: "file" },
                         FooterItem { key: "h/Tab", desc: "back" },
-                        FooterItem { key: "PgUp/Dn", desc: "page" },
-                        FooterItem { key: "[/]", desc: "hunk" },
+                        FooterItem { key: "PgUp/Dn", desc: "scroll" },
+                        FooterItem { key: "m/ENTER", desc: "merge" },
                     ],
                 },
                 FooterGroup {

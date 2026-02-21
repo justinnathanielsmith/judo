@@ -16,4 +16,5 @@ pub enum Command {
     Redo,
     Fetch,
     Push(Option<String>),
+    ResolveConflict(String),
 }
