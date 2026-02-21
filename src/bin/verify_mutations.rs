@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     println!("Snapshot result: {}", snap_res);
 
     println!("Fetching operation log for WC...");
-    let log = adapter.get_operation_log(None, 100).await?;
+    let log = adapter.get_operation_log(None, 100, None).await?;
     let wc_id = &log.working_copy_id;
     println!("Working Copy ID: {}", wc_id);
 
@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
     adapter.describe_revision(&wc_id.0, &new_desc).await?;
 
     println!("Verifying change...");
-    let log_new = adapter.get_operation_log(None, 100).await?;
+    let log_new = adapter.get_operation_log(None, 100, None).await?;
     let new_wc_id = &log_new.working_copy_id;
     println!("New Working Copy ID: {}", new_wc_id);
 

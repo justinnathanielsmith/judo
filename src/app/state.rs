@@ -18,6 +18,7 @@ pub enum AppMode {
     Loading,       // Blocking interaction (optional, often better handled with a flag)
     Diff,          // Focusing the diff window for scrolling
     ContextMenu,   // Right-click menu for actions
+    FilterInput,    // Inputting a revset filter
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -120,6 +121,7 @@ pub struct AppState<'a> {
     // --- JJ Data (The "Source of Truth") ---
     // We wrap this in Option because we might start before the repo is loaded.
     pub repo: Option<RepoStatus>,
+    pub revset: Option<String>,
     pub is_loading_more: bool,
     pub has_more: bool,
 
@@ -160,6 +162,7 @@ impl<'a> Default for AppState<'a> {
             status_message: None,
             status_clear_time: None,
             repo: None,
+            revset: None,
             is_loading_more: false,
             has_more: true,
             log_list_state: TableState::default(),

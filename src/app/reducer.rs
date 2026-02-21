@@ -64,6 +64,39 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::EnterCommandMode => {
             state.mode = AppMode::Command;
         }
+        Action::EnterFilterMode => {
+            state.mode = AppMode::FilterInput;
+            state.text_area = AppTextArea::default();
+            if let Some(revset) = &state.revset {
+                state.text_area.insert_str(revset);
+            }
+        }
+        Action::ApplyFilter(revset) => {
+            state.mode = AppMode::Normal;
+            let revset = if revset.trim().is_empty() {
+                None
+            } else {
+                Some(revset.trim().to_string())
+            };
+            state.revset = revset.clone();
+            state.log_list_state.select(Some(0));
+            return Some(Command::LoadRepo(None, 100, revset));
+        }
+        Action::FilterMine => {
+            state.revset = Some("mine()".to_string());
+            state.log_list_state.select(Some(0));
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterTrunk => {
+            state.revset = Some("trunk()".to_string());
+            state.log_list_state.select(Some(0));
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterConflicts => {
+            state.revset = Some("conflicts()".to_string());
+            state.log_list_state.select(Some(0));
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
         Action::FocusDiff => {
             if state.show_diffs {
                 state.mode = AppMode::Diff;
@@ -253,7 +286,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     // Deduplicate heads
                     heads.sort_by(|a, b| a.0.cmp(&b.0));
                     heads.dedup();
-                    return Some(Command::LoadRepo(Some(heads), 100));
+                    return Some(Command::LoadRepo(Some(heads), 100, state.revset.clone()));
                 } else {
                     state.has_more = false;
                 }
@@ -315,7 +348,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     state.status_message = Some(msg);
                     state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
                     state.diff_cache.clear(); // Clear cache as operations might change history
-                    return Some(Command::LoadRepo(None, 100));
+                    return Some(Command::LoadRepo(None, 100, state.revset.clone()));
                 }
                 Err(err) => state.last_error = Some(err),
             }

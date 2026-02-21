@@ -44,7 +44,7 @@ pub async fn run_loop<B: Backend>(
     });
 
     // Initial Load
-    handle_command(Command::LoadRepo(None, 100), adapter.clone(), action_tx.clone()).await?;
+    handle_command(Command::LoadRepo(None, 100, None), adapter.clone(), action_tx.clone()).await?;
 
 
     loop {
@@ -79,6 +79,22 @@ pub async fn run_loop<B: Backend>(
                                                 }
                                             } else { None }
                                         } else { None }
+                                    },
+                                    _ => {
+                                        Some(Action::TextAreaInput(key))
+                                    }
+                                }
+                            },
+                            _ => None,
+                        }
+                    },
+                    crate::app::state::AppMode::FilterInput => {
+                        match event {
+                            Event::Key(key) => {
+                                match key.code {
+                                    KeyCode::Esc => Some(Action::CancelMode),
+                                    KeyCode::Enter => {
+                                        Some(Action::ApplyFilter(app_state.text_area.lines().join("")))
                                     },
                                     _ => {
                                         Some(Action::TextAreaInput(key))
@@ -239,9 +255,13 @@ pub async fn run_loop<B: Backend>(
                                         } else { None }
                                     },
                                     KeyCode::Char('d') => Some(Action::DescribeRevisionIntent),
+                                    KeyCode::Char('m') => Some(Action::FilterMine),
+                                    KeyCode::Char('t') => Some(Action::FilterTrunk),
+                                    KeyCode::Char('c') => Some(Action::FilterConflicts),
                                     KeyCode::Char('u') => Some(Action::Undo),
                                     KeyCode::Char('U') => Some(Action::Redo),
                                     KeyCode::Char('f') => Some(Action::Fetch),
+                                    KeyCode::Char('/') => Some(Action::EnterFilterMode),
                                     KeyCode::Char('p') => Some(Action::PushIntent),
                                     KeyCode::PageDown => Some(Action::ScrollDiffDown(10)),
                                     KeyCode::PageUp => Some(Action::ScrollDiffUp(10)),
@@ -387,10 +407,10 @@ async fn handle_command(
     tx: mpsc::Sender<Action>,
 ) -> Result<()> {
     match command {
-        Command::LoadRepo(heads, limit) => {
+        Command::LoadRepo(heads, limit, revset) => {
             let is_batch = heads.is_some();
             tokio::spawn(async move {
-                match adapter.get_operation_log(heads, limit).await {
+                match adapter.get_operation_log(heads, limit, revset).await {
                     Ok(repo) => {
                         if is_batch {
                             let _ = tx.send(Action::GraphBatchLoaded(Box::new(repo))).await;

@@ -36,14 +36,15 @@ impl<'a> Footer<'a> {
         }
         match self.state.mode {
             AppMode::Normal => {
-                let mut groups = vec![
-                    FooterGroup {
-                        name: "NAV",
-                        items: vec![
-                            FooterItem { key: "j/k", desc: "move" },
-                        ],
-                    },
-                ];
+                let mut groups = Vec::new();
+                groups.push(FooterGroup {
+                    name: "NAV",
+                    items: vec![
+                        FooterItem { key: "j/k", desc: "move" },
+                        FooterItem { key: "/", desc: "filt" },
+                        FooterItem { key: "m/t/c", desc: "mine/trnk/conf" },
+                    ],
+                });
 
                 if self.state.show_diffs {
                     groups[0].items.push(FooterItem { key: "Tab", desc: "focus" });
@@ -103,7 +104,7 @@ impl<'a> Footer<'a> {
                     ],
                 },
             ],
-            AppMode::Input | AppMode::BookmarkInput => vec![
+            AppMode::Input | AppMode::BookmarkInput | AppMode::FilterInput => vec![
                 FooterGroup {
                     name: "INPUT",
                     items: vec![

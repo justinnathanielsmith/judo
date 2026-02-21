@@ -9,7 +9,7 @@ async fn main() -> Result<()> {
     println!("Adapter initialized.");
 
     println!("Fetching operation log...");
-    let log = adapter.get_operation_log(None, 100).await?;
+    let log = adapter.get_operation_log(None, 100, None).await?;
     println!("Operation ID: {}", log.operation_id);
     println!("Working Copy ID: {}", log.working_copy_id);
     println!("Graph has {} entries.", log.graph.len());

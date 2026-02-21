@@ -206,6 +206,26 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         f.render_widget(&app_state.text_area, padded_area);
     }
 
+    // --- Filter Input Modal ---
+    if app_state.mode == AppMode::FilterInput {
+        let area = centered_rect_fixed_height(60, 3, f.area());
+        f.render_widget(Clear, area);
+        let block = Block::default()
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(" FILTER (REVSET) ", theme.header_active),
+                Span::raw(" "),
+            ]))
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(theme.border_focus);
+
+        let inner_area = block.inner(area);
+        f.render_widget(block, area);
+        app_state.text_area.set_block(Block::default());
+        f.render_widget(&app_state.text_area, inner_area);
+    }
+
     // --- Context Menu Popup ---
     if let (AppMode::ContextMenu, Some(menu)) = (app_state.mode, &app_state.context_menu) {
         let area = menu.calculate_rect(f.area());
@@ -274,6 +294,26 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_y) / 2),
             Constraint::Percentage(percent_y),
             Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+fn centered_rect_fixed_height(percent_x: u16, height: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length((r.height.saturating_sub(height)) / 2),
+            Constraint::Length(height),
+            Constraint::Min(0),
         ])
         .split(r);
 

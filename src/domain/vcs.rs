@@ -9,6 +9,7 @@ pub trait VcsFacade: Send + Sync {
         &self,
         heads: Option<Vec<CommitId>>,
         limit: usize,
+        revset: Option<String>,
     ) -> Result<RepoStatus>;
 
     // Get diff for a specific commit

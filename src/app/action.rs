@@ -39,6 +39,11 @@ pub enum Action {
 
     // --- UI Mode Transitions ---
     EnterCommandMode,                      // Open command palette (:)
+    EnterFilterMode,                       // Open filter bar (/)
+    ApplyFilter(String),                   // Apply a revset filter
+    FilterMine,                            // Quick filter: mine()
+    FilterTrunk,                           // Quick filter: trunk()
+    FilterConflicts,                       // Quick filter: conflicts()
     EnterSquashMode,                       // Open squash selection modal
     FocusDiff,                             // Switch focus to diff window
     FocusGraph,                            // Switch focus to revision graph

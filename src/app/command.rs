@@ -2,7 +2,7 @@ use crate::domain::models::CommitId;
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    LoadRepo(Option<Vec<CommitId>>, usize),
+    LoadRepo(Option<Vec<CommitId>>, usize, Option<String>),
     LoadDiff(CommitId),
     DescribeRevision(CommitId, String),
     Snapshot,
