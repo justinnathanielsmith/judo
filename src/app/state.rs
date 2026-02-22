@@ -31,6 +31,7 @@ pub enum AppMode {
     NoRepo,         // No repository found, showing welcome screen
     CommandPalette, // Fuzzy finder for commands
     ThemeSelection, // Choosing a UI theme
+    RebaseInput,    // Inputting rebase destination
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

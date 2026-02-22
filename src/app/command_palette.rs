@@ -51,6 +51,11 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::DuplicateRevision(crate::domain::models::CommitId(String::new())),
         },
         CommandDefinition {
+            name: "Rebase",
+            description: "Rebase revision(s) onto a new destination",
+            action: Action::RebaseRevisionIntent,
+        },
+        CommandDefinition {
             name: "Set Bookmark",
             description: "Set a bookmark on the selected revision",
             action: Action::SetBookmarkIntent,

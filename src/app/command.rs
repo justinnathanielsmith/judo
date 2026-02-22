@@ -13,6 +13,7 @@ pub enum Command {
     Abandon(Vec<CommitId>),
     Absorb,
     Duplicate(Vec<CommitId>),
+    Rebase(Vec<CommitId>, String),
     SetBookmark(CommitId, String),
     DeleteBookmark(String),
     Undo,

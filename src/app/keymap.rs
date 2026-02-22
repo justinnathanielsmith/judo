@@ -103,6 +103,7 @@ impl KeyMap {
         global.insert(key_char('p'), Action::PushIntent);
         global.insert(key_char('?'), Action::ToggleHelp);
         global.insert(key_char('T'), Action::EnterThemeSelection);
+        global.insert(key_char('r'), Action::RebaseRevisionIntent);
         global.insert(key_code(KeyCode::PageDown), Action::ScrollDiffDown(10));
         global.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
         global.insert(key_char('['), Action::PrevHunk);
@@ -180,6 +181,23 @@ impl KeyMap {
                 }
                 _ => Some(Action::TextAreaInput(event)),
             };
+        } else if mode == super::state::AppMode::RebaseInput {
+            return match event.code {
+                KeyCode::Esc => Some(Action::CancelMode),
+                KeyCode::Enter => {
+                    let text = if let Some(input) = &state.input {
+                        input.text_area.lines().join("\n")
+                    } else {
+                        String::new()
+                    };
+                    if text.trim().is_empty() {
+                        return Some(Action::CancelMode);
+                    }
+                    let ids = state.get_selected_commit_ids();
+                    Some(Action::RebaseRevision(ids, text))
+                }
+                _ => Some(Action::TextAreaInput(event)),
+            };
         }
         self.global.get(&event).cloned()
     }
@@ -248,6 +266,7 @@ fn parse_action(s: &str) -> Option<Action> {
         "filterremotebookmarks" => Some(Action::FilterRemoteBookmarks),
         "filterworking" => Some(Action::FilterWorking),
         "clearfilter" => Some(Action::ClearFilter),
+        "rebase" => Some(Action::RebaseRevisionIntent),
         _ => None,
     }
 }

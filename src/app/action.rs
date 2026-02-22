@@ -26,27 +26,29 @@ pub enum Action {
 
     // --- JJ Domain Intents ---
     // These trigger async tasks
-    SnapshotWorkingCopy,                // `jj snapshot`
-    EditRevision(CommitId),             // `jj edit <rev>`
-    SquashRevision(CommitId),           // `jj squash -r <rev>`
-    NewRevision(CommitId),              // `jj new <rev>` (create child)
-    DescribeRevisionIntent,             // Start describing the selected revision
-    DescribeRevision(CommitId, String), // `jj describe <rev> -m "msg"`
-    AbandonRevision(CommitId),          // `jj abandon <rev>`
-    Absorb,                             // `jj absorb`
-    DuplicateRevision(CommitId),        // `jj duplicate -r <rev>`
-    SetBookmarkIntent,                  // Start setting a bookmark
-    SetBookmark(CommitId, String),      // `jj bookmark set <name> -r <rev>`
-    DeleteBookmarkIntent,               // Start deleting a bookmark (may prompt)
-    DeleteBookmark(String),             // `jj bookmark delete <name>`
-    Undo,                               // `jj undo`
-    Redo,                               // `jj redo`
-    Fetch,                              // `jj git fetch`
-    PushIntent,                         // Trigger push (may prompt)
-    Push(Option<String>),               // `jj git push [-b <bookmark>]`
-    ResolveConflict(String),            // `jj resolve --tool ... <path>`
-    LoadMoreGraph,                      // Trigger pagination
-    InitRepo,                           // `jj git init --colocate`
+    SnapshotWorkingCopy,                   // `jj snapshot`
+    EditRevision(CommitId),                // `jj edit <rev>`
+    SquashRevision(CommitId),              // `jj squash -r <rev>`
+    NewRevision(CommitId),                 // `jj new <rev>` (create child)
+    DescribeRevisionIntent,                // Start describing the selected revision
+    DescribeRevision(CommitId, String),    // `jj describe <rev> -m "msg"`
+    AbandonRevision(CommitId),             // `jj abandon <rev>`
+    Absorb,                                // `jj absorb`
+    DuplicateRevision(CommitId),           // `jj duplicate -r <rev>`
+    RebaseRevisionIntent,                  // Start rebase (open destination input)
+    RebaseRevision(Vec<CommitId>, String), // `jj rebase -r <revs> -d <dest>`
+    SetBookmarkIntent,                     // Start setting a bookmark
+    SetBookmark(CommitId, String),         // `jj bookmark set <name> -r <rev>`
+    DeleteBookmarkIntent,                  // Start deleting a bookmark (may prompt)
+    DeleteBookmark(String),                // `jj bookmark delete <name>`
+    Undo,                                  // `jj undo`
+    Redo,                                  // `jj redo`
+    Fetch,                                 // `jj git fetch`
+    PushIntent,                            // Trigger push (may prompt)
+    Push(Option<String>),                  // `jj git push [-b <bookmark>]`
+    ResolveConflict(String),               // `jj resolve --tool ... <path>`
+    LoadMoreGraph,                         // Trigger pagination
+    InitRepo,                              // `jj git init --colocate`
 
     // --- UI Mode Transitions ---
     EnterCommandMode,                          // Open command palette (:)

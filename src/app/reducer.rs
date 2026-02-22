@@ -544,6 +544,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log.selected_ids.clear();
             return Some(Command::Duplicate(ids));
         }
+        Action::RebaseRevisionIntent => {
+            state.mode = AppMode::RebaseInput;
+            state.input = Some(super::state::InputState {
+                text_area: AppTextArea::default(),
+            });
+        }
+        Action::RebaseRevision(commit_ids, destination) => {
+            state.mode = AppMode::Normal;
+            state.input = None;
+            state.log.selected_ids.clear();
+            return Some(Command::Rebase(commit_ids, destination));
+        }
         Action::AbandonRevision(_commit_id) => {
             let ids = state.get_selected_commit_ids();
             if ids.is_empty() {
@@ -678,6 +690,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     "Duplicate".to_string(),
                     Action::DuplicateRevision(commit_id.clone()),
                 ),
+                ("Rebase".to_string(), Action::RebaseRevisionIntent),
                 (
                     "Abandon".to_string(),
                     Action::AbandonRevision(commit_id.clone()),
