@@ -29,7 +29,7 @@ pub struct JjAdapter {
     diff_semaphore: Arc<Semaphore>,
 }
 
-const MAX_DIFF_SIZE: u64 = 10 * 1024 * 1024; // 10MB
+const MAX_DIFF_SIZE: u64 = 1 * 1024 * 1024; // 1MB
 const MAX_CONCURRENT_DIFFS: usize = 4;
 
 impl JjAdapter {
@@ -118,6 +118,30 @@ impl JjAdapter {
             user_settings,
             diff_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DIFFS)),
         })
+    }
+
+    pub async fn check_version() -> Result<()> {
+        let output = tokio::process::Command::new("jj")
+            .arg("--version")
+            .output()
+            .await
+            .context("Failed to execute 'jj --version'. Is 'jj' installed and in your PATH?")?;
+
+        if !output.status.success() {
+            return Err(anyhow!("'jj --version' failed"));
+        }
+
+        let version_str = String::from_utf8_lossy(&output.stdout);
+        // Judo is built against jj-lib 0.38.0.
+        // CLI version usually matches lib version (e.g. "jj 0.38.0")
+        if !version_str.contains("0.38") {
+            return Err(anyhow!(
+                "Judo expects jj version 0.38.x, but found: {}. \
+                 Using mismatched versions may lead to repository corruption or crashes.",
+                version_str.trim()
+            ));
+        }
+        Ok(())
     }
 
     async fn validate_commit(&self, commit_id: &CommitId) -> Result<JjCommitId> {

@@ -634,7 +634,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.has_more = true;
             state.mode = AppMode::Normal;
             state.active_tasks.retain(|t| !t.contains("Syncing"));
-            refresh_derived_state(state);
+            update_repository_derived_state(state);
             // If nothing selected, select the working copy (or HEAD)
             if state.log.list_state.selected().is_none() {
                 state.log.list_state.select(Some(0));
@@ -655,7 +655,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.repo = Some(*repo_status);
             state.is_loading_more = false;
             state.has_more = true;
-            refresh_derived_state(state);
+            update_repository_derived_state(state);
 
             if let Some(id) = selected_commit_id {
                 if let Some(repo) = &state.repo {
@@ -686,7 +686,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                         repo.graph.push(row);
                     }
                 }
-                refresh_derived_state(state);
+                update_repository_derived_state(state);
             }
         }
         Action::DiffLoaded(commit_id, diff) => {
@@ -783,7 +783,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     state.hunk_highlight_time = None;
                 }
             }
-            refresh_derived_state(state);
+            update_spinner(state);
 
             // Pagination: check if we are near the end of the graph
             if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
@@ -841,11 +841,12 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
     None
 }
 
-fn refresh_derived_state(state: &mut AppState) {
-    // Update spinner
+fn update_spinner(state: &mut AppState) {
     let spin_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     state.spinner = spin_chars[(state.frame_count % spin_chars.len() as u64) as usize].to_string();
+}
 
+fn update_repository_derived_state(state: &mut AppState) {
     // Update header state
     if let Some(repo) = &mut state.repo {
         let mutable_count = repo.graph.iter().filter(|r| !r.is_immutable).count();
