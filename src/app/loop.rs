@@ -213,9 +213,13 @@ pub fn map_event_to_action(
                         ) {
                             if let Some(row) = repo.graph.get(idx) {
                                 if app_state.mode == crate::app::state::AppMode::BookmarkInput {
+                                    let name = input.text_area.lines().join("").trim().to_string();
+                                    if name.is_empty() {
+                                        return None;
+                                    }
                                     Some(Action::SetBookmark(
                                         row.commit_id.clone(),
-                                        input.text_area.lines().join(""),
+                                        name,
                                     ))
                                 } else {
                                     Some(Action::DescribeRevision(

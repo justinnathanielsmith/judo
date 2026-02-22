@@ -499,23 +499,39 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.mode = AppMode::Normal;
             return Some(Command::SetBookmark(commit_id, name));
         }
-        Action::DeleteBookmark(name) => {
-            if name.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    if let Some(row) = repo.graph.get(idx) {
-                        if let Some(bookmark) = row.bookmarks.first() {
-                            return Some(Command::DeleteBookmark(bookmark.clone()));
+        Action::DeleteBookmarkIntent => {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    if row.bookmarks.len() == 1 {
+                        return Some(Command::DeleteBookmark(row.bookmarks[0].clone()));
+                    } else if row.bookmarks.len() > 1 {
+                        let mut actions = Vec::new();
+                        for bookmark in &row.bookmarks {
+                            actions.push((
+                                format!("Delete: {}", bookmark),
+                                Action::DeleteBookmark(bookmark.clone()),
+                            ));
                         }
+                        state.mode = AppMode::ContextMenu;
+                        state.context_menu = Some(super::state::ContextMenuState {
+                            commit_id: row.commit_id.clone(),
+                            x: 10,
+                            y: 10,
+                            selected_index: 0,
+                            actions,
+                        });
                     }
                 }
-                return None;
             }
+        }
+        Action::DeleteBookmark(name) => {
+            state.mode = AppMode::Normal;
             return Some(Command::DeleteBookmark(name));
         }
 
         // --- Context Menu ---
         Action::OpenContextMenu(commit_id, pos) => {
-            let actions = vec![
+            let mut actions = vec![
                 ("Describe".to_string(), Action::DescribeRevisionIntent),
                 (
                     "Squash into Parent".to_string(),
@@ -533,6 +549,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 ("Set Bookmark".to_string(), Action::SetBookmarkIntent),
                 ("Toggle Diffs".to_string(), Action::ToggleDiffs),
             ];
+
+            // Conditionally add Delete Bookmark if the commit has bookmarks
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    if !row.bookmarks.is_empty() {
+                        actions.insert(
+                            actions.len() - 1,
+                            ("Delete Bookmark".to_string(), Action::DeleteBookmarkIntent),
+                        );
+                    }
+                }
+            }
 
             // If we are in SquashSelect mode, maybe add squash target?
             // For now, let's keep it simple.
@@ -1443,5 +1471,94 @@ mod tests {
         // Row D: node at 0, no parents.
         assert_eq!(repo.graph[3].visual.column, 0);
         assert!(repo.graph[3].visual.parent_columns.is_empty());
+    }
+
+    fn create_repo_with_bookmarks(bookmarks: Vec<String>) -> RepoStatus {
+        let graph = vec![GraphRow {
+            commit_id: CommitId("commit0".to_string()),
+            commit_id_short: "c0".to_string(),
+            change_id: "change0".to_string(),
+            change_id_short: "ch0".to_string(),
+            description: "desc".to_string(),
+            author: "author".to_string(),
+            timestamp: "time".to_string(),
+            timestamp_secs: 0,
+            is_working_copy: true,
+            is_immutable: false,
+            parents: vec![],
+            bookmarks,
+            changed_files: vec![],
+            visual: crate::domain::models::GraphRowVisual::default(),
+        }];
+        RepoStatus {
+            repo_name: "test-repo".to_string(),
+            operation_id: "op".to_string(),
+            workspace_id: "default".to_string(),
+            working_copy_id: CommitId("commit0".to_string()),
+            graph,
+        }
+    }
+
+    #[test]
+    fn test_delete_bookmark_intent_single() {
+        let mut state = AppState {
+            repo: Some(create_repo_with_bookmarks(vec!["main".to_string()])),
+            ..Default::default()
+        };
+        state.log.list_state.select(Some(0));
+
+        let cmd = update(&mut state, Action::DeleteBookmarkIntent);
+        assert!(
+            matches!(cmd, Some(Command::DeleteBookmark(ref name)) if name == "main"),
+            "Single bookmark should produce DeleteBookmark command"
+        );
+    }
+
+    #[test]
+    fn test_delete_bookmark_intent_multiple() {
+        let mut state = AppState {
+            repo: Some(create_repo_with_bookmarks(vec![
+                "main".to_string(),
+                "dev".to_string(),
+            ])),
+            ..Default::default()
+        };
+        state.log.list_state.select(Some(0));
+
+        let cmd = update(&mut state, Action::DeleteBookmarkIntent);
+        assert!(
+            cmd.is_none(),
+            "Multiple bookmarks should open menu, not return command"
+        );
+        assert_eq!(state.mode, AppMode::ContextMenu);
+        let menu = state.context_menu.as_ref().unwrap();
+        assert_eq!(menu.actions.len(), 2);
+        assert!(menu.actions[0].0.contains("main"));
+        assert!(menu.actions[1].0.contains("dev"));
+    }
+
+    #[test]
+    fn test_delete_bookmark_intent_none() {
+        let mut state = AppState {
+            repo: Some(create_repo_with_bookmarks(vec![])),
+            ..Default::default()
+        };
+        state.log.list_state.select(Some(0));
+
+        let cmd = update(&mut state, Action::DeleteBookmarkIntent);
+        assert!(cmd.is_none(), "No bookmarks should be a no-op");
+        assert_ne!(state.mode, AppMode::ContextMenu);
+    }
+
+    #[test]
+    fn test_delete_bookmark_resets_mode() {
+        let mut state = AppState {
+            mode: AppMode::ContextMenu,
+            ..Default::default()
+        };
+
+        let cmd = update(&mut state, Action::DeleteBookmark("main".to_string()));
+        assert_eq!(state.mode, AppMode::Normal);
+        assert!(matches!(cmd, Some(Command::DeleteBookmark(ref name)) if name == "main"));
     }
 }

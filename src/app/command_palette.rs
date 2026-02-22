@@ -47,7 +47,7 @@ pub fn get_commands() -> Vec<CommandDefinition> {
         CommandDefinition {
             name: "Delete Bookmark",
             description: "Delete a bookmark",
-            action: Action::DeleteBookmark(String::new()),
+            action: Action::DeleteBookmarkIntent,
         },
         CommandDefinition {
             name: "Undo",

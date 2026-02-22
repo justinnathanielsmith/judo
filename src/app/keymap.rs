@@ -85,7 +85,7 @@ impl KeyMap {
             Action::AbandonRevision(crate::domain::models::CommitId("".to_string())),
         );
         global.insert(key_char('b'), Action::SetBookmarkIntent);
-        global.insert(key_char('B'), Action::DeleteBookmark("".to_string()));
+        global.insert(key_char('B'), Action::DeleteBookmarkIntent);
         global.insert(key_char('d'), Action::DescribeRevisionIntent);
         global.insert(key_char('m'), Action::FilterMine);
         global.insert(
@@ -227,7 +227,7 @@ fn parse_action(s: &str) -> Option<Action> {
             "".to_string(),
         ))),
         "setbookmark" => Some(Action::SetBookmarkIntent),
-        "deletebookmark" => Some(Action::DeleteBookmark("".to_string())),
+        "deletebookmark" => Some(Action::DeleteBookmarkIntent),
         "undo" => Some(Action::Undo),
         "redo" => Some(Action::Redo),
         "fetch" => Some(Action::Fetch),

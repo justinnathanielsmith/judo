@@ -35,6 +35,7 @@ pub enum Action {
     AbandonRevision(CommitId),          // `jj abandon <rev>`
     SetBookmarkIntent,                  // Start setting a bookmark
     SetBookmark(CommitId, String),      // `jj bookmark set <name> -r <rev>`
+    DeleteBookmarkIntent,               // Start deleting a bookmark (may prompt)
     DeleteBookmark(String),             // `jj bookmark delete <name>`
     Undo,                               // `jj undo`
     Redo,                               // `jj redo`
