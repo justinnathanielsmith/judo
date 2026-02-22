@@ -2,6 +2,8 @@
 
 **Judo** is a high-performance, terminal-based user interface (TUI) for [Jujutsu (jj)](https://github.com/martinvonz/jj), a Git-compatible version control system. Built with Rust and [Ratatui](https://github.com/ratatui-org/ratatui), Judo provides a fast, intuitive, and interactive way to manage your version control operations.
 
+![Basic Usage Demo](demos/basic_usage.gif)
+
 ## Features
 
 - **Interactive Revision Graph**: Visualize your commit history with a navigable graph.
@@ -92,6 +94,8 @@ The TUI supports different keymaps for different modes (e.g., Normal Mode, Diff 
 | `t` | Quick filter: `trunk()`      |
 | `c` | Quick filter: `conflicts()`  |
 
+![Filtering & Operations Demo](demos/filtering.gif)
+
 #### Diff View (when focused)
 | Key             | Action                                                |
 | --------------- | ----------------------------------------------------- |
@@ -119,6 +123,19 @@ We welcome contributions! To get started:
 2. **Setup**: Clone the repo and run `cargo build`.
 3. **Tests**: Run `cargo test` to verify your changes.
 4. **Code Quality**: Ensure your code is formatted (`cargo fmt`) and clean of linting issues (`cargo clippy`).
+
+### Generating Demos
+
+Judo uses [VHS](https://github.com/charmbracelet/vhs) to record terminal sessions for documentation. To update the demos:
+
+```bash
+# Install VHS
+brew install vhs # or your preferred package manager
+
+# Run the tape files
+vhs demos/basic_usage.tape
+vhs demos/filtering.tape
+```
 
 ## Powered by
 
