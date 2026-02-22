@@ -66,6 +66,7 @@ impl JjAdapter {
         }
 
         let mut current = Some(cwd.as_path());
+        let mut found_ws_root = None;
         while let Some(path) = current {
             let jj_repo_config = path.join(".jj").join("repo").join("config.toml");
             if jj_repo_config.is_file() {
@@ -78,6 +79,7 @@ impl JjAdapter {
                         format!("Failed to parse user config at {:?}", jj_repo_config)
                     })?;
                 config.add_layer(layer);
+                found_ws_root = Some(path.to_path_buf());
                 break;
             }
             current = path.parent();
@@ -89,9 +91,11 @@ impl JjAdapter {
             HashMap::new();
         working_copy_factories.insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
 
+        let ws_root = found_ws_root.unwrap_or_else(|| cwd.clone());
+
         let workspace = Workspace::load(
             &user_settings,
-            &cwd,
+            &ws_root,
             &store_factories,
             &working_copy_factories,
         )
@@ -100,7 +104,7 @@ impl JjAdapter {
         let workspace_root = if let Some(ws) = &workspace {
             ws.workspace_root().to_path_buf()
         } else {
-            cwd.clone()
+            ws_root
         };
 
         Ok(Self {
@@ -572,7 +576,7 @@ impl VcsFacade for JjAdapter {
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
-            .arg("snapshot")
+            .arg("status")
             .current_dir(&ws_root)
             .output()
             .await?;

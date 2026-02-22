@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
         .graph
         .iter()
         .find(|r| r.commit_id == *wc_id)
-        .map(|r| r.description.clone())
+        .map(|r| r.description.trim().to_string())
         .unwrap_or_default();
 
     println!("Current description: '{}'", current_desc);
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
         .graph
         .iter()
         .find(|r| r.commit_id == *new_wc_id)
-        .map(|r| r.description.clone())
+        .map(|r| r.description.trim().to_string())
         .unwrap_or_default();
 
     println!("New description: '{}'", new_entry_desc);
