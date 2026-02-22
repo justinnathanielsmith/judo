@@ -57,47 +57,48 @@ The TUI supports different keymaps for different modes (e.g., Normal Mode, Diff 
 ## Keybindings
 
 #### Navigation & Focus
-| Key | Action |
-| --- | --- |
-| `j` / `↓` | Select next revision |
-| `k` / `↑` | Select previous revision |
-| `Enter` | Toggle the diff panel for the selected revision |
-| `Tab` / `l` | Focus the diff panel |
-| `h` | Focus the revision graph (when diff is focused) |
-| `Esc` | Cancel current mode / Clear error messages |
-| `q` | Quit Judo |
+| Key         | Action                                                            |
+| ----------- | ----------------------------------------------------------------- |
+| `j` / `↓`   | Select next revision                                              |
+| `k` / `↑`   | Select previous revision                                          |
+| `x`         | Toggle selection of the highlighted revision for batch operations |
+| `Enter`     | Toggle the diff panel for the selected revision                   |
+| `Tab` / `l` | Focus the diff panel                                              |
+| `h`         | Focus the revision graph (when diff is focused)                   |
+| `Esc`       | Cancel current mode / Clear error messages                        |
+| `q`         | Quit Judo                                                         |
 
 #### Operations
-| Key | Action |
-| --- | --- |
-| `s` | Snapshot the current working copy |
-| `e` | Edit the selected revision |
-| `n` | Create a new child from the selected revision |
-| `d` | Describe the selected revision (opens input) |
-| `a` | Abandon the selected revision |
-| `S` | Squash the selected revision into its parent |
-| `b` | Set a bookmark on the selected revision |
-| `B` | Delete the first bookmark on the selected revision |
-| `u` | Undo the last operation |
-| `U` | Redo the last operation |
-| `f` | Fetch from the remote |
-| `p` | Push to the remote |
+| Key | Action                                                               |
+| --- | -------------------------------------------------------------------- |
+| `s` | Snapshot the current working copy                                    |
+| `e` | Edit the selected revision                                           |
+| `n` | Create a new child from the selected revision                        |
+| `d` | Describe the selected revision (opens input)                         |
+| `a` | Abandon the selected revision (or all selected revisions)            |
+| `S` | Squash the selected revision (or all selected revisions) into parent |
+| `b` | Set a bookmark on the selected revision                              |
+| `B` | Delete the first bookmark on the selected revision                   |
+| `u` | Undo the last operation                                              |
+| `U` | Redo the last operation                                              |
+| `f` | Fetch from the remote                                                |
+| `p` | Push to the remote                                                   |
 
 #### Filtering
-| Key | Action |
-| --- | --- |
+| Key | Action                       |
+| --- | ---------------------------- |
 | `/` | Enter a custom revset filter |
-| `m` | Quick filter: `mine()` |
-| `t` | Quick filter: `trunk()` |
-| `c` | Quick filter: `conflicts()` |
+| `m` | Quick filter: `mine()`       |
+| `t` | Quick filter: `trunk()`      |
+| `c` | Quick filter: `conflicts()`  |
 
 #### Diff View (when focused)
-| Key | Action |
-| --- | --- |
-| `PgDn` / `PgUp` | Scroll through the diff |
-| `[` / `]` | Jump to the previous/next hunk |
-| `j` / `k` | Select the next/previous changed file |
-| `m` / `Enter` | Resolve conflict (if the selected file has conflicts) |
+| Key             | Action                                                |
+| --------------- | ----------------------------------------------------- |
+| `PgDn` / `PgUp` | Scroll through the diff                               |
+| `[` / `]`       | Jump to the previous/next hunk                        |
+| `j` / `k`       | Select the next/previous changed file                 |
+| `m` / `Enter`   | Resolve conflict (if the selected file has conflicts) |
 
 ## Architecture
 

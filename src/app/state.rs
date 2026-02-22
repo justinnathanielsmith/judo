@@ -170,6 +170,7 @@ pub struct LogState {
     pub is_loading_diff: bool,
     pub diff_scroll: u16,
     pub diff_cache: HashMap<CommitId, String>,
+    pub selected_ids: std::collections::HashSet<CommitId>,
 }
 
 impl Default for LogState {
@@ -181,7 +182,14 @@ impl Default for LogState {
             is_loading_diff: false,
             diff_scroll: 0,
             diff_cache: HashMap::new(),
+            selected_ids: std::collections::HashSet::new(),
         }
+    }
+}
+
+impl LogState {
+    pub fn is_selected(&self, id: &CommitId) -> bool {
+        self.selected_ids.contains(id)
     }
 }
 
@@ -290,6 +298,19 @@ impl<'a> AppState<'a> {
         self.get_selected_file()
             .map(|f| f.status == crate::domain::models::FileStatus::Conflicted)
             .unwrap_or(false)
+    }
+
+    pub fn get_selected_commit_ids(&self) -> Vec<CommitId> {
+        if !self.log.selected_ids.is_empty() {
+            self.log.selected_ids.iter().cloned().collect()
+        } else if let (Some(repo), Some(idx)) = (&self.repo, self.log.list_state.selected()) {
+            if let Some(row) = repo.graph.get(idx) {
+                return vec![row.commit_id.clone()];
+            }
+            Vec::new()
+        } else {
+            Vec::new()
+        }
     }
 }
 

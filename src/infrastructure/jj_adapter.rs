@@ -590,20 +590,20 @@ impl VcsFacade for JjAdapter {
         }
     }
 
-    async fn squash(&self, commit_id: &CommitId) -> Result<()> {
-        self.validate_commit(commit_id).await?;
+    async fn squash(&self, commit_ids: &[CommitId]) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
             let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
-        let output = tokio::process::Command::new("jj")
-            .arg("squash")
-            .arg("-r")
-            .arg(&commit_id.0)
-            .current_dir(ws_root)
-            .output()
-            .await?;
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("squash");
+        for id in commit_ids {
+            self.validate_commit(id).await?;
+            cmd.arg("-r").arg(&id.0);
+        }
+        let output = cmd.current_dir(ws_root).output().await?;
+
         if output.status.success() {
             Ok(())
         } else {
@@ -633,19 +633,20 @@ impl VcsFacade for JjAdapter {
         }
     }
 
-    async fn abandon(&self, commit_id: &CommitId) -> Result<()> {
-        self.validate_commit(commit_id).await?;
+    async fn abandon(&self, commit_ids: &[CommitId]) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
             let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
-        let output = tokio::process::Command::new("jj")
-            .arg("abandon")
-            .arg(&commit_id.0)
-            .current_dir(ws_root)
-            .output()
-            .await?;
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("abandon");
+        for id in commit_ids {
+            self.validate_commit(id).await?;
+            cmd.arg("-r").arg(&id.0);
+        }
+        let output = cmd.current_dir(ws_root).output().await?;
+
         if output.status.success() {
             Ok(())
         } else {

@@ -635,15 +635,15 @@ pub(crate) async fn handle_command(
                 }
             });
         }
-        Command::Squash(commit_id) => {
+        Command::Squash(commit_ids) => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Squashing {}...",
-                        commit_id
-                    )))
-                    .await;
-                match adapter.squash(&commit_id).await {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Squashing {}...", commit_ids[0])
+                } else {
+                    format!("Squashing {} revisions...", commit_ids.len())
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.squash(&commit_ids).await {
                     Ok(_) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
@@ -683,19 +683,19 @@ pub(crate) async fn handle_command(
                 }
             });
         }
-        Command::Abandon(commit_id) => {
+        Command::Abandon(commit_ids) => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Abandoning {}...",
-                        commit_id
-                    )))
-                    .await;
-                match adapter.abandon(&commit_id).await {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Abandoning {}...", commit_ids[0])
+                } else {
+                    format!("Abandoning {} revisions...", commit_ids.len())
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.abandon(&commit_ids).await {
                     Ok(_) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
-                                "Revision abandoned".to_string()
+                                "Revision(s) abandoned".to_string()
                             )))
                             .await;
                     }

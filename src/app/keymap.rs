@@ -88,6 +88,10 @@ impl KeyMap {
         global.insert(key_char('B'), Action::DeleteBookmark("".to_string()));
         global.insert(key_char('d'), Action::DescribeRevisionIntent);
         global.insert(key_char('m'), Action::FilterMine);
+        global.insert(
+            key_char('x'),
+            Action::ToggleSelection(crate::domain::models::CommitId("".to_string())),
+        );
         global.insert(key_char('t'), Action::FilterTrunk);
         global.insert(key_char('c'), Action::FilterConflicts);
         global.insert(key_char('u'), Action::Undo);

@@ -21,6 +21,8 @@ pub enum Action {
     NextHunk,
     PrevHunk,
     ToggleDiffs,
+    ToggleSelection(CommitId),
+    ClearSelection,
 
     // --- JJ Domain Intents ---
     // These trigger async tasks

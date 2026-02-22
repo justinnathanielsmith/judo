@@ -25,6 +25,7 @@ pub struct RevisionGraph<'a> {
     pub theme: &'a Theme,
     pub show_diffs: bool,
     pub selected_file_index: Option<usize>,
+    pub selected_ids: &'a std::collections::HashSet<crate::domain::models::CommitId>,
     pub now_secs: i64,
 }
 
@@ -264,10 +265,15 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 }
             }
 
+            let mut row_style = Style::default();
+            if self.selected_ids.contains(&row.commit_id) {
+                row_style = self.theme.highlight;
+            }
+
             rows.push(
                 Row::new(vec![Cell::from(graph_lines), Cell::from(detail_lines)])
                     .height(row_height)
-                    .style(Style::default()),
+                    .style(row_style),
             );
         }
 
@@ -290,6 +296,7 @@ pub struct RevisionGraphPanel<'a> {
     pub focused_panel: Panel,
     pub mode: AppMode,
     pub revset: Option<&'a str>,
+    pub selected_ids: &'a std::collections::HashSet<crate::domain::models::CommitId>,
 }
 
 impl<'a> StatefulWidget for RevisionGraphPanel<'a> {
@@ -392,6 +399,7 @@ impl<'a> StatefulWidget for RevisionGraphPanel<'a> {
                     theme: self.theme,
                     show_diffs: self.show_diffs,
                     selected_file_index: self.selected_file_index,
+                    selected_ids: self.selected_ids,
                     now_secs: chrono::Utc::now().timestamp(),
                 };
                 StatefulWidget::render(graph, inner, buf, state);

@@ -75,6 +75,7 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState) {
         focused_panel: app_state.focused_panel,
         mode: app_state.mode,
         revset: app_state.revset.as_deref(),
+        selected_ids: &app_state.log.selected_ids,
     };
     f.render_stateful_widget(panel, layout.body[0], &mut app_state.log.list_state);
 

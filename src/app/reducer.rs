@@ -216,16 +216,42 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.theme = crate::theme::Theme::from_palette_type(palette);
             state.mode = AppMode::Normal;
         }
-        Action::CancelMode | Action::CloseContextMenu => {
-            state.mode = AppMode::Normal;
-            if state.mode == AppMode::Normal {
-                state.focused_panel = Panel::Graph;
+        Action::ToggleSelection(commit_id) => {
+            let id = if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                    repo.graph.get(idx).map(|r| r.commit_id.clone())
+                } else {
+                    None
+                }
+            } else {
+                Some(commit_id)
+            };
+
+            if let Some(id) = id {
+                if state.log.selected_ids.contains(&id) {
+                    state.log.selected_ids.remove(&id);
+                } else {
+                    state.log.selected_ids.insert(id);
+                }
             }
-            state.last_error = None;
-            state.input = None;
-            state.context_menu = None;
-            state.command_palette = None;
-            state.theme_selection = None;
+        }
+        Action::ClearSelection => {
+            state.log.selected_ids.clear();
+        }
+        Action::CancelMode | Action::CloseContextMenu => {
+            if !state.log.selected_ids.is_empty() {
+                state.log.selected_ids.clear();
+            } else {
+                state.mode = AppMode::Normal;
+                if state.mode == AppMode::Normal {
+                    state.focused_panel = Panel::Graph;
+                }
+                state.last_error = None;
+                state.input = None;
+                state.context_menu = None;
+                state.command_palette = None;
+                state.theme_selection = None;
+            }
         }
         Action::CommandPaletteNext => {
             if let Some(cp) = &mut state.command_palette {
@@ -307,16 +333,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
             return Some(Command::Edit(commit_id));
         }
-        Action::SquashRevision(commit_id) => {
-            if commit_id.0.is_empty() {
+        Action::SquashRevision(_commit_id) => {
+            let ids = state.get_selected_commit_ids();
+            if ids.is_empty() {
                 if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::Squash(row.commit_id.clone()));
+                        return Some(Command::Squash(vec![row.commit_id.clone()]));
                     }
                 }
                 return None;
             }
-            return Some(Command::Squash(commit_id));
+            state.log.selected_ids.clear();
+            return Some(Command::Squash(ids));
         }
         Action::NewRevision(commit_id) => {
             if commit_id.0.is_empty() {
@@ -329,16 +357,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
             return Some(Command::New(commit_id));
         }
-        Action::AbandonRevision(commit_id) => {
-            if commit_id.0.is_empty() {
+        Action::AbandonRevision(_commit_id) => {
+            let ids = state.get_selected_commit_ids();
+            if ids.is_empty() {
                 if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::Abandon(row.commit_id.clone()));
+                        return Some(Command::Abandon(vec![row.commit_id.clone()]));
                     }
                 }
                 return None;
             }
-            return Some(Command::Abandon(commit_id));
+            state.log.selected_ids.clear();
+            return Some(Command::Abandon(ids));
         }
         Action::Undo => {
             return Some(Command::Undo);
