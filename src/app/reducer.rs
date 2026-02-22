@@ -1,7 +1,11 @@
 use super::{
     action::Action,
     command::Command,
-    state::{AppMode, AppState, AppTextArea, ErrorSeverity, ErrorState, HeaderState, Panel},
+    command_palette,
+    state::{
+        AppMode, AppState, AppTextArea, CommandPaletteState, ErrorSeverity, ErrorState,
+        HeaderState, Panel,
+    },
 };
 use chrono::Local;
 use std::time::{Duration, Instant};
@@ -109,7 +113,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.mode = AppMode::SquashSelect;
         }
         Action::EnterCommandMode => {
-            state.mode = AppMode::Command;
+            state.mode = AppMode::CommandPalette;
+            state.command_palette = Some(CommandPaletteState {
+                matches: command_palette::search_commands(""),
+                ..Default::default()
+            });
         }
         Action::EnterFilterMode => {
             state.mode = AppMode::FilterInput;
@@ -183,10 +191,57 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.last_error = None;
             state.input = None;
             state.context_menu = None;
+            state.command_palette = None;
+        }
+        Action::CommandPaletteNext => {
+            if let Some(cp) = &mut state.command_palette {
+                if !cp.matches.is_empty() {
+                    cp.selected_index = (cp.selected_index + 1) % cp.matches.len();
+                }
+            }
+        }
+        Action::CommandPalettePrev => {
+            if let Some(cp) = &mut state.command_palette {
+                if !cp.matches.is_empty() {
+                    cp.selected_index = if cp.selected_index == 0 {
+                        cp.matches.len() - 1
+                    } else {
+                        cp.selected_index - 1
+                    };
+                }
+            }
+        }
+        Action::CommandPaletteSelect => {
+            if let Some(cp) = state.command_palette.clone() {
+                if let Some(&idx) = cp.matches.get(cp.selected_index) {
+                    let cmd = &command_palette::get_commands()[idx];
+                    let action = cmd.action.clone();
+                    state.command_palette = None;
+                    state.mode = AppMode::Normal;
+                    return update(state, action);
+                }
+            }
         }
         Action::TextAreaInput(key) => {
             if let Some(input) = &mut state.input {
                 input.text_area.input(key);
+            } else if state.mode == AppMode::CommandPalette {
+                if let Some(cp) = &mut state.command_palette {
+                    use crossterm::event::KeyCode;
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            cp.query.push(c);
+                            cp.matches = command_palette::search_commands(&cp.query);
+                            cp.selected_index = 0;
+                        }
+                        KeyCode::Backspace => {
+                            cp.query.pop();
+                            cp.matches = command_palette::search_commands(&cp.query);
+                            cp.selected_index = 0;
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
         Action::Quit => {
@@ -912,7 +967,11 @@ mod tests {
     #[test]
     fn test_clear_error_on_cancel_mode() {
         let mut state = AppState {
-            last_error: Some("An error occurred".to_string()),
+            last_error: Some(ErrorState {
+                message: "An error occurred".to_string(),
+                timestamp: Local::now(),
+                severity: ErrorSeverity::Error,
+            }),
             mode: AppMode::Input,
             ..Default::default()
         };
@@ -1050,7 +1109,11 @@ mod tests {
         for mode in modes {
             let mut state = AppState {
                 mode,
-                last_error: Some("error".to_string()),
+                last_error: Some(ErrorState {
+                    message: "error".to_string(),
+                    timestamp: Local::now(),
+                    severity: ErrorSeverity::Error,
+                }),
                 context_menu: Some(state::ContextMenuState {
                     commit_id: CommitId("c1".to_string()),
                     x: 0,

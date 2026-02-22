@@ -1,5 +1,6 @@
 pub mod action;
 pub mod command;
+pub mod command_palette;
 pub mod keymap;
 pub mod r#loop;
 pub mod reducer;

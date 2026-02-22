@@ -19,17 +19,17 @@ pub enum Panel {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AppMode {
-    Normal,        // Navigating the log
-    Command,       // Typing a command like ":q" or ":new"
-    SquashSelect,  // Selecting a target to squash into
-    BookmarkInput, // Inputting a bookmark name
-    Input,         // A generic text input modal (e.g., for commit messages)
-    Loading,       // Blocking interaction (optional, often better handled with a flag)
-    Diff,          // Focusing the diff window for scrolling
-    ContextMenu,   // Right-click menu for actions
-    FilterInput,   // Inputting a revset filter
-    Help,          // Showing the help overlay
-    NoRepo,        // No repository found, showing welcome screen
+    Normal,         // Navigating the log
+    SquashSelect,   // Selecting a target to squash into
+    BookmarkInput,  // Inputting a bookmark name
+    Input,          // A generic text input modal (e.g., for commit messages)
+    Loading,        // Blocking interaction (optional, often better handled with a flag)
+    Diff,           // Focusing the diff window for scrolling
+    ContextMenu,    // Right-click menu for actions
+    FilterInput,    // Inputting a revset filter
+    Help,           // Showing the help overlay
+    NoRepo,         // No repository found, showing welcome screen
+    CommandPalette, // Fuzzy finder for commands
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -79,6 +79,23 @@ impl ContextMenuState {
         }
 
         Rect::new(x, y, menu_width, menu_height)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommandPaletteState {
+    pub query: String,
+    pub matches: Vec<usize>, // Indices into predefined command list
+    pub selected_index: usize,
+}
+
+impl Default for CommandPaletteState {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            matches: Vec::new(),
+            selected_index: 0,
+        }
     }
 }
 
@@ -213,6 +230,9 @@ pub struct AppState<'a> {
     // --- Context Menu ---
     pub context_menu: Option<ContextMenuState>,
 
+    // --- Command Palette ---
+    pub command_palette: Option<CommandPaletteState>,
+
     // --- Animation ---
     pub frame_count: u64,
     pub hunk_highlight_time: Option<Instant>,
@@ -231,6 +251,23 @@ impl<'a> AppState<'a> {
             keymap: Arc::new(KeyMap::from_config(&config)),
             ..Default::default()
         }
+    }
+
+    pub fn get_selected_file(&self) -> Option<&crate::domain::models::FileChange> {
+        if let (Some(repo), Some(idx)) = (&self.repo, self.log.list_state.selected()) {
+            if let Some(row) = repo.graph.get(idx) {
+                if let Some(file_idx) = self.log.selected_file_index {
+                    return row.changed_files.get(file_idx);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn is_selected_file_conflicted(&self) -> bool {
+        self.get_selected_file()
+            .map(|f| f.status == crate::domain::models::FileStatus::Conflicted)
+            .unwrap_or(false)
     }
 }
 
@@ -256,6 +293,7 @@ impl<'a> Default for AppState<'a> {
             last_click_time: None,
             last_click_pos: None,
             context_menu: None,
+            command_palette: None,
             frame_count: 0,
             hunk_highlight_time: None,
             diff_ratio: 50,

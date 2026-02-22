@@ -10,6 +10,7 @@ use ratatui::{
 pub struct FooterItem {
     pub key: &'static str,
     pub desc: &'static str,
+    pub highlighted: bool,
 }
 
 pub struct FooterGroup {
@@ -30,9 +31,13 @@ impl<'a> Footer<'a> {
                 items: vec![FooterItem {
                     key: "Esc",
                     desc: "dismiss",
+                    highlighted: false,
                 }],
             }];
         }
+
+        let is_conflict = self.state.is_selected_file_conflicted();
+
         match self.state.mode {
             AppMode::Normal => {
                 let mut groups = Vec::new();
@@ -42,14 +47,17 @@ impl<'a> Footer<'a> {
                         FooterItem {
                             key: "j/k",
                             desc: "move",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "/",
                             desc: "filt",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "m/t/c",
                             desc: "mine/trnk/conf",
+                            highlighted: false,
                         },
                     ],
                 });
@@ -58,6 +66,7 @@ impl<'a> Footer<'a> {
                     groups[0].items.push(FooterItem {
                         key: "Tab",
                         desc: "focus",
+                        highlighted: false,
                     });
                     groups.push(FooterGroup {
                         name: "DIFF",
@@ -65,10 +74,12 @@ impl<'a> Footer<'a> {
                             FooterItem {
                                 key: "PgUp/Dn",
                                 desc: "scroll",
+                                highlighted: false,
                             },
                             FooterItem {
                                 key: "[/]",
                                 desc: "hunk",
+                                highlighted: false,
                             },
                         ],
                     });
@@ -80,22 +91,27 @@ impl<'a> Footer<'a> {
                         FooterItem {
                             key: "ENTER",
                             desc: "select",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "d",
                             desc: "desc",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "n",
                             desc: "new",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "e",
                             desc: "edit",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "a",
                             desc: "abdn",
+                            highlighted: false,
                         },
                     ],
                 });
@@ -106,22 +122,27 @@ impl<'a> Footer<'a> {
                         FooterItem {
                             key: "s/S",
                             desc: "snap/sqsh",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "f",
                             desc: "fetch",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "p",
                             desc: "push",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "b/B",
                             desc: "bkmk",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "u/U",
                             desc: "undo",
+                            highlighted: false,
                         },
                     ],
                 });
@@ -131,6 +152,7 @@ impl<'a> Footer<'a> {
                     items: vec![FooterItem {
                         key: "q",
                         desc: "quit",
+                        highlighted: false,
                     }],
                 });
                 groups
@@ -142,18 +164,22 @@ impl<'a> Footer<'a> {
                         FooterItem {
                             key: "j/k",
                             desc: "file",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "h/Tab",
                             desc: "back",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "PgUp/Dn",
                             desc: "scroll",
+                            highlighted: false,
                         },
                         FooterItem {
                             key: "m/ENTER",
                             desc: "merge",
+                            highlighted: is_conflict,
                         },
                     ],
                 },
@@ -162,6 +188,7 @@ impl<'a> Footer<'a> {
                     items: vec![FooterItem {
                         key: "q",
                         desc: "quit",
+                        highlighted: false,
                     }],
                 },
             ],
@@ -171,10 +198,12 @@ impl<'a> Footer<'a> {
                     FooterItem {
                         key: "ENTER",
                         desc: "submit",
+                        highlighted: false,
                     },
                     FooterItem {
                         key: "Esc",
                         desc: "cancel",
+                        highlighted: false,
                     },
                 ],
             }],
@@ -184,14 +213,17 @@ impl<'a> Footer<'a> {
                     FooterItem {
                         key: "j/k",
                         desc: "move",
+                        highlighted: false,
                     },
                     FooterItem {
                         key: "ENTER",
                         desc: "select",
+                        highlighted: false,
                     },
                     FooterItem {
                         key: "Esc",
                         desc: "close",
+                        highlighted: false,
                     },
                 ],
             }],
@@ -201,27 +233,42 @@ impl<'a> Footer<'a> {
                     FooterItem {
                         key: "j/k",
                         desc: "select",
+                        highlighted: false,
                     },
                     FooterItem {
                         key: "ENTER",
                         desc: "confirm",
+                        highlighted: false,
                     },
                     FooterItem {
                         key: "Esc",
                         desc: "cancel",
+                        highlighted: false,
                     },
                 ],
             }],
-            AppMode::Command => vec![FooterGroup {
+            AppMode::CommandPalette => vec![FooterGroup {
                 name: "COMMAND",
                 items: vec![
                     FooterItem {
                         key: "ENTER",
                         desc: "run",
+                        highlighted: false,
                     },
                     FooterItem {
                         key: "Esc",
                         desc: "cancel",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "j/k",
+                        desc: "move",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "ctrl+n/p",
+                        desc: "move",
+                        highlighted: false,
                     },
                 ],
             }],
@@ -234,6 +281,7 @@ impl<'a> Footer<'a> {
                 items: vec![FooterItem {
                     key: "q/Esc/?",
                     desc: "close",
+                    highlighted: false,
                 }],
             }],
             AppMode::NoRepo => vec![
@@ -242,6 +290,7 @@ impl<'a> Footer<'a> {
                     items: vec![FooterItem {
                         key: "i/ENTER",
                         desc: "initialize",
+                        highlighted: false,
                     }],
                 },
                 FooterGroup {
@@ -249,6 +298,7 @@ impl<'a> Footer<'a> {
                     items: vec![FooterItem {
                         key: "q/Esc",
                         desc: "quit",
+                        highlighted: false,
                     }],
                 },
             ],
@@ -336,8 +386,22 @@ impl<'a> Widget for Footer<'a> {
                     break;
                 }
 
-                spans.push(Span::styled(key_str, theme.footer_segment_key));
-                spans.push(Span::styled(desc_str, theme.footer_segment_val));
+                let key_style = if item.highlighted {
+                    theme.header_active
+                } else {
+                    theme.footer_segment_key
+                };
+
+                let val_style = if item.highlighted {
+                    theme
+                        .header_active
+                        .add_modifier(ratatui::style::Modifier::DIM)
+                } else {
+                    theme.footer_segment_val
+                };
+
+                spans.push(Span::styled(key_str, key_style));
+                spans.push(Span::styled(desc_str, val_style));
                 spans.push(Span::raw(" "));
                 current_width += item_width + 1;
             }

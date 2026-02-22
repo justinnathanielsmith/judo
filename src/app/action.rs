@@ -61,6 +61,9 @@ pub enum Action {
     SelectContextMenuNext,                     // Next item in menu
     SelectContextMenuPrev,                     // Prev item in menu
     CloseContextMenu,                          // Close the menu
+    CommandPaletteNext,                        // Next item in palette
+    CommandPalettePrev,                        // Prev item in palette
+    CommandPaletteSelect,                      // Execute selected command
 
     // --- Async Results (The "Callback") ---
     // These are dispatched by your async workers back to the main thread

@@ -964,7 +964,7 @@ mod tests {
         // Mode should reset to NoRepo (since no repo in state) and error should be set
         assert_eq!(state.mode, crate::app::state::AppMode::NoRepo);
         assert!(state.last_error.is_some());
-        assert!(state.last_error.unwrap().contains("Error: Snapshot failed"));
+        assert!(state.last_error.unwrap().message.contains("Error: Snapshot failed"));
     }
 
     #[tokio::test]

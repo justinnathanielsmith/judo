@@ -100,6 +100,7 @@ impl KeyMap {
         global.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
         global.insert(key_char('['), Action::PrevHunk);
         global.insert(key_char(']'), Action::NextHunk);
+        global.insert(key_char(':'), Action::EnterCommandMode);
         global.insert(key_code(KeyCode::Esc), Action::CancelMode);
 
         diff_mode.insert(key_char('h'), Action::FocusGraph);
@@ -122,6 +123,20 @@ impl KeyMap {
             if let Some(action) = self.diff_mode.get(&event) {
                 return Some(action.clone());
             }
+        } else if mode == super::state::AppMode::CommandPalette {
+            return match event.code {
+                KeyCode::Esc => Some(Action::CancelMode),
+                KeyCode::Enter => Some(Action::CommandPaletteSelect),
+                KeyCode::Down => Some(Action::CommandPaletteNext),
+                KeyCode::Up => Some(Action::CommandPalettePrev),
+                KeyCode::Char('n') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    Some(Action::CommandPaletteNext)
+                }
+                KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    Some(Action::CommandPalettePrev)
+                }
+                _ => Some(Action::TextAreaInput(event)),
+            };
         }
         self.global.get(&event).cloned()
     }
