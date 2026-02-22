@@ -818,6 +818,22 @@ impl VcsFacade for JjAdapter {
     }
 }
 
+fn is_binary(chunk: &[u8]) -> bool {
+    if chunk.is_empty() {
+        return false;
+    }
+    if chunk.contains(&0) {
+        return true;
+    }
+    let non_printable = chunk
+        .iter()
+        .filter(|&&b| (b < 32 && !b.is_ascii_whitespace()) || b == 127)
+        .count();
+
+    // If more than 10% are control characters (excluding whitespace), it's likely binary.
+    non_printable * 100 / chunk.len() > 10
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -847,20 +863,4 @@ mod tests {
         // UTF-8 should NOT be binary
         assert!(!is_binary("🦀 rust is great".as_bytes()));
     }
-}
-
-fn is_binary(chunk: &[u8]) -> bool {
-    if chunk.is_empty() {
-        return false;
-    }
-    if chunk.contains(&0) {
-        return true;
-    }
-    let non_printable = chunk
-        .iter()
-        .filter(|&&b| (b < 32 && !b.is_ascii_whitespace()) || b == 127)
-        .count();
-
-    // If more than 10% are control characters (excluding whitespace), it's likely binary.
-    non_printable * 100 / chunk.len() > 10
 }

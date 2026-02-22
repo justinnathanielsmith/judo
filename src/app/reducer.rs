@@ -892,6 +892,24 @@ fn refresh_derived_state(state: &mut AppState) {
     }
 }
 
+fn scroll_to_selected_file(state: &mut AppState) {
+    if let (Some(repo), Some(idx), Some(file_idx), Some(diff)) = (
+        &state.repo,
+        state.log.list_state.selected(),
+        state.log.selected_file_index,
+        &state.log.current_diff,
+    ) {
+        if let Some(row) = repo.graph.get(idx) {
+            if let Some(file) = row.changed_files.get(file_idx) {
+                let target = format!("File: {}", file.path);
+                if let Some(line_idx) = diff.lines().position(|l| l.starts_with(&target)) {
+                    state.log.diff_scroll = line_idx as u16;
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1190,8 +1208,10 @@ mod tests {
     #[test]
     fn test_navigation_boundaries_and_empty_state() {
         // Test with empty repo
-        let mut state = AppState::default();
-        state.repo = Some(create_mock_repo(0));
+        let mut state = AppState::<'_> {
+            repo: Some(create_mock_repo(0)),
+            ..Default::default()
+        };
 
         update(&mut state, Action::SelectNext);
         assert!(state.log.list_state.selected().unwrap_or(0) < 1);
@@ -1291,8 +1311,10 @@ mod tests {
 
     #[test]
     fn test_dynamic_diff_ratio() {
-        let mut state = AppState::default();
-        state.show_diffs = true;
+        let mut state = AppState::<'_> {
+            show_diffs: true,
+            ..Default::default()
+        };
         assert_eq!(state.diff_ratio, 50);
 
         // Focus Diff
@@ -1326,35 +1348,36 @@ mod tests {
 
     #[test]
     fn test_refresh_derived_state_merge() {
-        let mut graph = Vec::new();
         // A (0) -> B (0), C (1)
-        graph.push(GraphRow {
-            commit_id: CommitId("A".to_string()),
-            commit_id_short: "A".to_string(),
-            parents: vec![CommitId("B".to_string()), CommitId("C".to_string())],
-            ..GraphRow::default()
-        });
-        // B (0) -> D (0)
-        graph.push(GraphRow {
-            commit_id: CommitId("B".to_string()),
-            commit_id_short: "B".to_string(),
-            parents: vec![CommitId("D".to_string())],
-            ..GraphRow::default()
-        });
-        // C (1) -> D (0)
-        graph.push(GraphRow {
-            commit_id: CommitId("C".to_string()),
-            commit_id_short: "C".to_string(),
-            parents: vec![CommitId("D".to_string())],
-            ..GraphRow::default()
-        });
-        // D (0)
-        graph.push(GraphRow {
-            commit_id: CommitId("D".to_string()),
-            commit_id_short: "D".to_string(),
-            parents: vec![],
-            ..GraphRow::default()
-        });
+        let graph = vec![
+            GraphRow {
+                commit_id: CommitId("A".to_string()),
+                commit_id_short: "A".to_string(),
+                parents: vec![CommitId("B".to_string()), CommitId("C".to_string())],
+                ..GraphRow::default()
+            },
+            // B (0) -> D (0)
+            GraphRow {
+                commit_id: CommitId("B".to_string()),
+                commit_id_short: "B".to_string(),
+                parents: vec![CommitId("D".to_string())],
+                ..GraphRow::default()
+            },
+            // C (1) -> D (0)
+            GraphRow {
+                commit_id: CommitId("C".to_string()),
+                commit_id_short: "C".to_string(),
+                parents: vec![CommitId("D".to_string())],
+                ..GraphRow::default()
+            },
+            // D (0)
+            GraphRow {
+                commit_id: CommitId("D".to_string()),
+                commit_id_short: "D".to_string(),
+                parents: vec![],
+                ..GraphRow::default()
+            },
+        ];
 
         let mut state = AppState {
             repo: Some(RepoStatus {
@@ -1388,23 +1411,5 @@ mod tests {
         // Row D: node at 0, no parents.
         assert_eq!(repo.graph[3].visual.column, 0);
         assert!(repo.graph[3].visual.parent_columns.is_empty());
-    }
-}
-
-fn scroll_to_selected_file(state: &mut AppState) {
-    if let (Some(repo), Some(idx), Some(file_idx), Some(diff)) = (
-        &state.repo,
-        state.log.list_state.selected(),
-        state.log.selected_file_index,
-        &state.log.current_diff,
-    ) {
-        if let Some(row) = repo.graph.get(idx) {
-            if let Some(file) = row.changed_files.get(file_idx) {
-                let target = format!("File: {}", file.path);
-                if let Some(line_idx) = diff.lines().position(|l| l.starts_with(&target)) {
-                    state.log.diff_scroll = line_idx as u16;
-                }
-            }
-        }
     }
 }
