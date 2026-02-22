@@ -21,6 +21,7 @@ Sleep 1s
 
 # Custom revset filter
 Type "/"
+Ctrl+U
 Type "all()"
 Enter
 Sleep 2s
