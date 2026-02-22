@@ -323,27 +323,31 @@ impl<'a> Widget for ModalManager<'a> {
         // --- Input Modals (Describe, Bookmark, Filter) ---
         match self.app_state.mode {
             AppMode::Input | AppMode::BookmarkInput => {
-                let title = if self.app_state.mode == AppMode::BookmarkInput {
-                    " SET BOOKMARK "
-                } else {
-                    " DESCRIBE REVISION "
-                };
-                TextInputModal {
-                    theme: self.theme,
-                    title,
-                    text_area: &self.app_state.text_area,
-                    height_percent: 20,
+                if let Some(input) = &self.app_state.input {
+                    let title = if self.app_state.mode == AppMode::BookmarkInput {
+                        " SET BOOKMARK "
+                    } else {
+                        " DESCRIBE REVISION "
+                    };
+                    TextInputModal {
+                        theme: self.theme,
+                        title,
+                        text_area: &input.text_area,
+                        height_percent: 20,
+                    }
+                    .render(area, buf);
                 }
-                .render(area, buf);
             }
             AppMode::FilterInput => {
-                TextInputModal {
-                    theme: self.theme,
-                    title: " FILTER (REVSET) ",
-                    text_area: &self.app_state.text_area,
-                    height_percent: 0,
+                if let Some(input) = &self.app_state.input {
+                    TextInputModal {
+                        theme: self.theme,
+                        title: " FILTER (REVSET) ",
+                        text_area: &input.text_area,
+                        height_percent: 0,
+                    }
+                    .render(area, buf);
                 }
-                .render(area, buf);
             }
             _ => {}
         }

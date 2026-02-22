@@ -113,6 +113,34 @@ impl<'a> Widget for &AppTextArea<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct LogState {
+    pub list_state: TableState,
+    pub selected_file_index: Option<usize>,
+    pub current_diff: Option<String>,
+    pub is_loading_diff: bool,
+    pub diff_scroll: u16,
+    pub diff_cache: HashMap<CommitId, String>,
+}
+
+impl Default for LogState {
+    fn default() -> Self {
+        Self {
+            list_state: TableState::default(),
+            selected_file_index: None,
+            current_diff: None,
+            is_loading_diff: false,
+            diff_scroll: 0,
+            diff_cache: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InputState<'a> {
+    pub text_area: AppTextArea<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct HeaderState {
     pub repo_text: String,
     pub branch_text: String,
@@ -151,23 +179,16 @@ pub struct AppState<'a> {
     pub is_loading_more: bool,
     pub has_more: bool,
 
-    // --- UI State (Selection, Scroll) ---
-    // We keep this separate so it persists even if `repo` data refreshes.
-    pub log_list_state: TableState,
-    pub selected_file_index: Option<usize>,
+    // --- UI State (Selection, Scroll, Diff) ---
+    pub log: LogState,
 
     // --- Derived/Cached Data ---
-    // Data fetched lazily based on selection (the "Debounced" content)
-    pub current_diff: Option<String>,
-    pub is_loading_diff: bool,
-    pub diff_scroll: u16,
-    pub diff_cache: HashMap<CommitId, String>,
     pub show_diffs: bool,
     pub header_state: HeaderState,
     pub spinner: String,
 
     // --- Input Handling ---
-    pub text_area: AppTextArea<'a>,
+    pub input: Option<InputState<'a>>,
 
     // --- Click Tracking ---
     pub last_click_time: Option<Instant>,
@@ -211,16 +232,11 @@ impl<'a> Default for AppState<'a> {
             revset: None,
             is_loading_more: false,
             has_more: true,
-            log_list_state: TableState::default(),
-            selected_file_index: None,
-            current_diff: None,
-            is_loading_diff: false,
-            diff_scroll: 0,
-            diff_cache: HashMap::new(),
+            log: LogState::default(),
             show_diffs: false,
             header_state: HeaderState::default(),
             spinner: "⠋".to_string(),
-            text_area: AppTextArea::default(),
+            input: None,
             last_click_time: None,
             last_click_pos: None,
             context_menu: None,

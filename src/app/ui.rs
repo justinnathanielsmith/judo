@@ -70,19 +70,19 @@ pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
         repo: app_state.repo.as_ref(),
         theme,
         show_diffs: app_state.show_diffs,
-        selected_file_index: app_state.selected_file_index,
+        selected_file_index: app_state.log.selected_file_index,
         spinner: &app_state.spinner,
         focused_panel: app_state.focused_panel,
         mode: app_state.mode,
         revset: app_state.revset.as_deref(),
     };
-    f.render_stateful_widget(panel, layout.body[0], &mut app_state.log_list_state);
+    f.render_stateful_widget(panel, layout.body[0], &mut app_state.log.list_state);
 
     // --- Right: Diff View Panel ---
     if app_state.show_diffs {
         let panel = DiffViewPanel {
-            diff_content: app_state.current_diff.as_deref(),
-            scroll_offset: app_state.diff_scroll,
+            diff_content: app_state.log.current_diff.as_deref(),
+            scroll_offset: app_state.log.diff_scroll,
             theme,
             hunk_highlight_time: app_state.hunk_highlight_time,
             focused_panel: app_state.focused_panel,

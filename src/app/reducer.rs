@@ -17,42 +17,42 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return move_selection(state, -1);
         }
         Action::SelectIndex(i) => {
-            state.log_list_state.select(Some(i));
+            state.log.list_state.select(Some(i));
             return handle_selection(state);
         }
         Action::SelectFile(i) => {
-            state.selected_file_index = Some(i);
+            state.log.selected_file_index = Some(i);
             scroll_to_selected_file(state);
         }
         Action::SelectFileByPath(path) => {
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
                     if let Some(file_idx) = row.changed_files.iter().position(|f| f.path == path) {
-                        state.selected_file_index = Some(file_idx);
+                        state.log.selected_file_index = Some(file_idx);
                         scroll_to_selected_file(state);
                     }
                 }
             }
         }
         Action::SelectNextFile => {
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
                     let len = row.changed_files.len();
                     if len > 0 {
-                        let current = state.selected_file_index.unwrap_or(0);
-                        state.selected_file_index = Some((current + 1) % len);
+                        let current = state.log.selected_file_index.unwrap_or(0);
+                        state.log.selected_file_index = Some((current + 1) % len);
                         scroll_to_selected_file(state);
                     }
                 }
             }
         }
         Action::SelectPrevFile => {
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
                     let len = row.changed_files.len();
                     if len > 0 {
-                        let current = state.selected_file_index.unwrap_or(0);
-                        state.selected_file_index =
+                        let current = state.log.selected_file_index.unwrap_or(0);
+                        state.log.selected_file_index =
                             Some(if current == 0 { len - 1 } else { current - 1 });
                         scroll_to_selected_file(state);
                     }
@@ -60,15 +60,16 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::ScrollDiffDown(amount) => {
-            if let Some(diff) = &state.current_diff {
+            if let Some(diff) = &state.log.current_diff {
                 let max_scroll = diff.lines().count().saturating_sub(1) as u16;
-                state.diff_scroll = state.diff_scroll.saturating_add(amount).min(max_scroll);
+                state.log.diff_scroll =
+                    state.log.diff_scroll.saturating_add(amount).min(max_scroll);
             } else {
-                state.diff_scroll = state.diff_scroll.saturating_add(amount);
+                state.log.diff_scroll = state.log.diff_scroll.saturating_add(amount);
             }
         }
         Action::ScrollDiffUp(amount) => {
-            state.diff_scroll = state.diff_scroll.saturating_sub(amount);
+            state.log.diff_scroll = state.log.diff_scroll.saturating_sub(amount);
         }
         Action::ToggleDiffs => {
             state.show_diffs = !state.show_diffs;
@@ -79,23 +80,23 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return handle_selection(state);
         }
         Action::NextHunk => {
-            if let Some(diff) = &state.current_diff {
-                let current_line = state.diff_scroll as usize;
+            if let Some(diff) = &state.log.current_diff {
+                let current_line = state.log.diff_scroll as usize;
                 let mut lines = diff.lines().enumerate().skip(current_line + 1);
                 if let Some((idx, _)) = lines.find(|(_, line)| line.starts_with("@@")) {
-                    state.diff_scroll = idx as u16;
+                    state.log.diff_scroll = idx as u16;
                     state.hunk_highlight_time = Some(Instant::now());
                 }
             }
         }
         Action::PrevHunk => {
-            if let Some(diff) = &state.current_diff {
-                let current_line = state.diff_scroll as usize;
+            if let Some(diff) = &state.log.current_diff {
+                let current_line = state.log.diff_scroll as usize;
                 let lines: Vec<_> = diff.lines().enumerate().collect();
                 if current_line > 0 {
                     let mut prev_lines = lines[..current_line].iter().rev();
                     if let Some((idx, _)) = prev_lines.find(|(_, line)| line.starts_with("@@")) {
-                        state.diff_scroll = *idx as u16;
+                        state.log.diff_scroll = *idx as u16;
                         state.hunk_highlight_time = Some(Instant::now());
                     }
                 }
@@ -111,39 +112,41 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::EnterFilterMode => {
             state.mode = AppMode::FilterInput;
-            state.text_area = AppTextArea::default();
+            let mut text_area = AppTextArea::default();
             if let Some(revset) = &state.revset {
-                state.text_area.insert_str(revset);
+                text_area.insert_str(revset);
             }
+            state.input = Some(super::state::InputState { text_area });
         }
         Action::ApplyFilter(revset) => {
             state.mode = AppMode::Normal;
+            state.input = None;
             let revset = if revset.trim().is_empty() {
                 None
             } else {
                 Some(revset.trim().to_string())
             };
             state.revset = revset.clone();
-            state.log_list_state.select(Some(0));
+            state.log.list_state.select(Some(0));
             return Some(Command::LoadRepo(None, 100, revset));
         }
         Action::FilterMine => {
             state.revset = Some("mine()".to_string());
-            state.log_list_state.select(Some(0));
+            state.log.list_state.select(Some(0));
             state.status_message = Some("Filtering: mine()".to_string());
             state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
         Action::FilterTrunk => {
             state.revset = Some("trunk()".to_string());
-            state.log_list_state.select(Some(0));
+            state.log.list_state.select(Some(0));
             state.status_message = Some("Filtering: trunk()".to_string());
             state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
         Action::FilterConflicts => {
             state.revset = Some("conflicts()".to_string());
-            state.log_list_state.select(Some(0));
+            state.log.list_state.select(Some(0));
             state.status_message = Some("Filtering: conflicts()".to_string());
             state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
@@ -153,8 +156,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.mode = AppMode::Diff;
                 state.focused_panel = Panel::Diff;
                 state.diff_ratio = 70;
-                if state.selected_file_index.is_none() {
-                    state.selected_file_index = Some(0);
+                if state.log.selected_file_index.is_none() {
+                    state.log.selected_file_index = Some(0);
                 }
                 scroll_to_selected_file(state);
             }
@@ -177,11 +180,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.focused_panel = Panel::Graph;
             }
             state.last_error = None;
-            state.text_area = AppTextArea::default(); // Reset input
+            state.input = None;
             state.context_menu = None;
         }
         Action::TextAreaInput(key) => {
-            state.text_area.input(key);
+            if let Some(input) = &mut state.input {
+                input.text_area.input(key);
+            }
         }
         Action::Quit => {
             state.should_quit = true;
@@ -196,7 +201,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::EditRevision(commit_id) => {
             if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
                         return Some(Command::Edit(row.commit_id.clone()));
                     }
@@ -207,7 +212,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::SquashRevision(commit_id) => {
             if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
                         return Some(Command::Squash(row.commit_id.clone()));
                     }
@@ -218,7 +223,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::NewRevision(commit_id) => {
             if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
                         return Some(Command::New(row.commit_id.clone()));
                     }
@@ -229,7 +234,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::AbandonRevision(commit_id) => {
             if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
                         return Some(Command::Abandon(row.commit_id.clone()));
                     }
@@ -248,7 +253,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return Some(Command::Fetch);
         }
         Action::PushIntent => {
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
                     if row.bookmarks.is_empty() {
                         // Push without bookmark (will push current working copy or as configured)
@@ -289,21 +294,25 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::DescribeRevisionIntent => {
             state.mode = AppMode::Input;
-            state.text_area = AppTextArea::default();
+            let mut text_area = AppTextArea::default();
             // Pre-fill with existing description if possible?
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
-                    state.text_area.insert_str(&row.description);
+                    text_area.insert_str(&row.description);
                 }
             }
+            state.input = Some(super::state::InputState { text_area });
         }
         Action::DescribeRevision(commit_id, message) => {
             state.mode = AppMode::Normal;
+            state.input = None;
             return Some(Command::DescribeRevision(commit_id, message));
         }
         Action::SetBookmarkIntent => {
             state.mode = AppMode::BookmarkInput;
-            state.text_area = AppTextArea::default();
+            state.input = Some(super::state::InputState {
+                text_area: AppTextArea::default(),
+            });
         }
         Action::SetBookmark(commit_id, name) => {
             state.mode = AppMode::Normal;
@@ -311,7 +320,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::DeleteBookmark(name) => {
             if name.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                     if let Some(row) = repo.graph.get(idx) {
                         if let Some(bookmark) = row.bookmarks.first() {
                             return Some(Command::DeleteBookmark(bookmark.clone()));
@@ -420,8 +429,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.active_tasks.retain(|t| !t.contains("Syncing"));
             refresh_derived_state(state);
             // If nothing selected, select the working copy (or HEAD)
-            if state.log_list_state.selected().is_none() {
-                state.log_list_state.select(Some(0));
+            if state.log.list_state.selected().is_none() {
+                state.log.list_state.select(Some(0));
             }
             return handle_selection(state);
         }
@@ -440,19 +449,20 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::DiffLoaded(commit_id, diff) => {
-            state.diff_cache.insert(commit_id, diff.clone());
+            state.log.diff_cache.insert(commit_id, diff.clone());
             // Only update current_diff if it matches the current selection
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
                     if row.commit_id
                         == *state
+                            .log
                             .diff_cache
                             .keys()
                             .find(|k| **k == row.commit_id)
                             .unwrap_or(&row.commit_id)
                     {
-                        state.current_diff = Some(diff);
-                        state.is_loading_diff = false;
+                        state.log.current_diff = Some(diff);
+                        state.log.is_loading_diff = false;
                     }
                 }
             }
@@ -476,7 +486,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 Ok(msg) => {
                     state.status_message = Some(msg);
                     state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
-                    state.diff_cache.clear(); // Clear cache as operations might change history
+                    state.log.diff_cache.clear(); // Clear cache as operations might change history
                     return Some(Command::LoadRepo(None, 100, state.revset.clone()));
                 }
                 Err(err) => {
@@ -500,7 +510,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 
         Action::ExternalChangeDetected => {
             state.mode = AppMode::Loading;
-            state.current_diff = None;
+            state.log.current_diff = None;
             state
                 .active_tasks
                 .push("Syncing external changes...".to_string());
@@ -523,7 +533,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             refresh_derived_state(state);
 
             // Pagination: check if we are near the end of the graph
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if idx + 20 >= repo.graph.len() && !state.is_loading_more && state.has_more {
                     // We need to trigger LoadMoreGraph. Reducer can't dispatch actions.
                     // But we can return a command!
@@ -541,10 +551,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 
 fn move_selection(state: &mut AppState, delta: isize) -> Option<Command> {
     let len = state.repo.as_ref().map(|r| r.graph.len()).unwrap_or(0);
-    let current_index = state.log_list_state.selected();
+    let current_index = state.log.list_state.selected();
     let new_index = calculate_new_index(current_index, delta, len);
 
-    state.log_list_state.select(Some(new_index));
+    state.log.list_state.select(Some(new_index));
     handle_selection(state)
 }
 
@@ -559,18 +569,18 @@ fn calculate_new_index(current: Option<usize>, delta: isize, len: usize) -> usiz
 }
 
 fn handle_selection(state: &mut AppState) -> Option<Command> {
-    if let (Some(repo), Some(idx)) = (&state.repo, state.log_list_state.selected()) {
+    if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
         if let Some(row) = repo.graph.get(idx) {
             let commit_id = row.commit_id.clone();
-            state.diff_scroll = 0; // Reset scroll on selection change
-            state.selected_file_index = None;
-            if let Some(cached_diff) = state.diff_cache.get(&commit_id) {
-                state.current_diff = Some(cached_diff.clone());
-                state.is_loading_diff = false;
+            state.log.diff_scroll = 0; // Reset scroll on selection change
+            state.log.selected_file_index = None;
+            if let Some(cached_diff) = state.log.diff_cache.get(&commit_id) {
+                state.log.current_diff = Some(cached_diff.clone());
+                state.log.is_loading_diff = false;
                 return None;
             } else {
-                state.current_diff = None;
-                state.is_loading_diff = true;
+                state.log.current_diff = None;
+                state.log.is_loading_diff = true;
                 return Some(Command::LoadDiff(commit_id));
             }
         }
@@ -694,6 +704,7 @@ fn refresh_derived_state(state: &mut AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::state;
     use crate::domain::models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus};
 
     fn create_dummy_repo(count: usize) -> RepoStatus {
@@ -734,63 +745,61 @@ mod tests {
 
         // 1. Empty Repo
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         // 2. Repo with 3 items
         state.repo = Some(create_dummy_repo(3));
-        state.log_list_state.select(None); // Reset
+        state.log.list_state.select(None); // Reset
 
         // Initial Next from None -> 0
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         // Next -> 1
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(1));
+        assert_eq!(state.log.list_state.selected(), Some(1));
 
         // Next -> 2
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(2));
+        assert_eq!(state.log.list_state.selected(), Some(2));
 
         // Next (Wrap) -> 0
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         // Prev (Wrap) -> 2
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(2));
+        assert_eq!(state.log.list_state.selected(), Some(2));
 
         // Prev -> 1
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(1));
+        assert_eq!(state.log.list_state.selected(), Some(1));
 
         // Test None selection behavior for Prev
-        state.log_list_state.select(None);
+        state.log.list_state.select(None);
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
     }
 
     #[test]
     fn test_scroll_diff() {
-        let mut state = AppState {
-            diff_scroll: 10,
-            ..Default::default()
-        };
+        let mut state = AppState::default();
+        state.log.diff_scroll = 10;
 
         // Test ScrollDiffUp normal
         update(&mut state, Action::ScrollDiffUp(5));
-        assert_eq!(state.diff_scroll, 5);
+        assert_eq!(state.log.diff_scroll, 5);
 
         // Test ScrollDiffUp saturating
         update(&mut state, Action::ScrollDiffUp(10));
-        assert_eq!(state.diff_scroll, 0);
+        assert_eq!(state.log.diff_scroll, 0);
 
         // Test ScrollDiffDown
         update(&mut state, Action::ScrollDiffDown(15));
-        assert_eq!(state.diff_scroll, 15);
+        assert_eq!(state.log.diff_scroll, 15);
     }
 
     fn create_mock_repo(num_rows: usize) -> RepoStatus {
@@ -828,15 +837,15 @@ mod tests {
             repo: Some(create_mock_repo(3)),
             ..Default::default()
         };
-        state.log_list_state.select(Some(1));
+        state.log.list_state.select(Some(1));
 
         // Test SelectNext
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(2));
+        assert_eq!(state.log.list_state.selected(), Some(2));
 
         // Test SelectPrev
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(1));
+        assert_eq!(state.log.list_state.selected(), Some(1));
     }
 
     #[test]
@@ -848,14 +857,14 @@ mod tests {
         };
 
         // Wrap from end to beginning
-        state.log_list_state.select(Some(num_rows - 1));
+        state.log.list_state.select(Some(num_rows - 1));
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         // Wrap from beginning to end
-        state.log_list_state.select(Some(0));
+        state.log.list_state.select(Some(0));
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(num_rows - 1));
+        assert_eq!(state.log.list_state.selected(), Some(num_rows - 1));
     }
 
     #[test]
@@ -866,24 +875,29 @@ mod tests {
         };
 
         // In both cases, it should default to 0 and not panic/underflow
-        state.log_list_state.select(Some(0));
+        state.log.list_state.select(Some(0));
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
-        state.log_list_state.select(Some(0));
+        state.log.list_state.select(Some(0));
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
     }
 
     #[test]
     fn test_text_area_input() {
-        let mut state = AppState::default();
+        let mut state = AppState {
+            input: Some(state::InputState {
+                text_area: AppTextArea::default(),
+            }),
+            ..Default::default()
+        };
         use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
         let key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         update(&mut state, Action::TextAreaInput(key));
 
-        assert_eq!(state.text_area.lines()[0], "a");
+        assert_eq!(state.input.as_ref().unwrap().text_area.lines()[0], "a");
     }
 
     #[test]
@@ -898,6 +912,7 @@ mod tests {
 
         assert_eq!(state.last_error, None);
         assert_eq!(state.mode, AppMode::Normal);
+        assert!(state.input.is_none());
     }
 
     #[test]
@@ -908,7 +923,7 @@ mod tests {
         };
 
         // Before refresh
-        assert_eq!(state.header_state.op_id, "");
+        assert_eq!(state.header_state.repo_text, " no repo ");
 
         refresh_derived_state(&mut state);
 
@@ -939,27 +954,29 @@ mod tests {
             repo: Some(repo),
             ..Default::default()
         };
-        state.log_list_state.select(Some(0));
+        state.log.list_state.select(Some(0));
 
         // Initial state
-        assert_eq!(state.selected_file_index, None);
+        assert_eq!(state.log.selected_file_index, None);
 
         // Select next file
         update(&mut state, Action::SelectNextFile);
-        assert_eq!(state.selected_file_index, Some(1)); // (0+1)%2 = 1
+        assert_eq!(state.log.selected_file_index, Some(1)); // (0+1)%2 = 1
 
         update(&mut state, Action::SelectNextFile);
-        assert_eq!(state.selected_file_index, Some(0)); // (1+1)%2 = 0
+        assert_eq!(state.log.selected_file_index, Some(0)); // (1+1)%2 = 0
 
         // Select prev file
         update(&mut state, Action::SelectPrevFile);
-        assert_eq!(state.selected_file_index, Some(1)); // (0-1)%2 = 1
+        assert_eq!(state.log.selected_file_index, Some(1)); // (0-1)%2 = 1
 
         // Reset on commit change
         state.repo.as_mut().unwrap().graph.push(GraphRow {
             timestamp_secs: 0,
             commit_id: CommitId("c2".to_string()),
+            commit_id_short: "c2".to_string(),
             change_id: "ch2".to_string(),
+            change_id_short: "ch2".to_string(),
             description: "d2".to_string(),
             author: "a".to_string(),
             timestamp: "t".to_string(),
@@ -971,7 +988,7 @@ mod tests {
             visual: crate::domain::models::GraphRowVisual::default(),
         });
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.selected_file_index, None);
+        assert_eq!(state.log.selected_file_index, None);
     }
 
     #[test]
@@ -981,31 +998,31 @@ mod tests {
         state.repo = Some(create_mock_repo(0));
 
         update(&mut state, Action::SelectNext);
-        assert!(state.log_list_state.selected().unwrap_or(0) < 1);
+        assert!(state.log.list_state.selected().unwrap_or(0) < 1);
 
         update(&mut state, Action::SelectPrev);
-        assert!(state.log_list_state.selected().unwrap_or(0) < 1);
+        assert!(state.log.list_state.selected().unwrap_or(0) < 1);
 
         // Test with 1 item repo
         state.repo = Some(create_mock_repo(1));
-        state.log_list_state.select(Some(0));
+        state.log.list_state.select(Some(0));
 
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
         // Test with large deltas (if we had them, but we use 1/-1)
         // Ensure wrap-around is consistent
         state.repo = Some(create_mock_repo(10));
-        state.log_list_state.select(Some(9));
+        state.log.list_state.select(Some(9));
         update(&mut state, Action::SelectNext);
-        assert_eq!(state.log_list_state.selected(), Some(0));
+        assert_eq!(state.log.list_state.selected(), Some(0));
 
-        state.log_list_state.select(Some(0));
+        state.log.list_state.select(Some(0));
         update(&mut state, Action::SelectPrev);
-        assert_eq!(state.log_list_state.selected(), Some(9));
+        assert_eq!(state.log.list_state.selected(), Some(9));
     }
 
     #[test]
@@ -1025,7 +1042,7 @@ mod tests {
             let mut state = AppState {
                 mode,
                 last_error: Some("error".to_string()),
-                context_menu: Some(crate::app::state::ContextMenuState {
+                context_menu: Some(state::ContextMenuState {
                     commit_id: CommitId("c1".to_string()),
                     x: 0,
                     y: 0,
@@ -1035,7 +1052,15 @@ mod tests {
                 ..Default::default()
             };
             // Set some text in text area
-            state.text_area.insert_str("some text");
+            state.input = Some(state::InputState {
+                text_area: AppTextArea::default(),
+            });
+            state
+                .input
+                .as_mut()
+                .unwrap()
+                .text_area
+                .insert_str("some text");
 
             update(&mut state, Action::CancelMode);
 
@@ -1056,8 +1081,8 @@ mod tests {
                 mode
             );
             assert!(
-                state.text_area.is_empty(),
-                "Text area should be cleared from {:?}",
+                state.input.is_none(),
+                "Input should be cleared from {:?}",
                 mode
             );
         }
@@ -1168,15 +1193,15 @@ mod tests {
 fn scroll_to_selected_file(state: &mut AppState) {
     if let (Some(repo), Some(idx), Some(file_idx), Some(diff)) = (
         &state.repo,
-        state.log_list_state.selected(),
-        state.selected_file_index,
-        &state.current_diff,
+        state.log.list_state.selected(),
+        state.log.selected_file_index,
+        &state.log.current_diff,
     ) {
         if let Some(row) = repo.graph.get(idx) {
             if let Some(file) = row.changed_files.get(file_idx) {
                 let target = format!("File: {}", file.path);
                 if let Some(line_idx) = diff.lines().position(|l| l.starts_with(&target)) {
-                    state.diff_scroll = line_idx as u16;
+                    state.log.diff_scroll = line_idx as u16;
                 }
             }
         }

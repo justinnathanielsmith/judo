@@ -187,19 +187,19 @@ pub fn map_event_to_action(
                 Event::Key(key) => match key.code {
                     KeyCode::Esc => Some(Action::CancelMode),
                     KeyCode::Enter => {
-                        if let (Some(repo), Some(idx)) =
-                            (&app_state.repo, app_state.log_list_state.selected())
+                        if let (Some(repo), Some(idx), Some(input)) =
+                            (&app_state.repo, app_state.log.list_state.selected(), &app_state.input)
                         {
                             if let Some(row) = repo.graph.get(idx) {
                                 if app_state.mode == crate::app::state::AppMode::BookmarkInput {
                                     Some(Action::SetBookmark(
                                         row.commit_id.clone(),
-                                        app_state.text_area.lines().join(""),
+                                        input.text_area.lines().join(""),
                                     ))
                                 } else {
                                     Some(Action::DescribeRevision(
                                         row.commit_id.clone(),
-                                        app_state.text_area.lines().join("\n"),
+                                        input.text_area.lines().join("\n"),
                                     ))
                                 }
                             } else {
@@ -219,7 +219,11 @@ pub fn map_event_to_action(
                 Event::Key(key) => match key.code {
                     KeyCode::Esc => Some(Action::CancelMode),
                     KeyCode::Enter => {
-                        Some(Action::ApplyFilter(app_state.text_area.lines().join("")))
+                        if let Some(input) = &app_state.input {
+                            Some(Action::ApplyFilter(input.text_area.lines().join("")))
+                        } else {
+                            None
+                        }
                     }
                     _ => Some(Action::TextAreaInput(key)),
                 },
@@ -299,10 +303,10 @@ pub fn map_event_to_action(
                     match key.code {
                         KeyCode::Char('m') | KeyCode::Enter => {
                             if let (Some(repo), Some(idx)) =
-                                (&app_state.repo, app_state.log_list_state.selected())
+                                (&app_state.repo, app_state.log.list_state.selected())
                             {
                                 if let Some(row) = repo.graph.get(idx) {
-                                    if let Some(file_idx) = app_state.selected_file_index {
+                                    if let Some(file_idx) = app_state.log.selected_file_index {
                                         if let Some(file) = row.changed_files.get(file_idx) {
                                             if file.status == crate::domain::models::FileStatus::Conflicted
                                             {
@@ -345,14 +349,14 @@ pub fn map_event_to_action(
                                 Some(Action::ToggleDiffs)
                             } else {
                                 let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
-                                let offset = app_state.log_list_state.offset();
+                                let offset = app_state.log.list_state.offset();
                                 let mut result = None;
                                 if let Some(repo) = &app_state.repo {
                                     let mut current_y = 0;
                                     for i in offset..repo.graph.len() {
                                         let row = &repo.graph[i];
                                         let is_selected =
-                                            app_state.log_list_state.selected() == Some(i);
+                                            app_state.log.list_state.selected() == Some(i);
                                         let row_height = calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
 
                                         if clicked_row >= current_y
@@ -437,14 +441,14 @@ pub fn map_event_to_action(
                             && mouse.row < graph_area.y + graph_area.height - 1
                         {
                             let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
-                            let offset = app_state.log_list_state.offset();
+                            let offset = app_state.log.list_state.offset();
                             let mut result = None;
                             if let Some(repo) = &app_state.repo {
                                 let mut current_y = 0;
                                 for i in offset..repo.graph.len() {
                                     let row = &repo.graph[i];
                                     let is_selected =
-                                        app_state.log_list_state.selected() == Some(i);
+                                        app_state.log.list_state.selected() == Some(i);
                                     let row_height = calculate_row_height(
                                         row,
                                         is_selected,
@@ -488,14 +492,14 @@ pub fn map_event_to_action(
                             && mouse.row < graph_area.y + graph_area.height - 1
                         {
                             let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
-                            let offset = app_state.log_list_state.offset();
+                            let offset = app_state.log.list_state.offset();
                             let mut result = None;
                             if let Some(repo) = &app_state.repo {
                                 let mut current_y = 0;
                                 for i in offset..repo.graph.len() {
                                     let row = &repo.graph[i];
                                     let is_selected =
-                                        app_state.log_list_state.selected() == Some(i);
+                                        app_state.log.list_state.selected() == Some(i);
                                     let row_height = calculate_row_height(
                                         row,
                                         is_selected,
@@ -978,8 +982,8 @@ mod tests {
                     working_copy_id: crate::domain::models::CommitId("wc".to_string()),
                     graph: vec![crate::domain::models::GraphRow {
                         timestamp_secs: 0,
-                        commit_id: crate::domain::models::CommitId("wc".to_string()),
-                        change_id: "wc".to_string(),
+                        commit_id: crate::domain::models::CommitId("wc".to_string()), commit_id_short: "wc".to_string(),
+                        change_id: "wc".to_string(), change_id_short: "wc".to_string(),
                         description: "desc".to_string(),
                         author: "author".to_string(),
                         timestamp: "time".to_string(),
