@@ -61,3 +61,16 @@ We strictly follow The Elm Architecture pattern to manage state and side effects
 * Run `cargo check` to catch compilation errors.
 * Run `cargo test` to ensure no regressions.
 * Verify that the `Esc` key correctly cancels current modes and clears errors in the UI.
+
+## Lessons Learned
+
+### Clippy & Formatting
+* **Sequential Tools**: Always run `cargo fmt` after `cargo clippy --fix`. Clippy can introduce formatting artifacts (like trailing whitespace or long lines) that will fail strict CI formatting checks.
+* **Async Cleanup**: Be mindful of Clippy's `unused_async` lint. Removing `async` from functions that spawn background tasks (rather than awaiting them) requires surgical updates to all call sites and tests to remove unnecessary `.await` calls.
+
+### Version Control Workflow
+* **Jujutsu (jj) Integration**: This project uses `jj` alongside Git.
+  * Use `jj describe -m "message"` to update commit descriptions.
+  * Use `jj bookmark set main -r @` to move the `main` branch to the current working copy.
+  * Use `jj git push --branch main` to synchronize with the remote.
+  * When tagging for releases, ensure the tag is placed on the immutable commit (after pushing or describing) and pushed to `origin` to trigger GitHub Actions.
