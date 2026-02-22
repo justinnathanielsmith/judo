@@ -296,9 +296,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.log.selected_ids.clear();
             } else {
                 state.mode = AppMode::Normal;
-                if state.mode == AppMode::Normal {
-                    state.focused_panel = Panel::Graph;
-                }
+                state.focused_panel = Panel::Graph;
                 state.last_error = None;
                 state.input = None;
                 state.context_menu = None;
@@ -717,7 +715,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.mode = AppMode::Loading;
         }
         Action::OperationCompleted(result) => {
-            state.active_tasks.pop();
+            // Remove the oldest task (FIFO) rather than pop() (LIFO),
+            // so overlapping operations remove the correct entry.
+            if !state.active_tasks.is_empty() {
+                state.active_tasks.remove(0);
+            }
             if state.mode == AppMode::Loading {
                 state.mode = if state.repo.is_some() {
                     AppMode::Normal
