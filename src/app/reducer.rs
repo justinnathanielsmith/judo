@@ -1,8 +1,9 @@
 use super::{
     action::Action,
     command::Command,
-    state::{AppMode, AppState, AppTextArea, HeaderState, Panel},
+    state::{AppMode, AppState, AppTextArea, ErrorSeverity, ErrorState, HeaderState, Panel},
 };
+use chrono::Local;
 use std::time::{Duration, Instant};
 
 const STATUS_CLEAR_DURATION: Duration = Duration::from_secs(3);
@@ -490,7 +491,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     return Some(Command::LoadRepo(None, 100, state.revset.clone()));
                 }
                 Err(err) => {
-                    state.last_error = Some(err);
+                    state.last_error = Some(ErrorState {
+                        message: err,
+                        timestamp: Local::now(),
+                        severity: ErrorSeverity::Error,
+                    });
                     if state.repo.is_some() {
                         return Some(Command::LoadRepo(None, 100, state.revset.clone()));
                     }
@@ -498,7 +503,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::ErrorOccurred(err) => {
-            state.last_error = Some(err);
+            state.last_error = Some(ErrorState {
+                message: err,
+                timestamp: Local::now(),
+                severity: ErrorSeverity::Error,
+            });
             if state.mode == AppMode::Loading {
                 state.mode = if state.repo.is_some() {
                     AppMode::Normal

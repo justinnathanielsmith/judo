@@ -263,7 +263,7 @@ impl<'a> Widget for Footer<'a> {
 
         // Status segment
         let status_span = if let Some(err) = &state.last_error {
-            Span::styled(format!("  ERROR: {}  ", err), theme.status_error)
+            Span::styled(format!("  ERROR: {}  ", err.message), theme.status_error)
         } else if let Some(msg) = &state.status_message {
             Span::styled(format!("  {}  ", msg), theme.status_info)
         } else {

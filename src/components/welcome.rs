@@ -1,10 +1,10 @@
+use crate::app::state::AppState;
+use crate::theme::Theme;
 use ratatui::{
     layout::{Alignment, Rect},
     text::{Line, Span},
     widgets::{Paragraph, Widget},
 };
-use crate::app::state::AppState;
-use crate::theme::Theme;
 
 pub struct Welcome<'a> {
     pub app_state: &'a AppState<'a>,
@@ -43,9 +43,10 @@ impl<'a> Widget for Welcome<'a> {
             Span::styled("Enter", self.theme.footer_segment_key),
             Span::raw(" to initialize a new colocated repository"),
         ]));
-        lines.push(Line::from(vec![
-            Span::styled(" (jj git init --colocate) ", self.theme.header_item),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            " (jj git init --colocate) ",
+            self.theme.header_item,
+        )]));
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
             Span::raw("Press "),
@@ -57,7 +58,10 @@ impl<'a> Widget for Welcome<'a> {
 
         if let Some(err) = &self.app_state.last_error {
             lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(format!("Error: {}", err), self.theme.status_error)));
+            lines.push(Line::from(Span::styled(
+                format!("Error: {}", err.message),
+                self.theme.status_error,
+            )));
         }
 
         let paragraph = Paragraph::new(lines).alignment(Alignment::Center);

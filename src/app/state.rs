@@ -1,6 +1,7 @@
 use super::action::Action;
 use super::keymap::{KeyConfig, KeyMap};
 use crate::domain::models::{CommitId, RepoStatus};
+use chrono::{DateTime, Local};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::{TableState, Widget};
@@ -29,6 +30,21 @@ pub enum AppMode {
     FilterInput,   // Inputting a revset filter
     Help,          // Showing the help overlay
     NoRepo,        // No repository found, showing welcome screen
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ErrorSeverity {
+    Info,
+    Warning,
+    Error,
+    Critical,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ErrorState {
+    pub message: String,
+    pub timestamp: DateTime<Local>,
+    pub severity: ErrorSeverity,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -166,7 +182,7 @@ pub struct AppState<'a> {
     // --- Connectivity & Status ---
     pub should_quit: bool,
     pub mode: AppMode,
-    pub last_error: Option<String>,
+    pub last_error: Option<ErrorState>,
     pub status_message: Option<String>, // "Snapshot created."
     pub status_clear_time: Option<Instant>,
     pub workspace_id: String,

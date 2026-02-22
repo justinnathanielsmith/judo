@@ -170,11 +170,17 @@ pub struct Theme {
     pub timestamp: Style,
     pub commit_id_dim: Style,
 
+    pub status_ready: Style,
+    pub status_info: Style,
+    pub status_warn: Style,
+    pub status_error: Style,
+
     pub header_logo: Style,
     pub header_repo: Style,
     pub header_branch: Style,
     pub header_stats: Style,
     pub header_active: Style,
+    pub header_warn: Style,
     pub header_item: Style,
     pub header: Style,
 
@@ -182,10 +188,6 @@ pub struct Theme {
     pub footer_segment_val: Style,
     pub footer_group_name: Style,
     pub footer: Style,
-
-    pub status_ready: Style,
-    pub status_info: Style,
-    pub status_error: Style,
 
     pub highlight: Style,
     pub list_selected: Style,
@@ -247,6 +249,23 @@ impl Theme {
             diff_modify: Style::default().fg(p.yellow),
             diff_conflict: Style::default().fg(p.red).add_modifier(Modifier::BOLD),
 
+            status_ready: Style::default()
+                .bg(p.green)
+                .fg(p.crust)
+                .add_modifier(Modifier::BOLD),
+            status_info: Style::default()
+                .bg(p.blue)
+                .fg(p.crust)
+                .add_modifier(Modifier::BOLD),
+            status_warn: Style::default()
+                .bg(p.yellow)
+                .fg(p.crust)
+                .add_modifier(Modifier::BOLD),
+            status_error: Style::default()
+                .bg(p.red)
+                .fg(p.crust)
+                .add_modifier(Modifier::BOLD),
+
             header_logo: Style::default()
                 .bg(p.blue)
                 .fg(p.crust)
@@ -264,6 +283,10 @@ impl Theme {
                 .bg(p.green)
                 .fg(p.crust)
                 .add_modifier(Modifier::BOLD),
+            header_warn: Style::default()
+                .bg(p.yellow)
+                .fg(p.crust)
+                .add_modifier(Modifier::BOLD),
             header_item: Style::default().bg(p.surface0).fg(p.text),
             header: Style::default().bg(p.base).fg(p.text),
 
@@ -274,19 +297,6 @@ impl Theme {
             footer_segment_val: Style::default().bg(p.base).fg(p.text),
             footer_group_name: Style::default().fg(p.subtext0).add_modifier(Modifier::DIM),
             footer: Style::default().bg(p.crust).fg(p.subtext0),
-
-            status_ready: Style::default()
-                .bg(p.green)
-                .fg(p.crust)
-                .add_modifier(Modifier::BOLD),
-            status_info: Style::default()
-                .bg(p.blue)
-                .fg(p.crust)
-                .add_modifier(Modifier::BOLD),
-            status_error: Style::default()
-                .bg(p.red)
-                .fg(p.crust)
-                .add_modifier(Modifier::BOLD),
 
             highlight: Style::default().bg(p.surface0).add_modifier(Modifier::BOLD),
             list_selected: Style::default()

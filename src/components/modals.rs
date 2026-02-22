@@ -1,4 +1,4 @@
-use crate::app::state::{AppTextArea, ContextMenuState};
+use crate::app::state::{AppTextArea, ContextMenuState, ErrorSeverity, ErrorState};
 use crate::theme::Theme;
 use ratatui::{
     buffer::Buffer,
@@ -254,7 +254,7 @@ impl<'a> Widget for ContextMenuModal<'a> {
 
 pub struct ErrorModal<'a> {
     pub theme: &'a Theme,
-    pub error: &'a str,
+    pub error: &'a ErrorState,
 }
 
 impl<'a> Widget for ErrorModal<'a> {
@@ -267,19 +267,35 @@ impl<'a> Widget for ErrorModal<'a> {
         draw_drop_shadow(buf, modal_area, area);
         Clear.render(modal_area, buf);
 
+        let (title_text, title_style, icon) = match self.error.severity {
+            ErrorSeverity::Info => (" INFO ", self.theme.header_item, "󰋼"),
+            ErrorSeverity::Warning => (" WARNING ", self.theme.header_warn, "󱈸"),
+            ErrorSeverity::Error => (" ERROR ", self.theme.status_error, "󰅚"),
+            ErrorSeverity::Critical => (" CRITICAL ", self.theme.status_error, "󰀦"),
+        };
+
         let block = Block::default()
             .title(Line::from(vec![
                 Span::raw(" "),
-                Span::styled(" ERROR ", self.theme.status_error),
+                Span::styled(title_text, title_style),
                 Span::raw(" "),
             ]))
             .borders(Borders::ALL)
             .border_type(BorderType::Double)
-            .border_style(self.theme.status_error);
+            .border_style(title_style);
+
+        let timestamp = self.error.timestamp.format("%H:%M:%S").to_string();
 
         let text_lines = vec![
             Line::from(""),
-            Line::from(Span::styled(self.error, self.theme.footer_segment_val)),
+            Line::from(vec![
+                Span::styled(format!("{} ", icon), title_style),
+                Span::styled(&self.error.message, self.theme.footer_segment_val),
+            ]),
+            Line::from(vec![Span::styled(
+                format!("Occurred at: {}", timestamp),
+                self.theme.list_item,
+            )]),
             Line::from(""),
             Line::from(vec![
                 Span::raw(" Press "),
