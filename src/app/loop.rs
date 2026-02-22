@@ -50,7 +50,7 @@ pub async fn run_loop_with_events<B: Backend>(
     let (notify_tx, mut notify_rx) = mpsc::channel(1);
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if res.is_ok() {
-            let _ = notify_tx.blocking_send(());
+            let _ = notify_tx.try_send(());
         }
     })?;
 
@@ -59,6 +59,30 @@ pub async fn run_loop_with_events<B: Backend>(
     if op_heads_path.exists() {
         watcher.watch(&op_heads_path, RecursiveMode::NonRecursive)?;
     }
+
+    let action_tx_clone = action_tx.clone();
+    tokio::spawn(async move {
+        let mut pending = false;
+        let debounce_duration = Duration::from_millis(500);
+
+        loop {
+            if pending {
+                tokio::select! {
+                    Some(_) = notify_rx.recv() => {}
+                    _ = tokio::time::sleep(debounce_duration) => {
+                        let _ = action_tx_clone.send(Action::ExternalChangeDetected).await;
+                        pending = false;
+                    }
+                }
+            } else {
+                if notify_rx.recv().await.is_some() {
+                    pending = true;
+                } else {
+                    break;
+                }
+            }
+        }
+    });
 
     // Initial Load
     if app_state.mode != crate::app::state::AppMode::NoRepo {
@@ -79,9 +103,6 @@ pub async fn run_loop_with_events<B: Backend>(
         // --- 2. Event Handling (TEA Runtime) ---
         let action = tokio::select! {
             _ = interval.tick() => Some(Action::Tick),
-
-            // External Changes
-            Some(_) = notify_rx.recv() => Some(Action::ExternalChangeDetected),
 
             // User Input
             Some(res) = event_rx.recv() => {
@@ -540,6 +561,20 @@ pub(crate) async fn handle_command(
     tx: mpsc::Sender<Action>,
 ) -> Result<()> {
     match command {
+        Command::LoadRepoBackground(limit, revset) => {
+            tokio::spawn(async move {
+                match adapter.get_operation_log(None, limit, revset).await {
+                    Ok(repo) => {
+                        let _ = tx.send(Action::RepoReloadedBackground(Box::new(repo))).await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::ErrorOccurred(format!("Background sync failed: {}", e)))
+                            .await;
+                    }
+                }
+            });
+        }
         Command::LoadRepo(heads, limit, revset) => {
             let is_batch = heads.is_some();
             tokio::spawn(async move {

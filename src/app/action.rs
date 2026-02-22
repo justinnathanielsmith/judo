@@ -73,11 +73,12 @@ pub enum Action {
 
     // --- Async Results (The "Callback") ---
     // These are dispatched by your async workers back to the main thread
-    RepoLoaded(Box<RepoStatus>),       // Fresh graph data arrived
-    GraphBatchLoaded(Box<RepoStatus>), // Additional graph data arrived
-    DiffLoaded(CommitId, String),      // Diff content for the selected commit
-    OperationStarted(String),          // "Squashing..." (sets loading state)
+    RepoLoaded(Box<RepoStatus>),             // Fresh graph data arrived
+    RepoReloadedBackground(Box<RepoStatus>), // Background refresh data arrived
+    GraphBatchLoaded(Box<RepoStatus>),       // Additional graph data arrived
+    DiffLoaded(CommitId, String),            // Diff content for the selected commit
+    OperationStarted(String),                // "Squashing..." (sets loading state)
     OperationCompleted(Result<String, String>), // Success/Failure message
-    ErrorOccurred(String),             // General error reporting
-    ExternalChangeDetected,            // External change to the repo (jj op heads)
+    ErrorOccurred(String),                   // General error reporting
+    ExternalChangeDetected,                  // External change to the repo (jj op heads)
 }

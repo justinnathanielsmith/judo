@@ -615,6 +615,40 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
             return handle_selection(state);
         }
+        Action::RepoReloadedBackground(repo_status) => {
+            state.workspace_id = repo_status.workspace_id.clone();
+            state.active_tasks.retain(|t| !t.contains("Syncing"));
+
+            let selected_commit_id =
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                    repo.graph.get(idx).map(|r| r.commit_id.clone())
+                } else {
+                    None
+                };
+
+            state.repo = Some(*repo_status);
+            state.is_loading_more = false;
+            state.has_more = true;
+            refresh_derived_state(state);
+
+            if let Some(id) = selected_commit_id {
+                if let Some(repo) = &state.repo {
+                    if let Some(new_idx) = repo.graph.iter().position(|r| r.commit_id == id) {
+                        state.log.list_state.select(Some(new_idx));
+                        // If we are looking at this commit, maybe refresh its diff just in case
+                        return handle_selection(state);
+                    } else {
+                        // Current selection disappeared
+                        state.log.list_state.select(Some(0));
+                        state.log.current_diff = None;
+                        return handle_selection(state);
+                    }
+                }
+            } else if state.log.list_state.selected().is_none() {
+                state.log.list_state.select(Some(0));
+                return handle_selection(state);
+            }
+        }
         Action::GraphBatchLoaded(repo_status) => {
             state.is_loading_more = false;
             if let Some(repo) = &mut state.repo {
@@ -700,12 +734,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
 
         Action::ExternalChangeDetected => {
-            state.mode = AppMode::Loading;
-            state.log.current_diff = None;
             state
                 .active_tasks
-                .push("Syncing external changes...".to_string());
-            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+                .push("Syncing in background...".to_string());
+            return Some(Command::LoadRepoBackground(100, state.revset.clone()));
         }
 
         Action::Tick => {
