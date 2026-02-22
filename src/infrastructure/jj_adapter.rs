@@ -64,9 +64,7 @@ impl JjAdapter {
                         jj_lib::config::ConfigSource::User,
                         &text,
                     )
-                    .with_context(|| {
-                        format!("Failed to parse user config at {:?}", config_path)
-                    })?;
+                    .with_context(|| format!("Failed to parse user config at {:?}", config_path))?;
                     config.add_layer(layer);
                 }
             }
