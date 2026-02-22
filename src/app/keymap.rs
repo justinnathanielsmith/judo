@@ -123,7 +123,12 @@ impl KeyMap {
         Self { global, diff_mode }
     }
 
-    pub fn get_action(&self, event: KeyEvent, mode: super::state::AppMode) -> Option<Action> {
+    pub fn get_action(
+        &self,
+        event: KeyEvent,
+        state: &super::state::AppState<'_>,
+    ) -> Option<Action> {
+        let mode = state.mode;
         if mode == super::state::AppMode::Diff {
             if let Some(action) = self.diff_mode.get(&event) {
                 return Some(action.clone());
@@ -149,6 +154,27 @@ impl KeyMap {
                 KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectPrev),
                 KeyCode::Enter => Some(Action::CommandPaletteSelect),
                 _ => None,
+            };
+        } else if mode == super::state::AppMode::FilterInput {
+            return match event.code {
+                KeyCode::Esc => Some(Action::CancelMode),
+                KeyCode::Enter => {
+                    let text = if let Some(input) = &state.input {
+                        input.text_area.lines().join("\n")
+                    } else {
+                        String::new()
+                    };
+                    Some(Action::ApplyFilter(text))
+                }
+                KeyCode::Down => Some(Action::FilterNext),
+                KeyCode::Up => Some(Action::FilterPrev),
+                KeyCode::Char('n') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    Some(Action::FilterNext)
+                }
+                KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    Some(Action::FilterPrev)
+                }
+                _ => Some(Action::TextAreaInput(event)),
             };
         }
         self.global.get(&event).cloned()

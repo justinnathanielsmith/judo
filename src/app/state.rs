@@ -84,21 +84,11 @@ impl ContextMenuState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct CommandPaletteState {
     pub query: String,
     pub matches: Vec<usize>, // Indices into predefined command list
     pub selected_index: usize,
-}
-
-impl Default for CommandPaletteState {
-    fn default() -> Self {
-        Self {
-            query: String::new(),
-            matches: Vec::new(),
-            selected_index: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,7 +152,7 @@ impl<'a> Widget for &AppTextArea<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct LogState {
     pub list_state: TableState,
     pub selected_file_index: Option<usize>,
@@ -171,20 +161,6 @@ pub struct LogState {
     pub diff_scroll: u16,
     pub diff_cache: HashMap<CommitId, String>,
     pub selected_ids: std::collections::HashSet<CommitId>,
-}
-
-impl Default for LogState {
-    fn default() -> Self {
-        Self {
-            list_state: TableState::default(),
-            selected_file_index: None,
-            current_diff: None,
-            is_loading_diff: false,
-            diff_scroll: 0,
-            diff_cache: HashMap::new(),
-            selected_ids: std::collections::HashSet::new(),
-        }
-    }
 }
 
 impl LogState {
@@ -273,12 +249,17 @@ pub struct AppState<'a> {
     pub keymap: Arc<KeyMap>,
     pub palette_type: crate::theme::PaletteType,
     pub theme: crate::theme::Theme,
+
+    // --- Filters ---
+    pub recent_filters: Vec<String>,
+    pub selected_filter_index: Option<usize>,
 }
 
 impl<'a> AppState<'a> {
     pub fn new(config: KeyConfig) -> Self {
         Self {
             keymap: Arc::new(KeyMap::from_config(&config)),
+            recent_filters: super::persistence::load_recent_filters(),
             ..Default::default()
         }
     }
@@ -345,6 +326,8 @@ impl<'a> Default for AppState<'a> {
             keymap: Arc::new(KeyMap::from_config(&KeyConfig::default())),
             palette_type: crate::theme::PaletteType::CatppuccinMocha,
             theme: crate::theme::Theme::default(),
+            recent_filters: Vec::new(),
+            selected_filter_index: None,
         }
     }
 }

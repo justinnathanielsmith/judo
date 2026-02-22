@@ -214,17 +214,12 @@ pub fn map_event_to_action(
         }
         crate::app::state::AppMode::FilterInput => {
             match event {
-                Event::Key(key) => match key.code {
-                    KeyCode::Esc => Some(Action::CancelMode),
-                    KeyCode::Enter => {
-                        if let Some(input) = &app_state.input {
-                            Some(Action::ApplyFilter(input.text_area.lines().join("")))
-                        } else {
-                            None
-                        }
+                Event::Key(key) => {
+                    if let Some(action) = app_state.keymap.get_action(key, app_state) {
+                        return Some(action);
                     }
-                    _ => Some(Action::TextAreaInput(key)),
-                },
+                    Some(Action::TextAreaInput(key))
+                }
                 _ => None,
             }
         }
@@ -295,7 +290,7 @@ pub fn map_event_to_action(
         crate::app::state::AppMode::Diff => {
             match event {
                 Event::Key(key) => {
-                    if let Some(action) = app_state.keymap.get_action(key, app_state.mode) {
+                    if let Some(action) = app_state.keymap.get_action(key, app_state) {
                         return Some(action);
                     }
                     match key.code {
@@ -391,7 +386,7 @@ pub fn map_event_to_action(
         _ => match event {
             Event::Resize(w, h) => Some(Action::Resize(w, h)),
             Event::Key(key) => {
-                if let Some(action) = app_state.keymap.get_action(key, app_state.mode) {
+                if let Some(action) = app_state.keymap.get_action(key, app_state) {
                     return Some(action);
                 }
                 None

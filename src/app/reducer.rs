@@ -142,14 +142,33 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 text_area.insert_str(revset);
             }
             state.input = Some(super::state::InputState { text_area });
+            state.selected_filter_index = None;
         }
         Action::ApplyFilter(revset) => {
             state.mode = AppMode::Normal;
             state.input = None;
-            let revset = if revset.trim().is_empty() {
+            state.selected_filter_index = None;
+
+            let revset_str = revset.trim().to_string();
+            let revset = if revset_str.is_empty() {
                 None
             } else {
-                Some(revset.trim().to_string())
+                // Update recent filters
+                if !state.recent_filters.iter().any(|f| f == &revset_str) {
+                    state.recent_filters.insert(0, revset_str.clone());
+                    if state.recent_filters.len() > 10 {
+                        state.recent_filters.truncate(10);
+                    }
+                    super::persistence::save_recent_filters(&state.recent_filters);
+                } else {
+                    // Move to front
+                    if let Some(pos) = state.recent_filters.iter().position(|f| f == &revset_str) {
+                        state.recent_filters.remove(pos);
+                        state.recent_filters.insert(0, revset_str.clone());
+                        super::persistence::save_recent_filters(&state.recent_filters);
+                    }
+                }
+                Some(revset_str)
             };
             state.revset = revset.clone();
             state.log.list_state.select(Some(0));
@@ -175,6 +194,40 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.status_message = Some("Filtering: conflicts()".to_string());
             state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterNext => {
+            if state.mode == AppMode::FilterInput && !state.recent_filters.is_empty() {
+                let current = state.selected_filter_index;
+                let next = match current {
+                    Some(i) => (i + 1) % state.recent_filters.len(),
+                    None => 0,
+                };
+                state.selected_filter_index = Some(next);
+                if let Some(input) = &mut state.input {
+                    input.text_area = AppTextArea::default();
+                    input.text_area.insert_str(&state.recent_filters[next]);
+                }
+            }
+        }
+        Action::FilterPrev => {
+            if state.mode == AppMode::FilterInput && !state.recent_filters.is_empty() {
+                let current = state.selected_filter_index;
+                let next = match current {
+                    Some(i) => {
+                        if i == 0 {
+                            state.recent_filters.len() - 1
+                        } else {
+                            i - 1
+                        }
+                    }
+                    None => state.recent_filters.len() - 1,
+                };
+                state.selected_filter_index = Some(next);
+                if let Some(input) = &mut state.input {
+                    input.text_area = AppTextArea::default();
+                    input.text_area.insert_str(&state.recent_filters[next]);
+                }
+            }
         }
         Action::FocusDiff => {
             if state.show_diffs {
@@ -251,6 +304,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.context_menu = None;
                 state.command_palette = None;
                 state.theme_selection = None;
+                state.selected_filter_index = None;
             }
         }
         Action::CommandPaletteNext => {

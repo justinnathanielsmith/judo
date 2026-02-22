@@ -529,13 +529,79 @@ impl<'a> Widget for ModalManager<'a> {
             }
             AppMode::FilterInput => {
                 if let Some(input) = &self.app_state.input {
-                    TextInputModal {
-                        theme: self.theme,
-                        title: " FILTER (REVSET) ",
-                        text_area: &input.text_area,
-                        height_percent: 0,
+                    let modal_area = centered_rect(60, 40, area); // Increased height for list
+                    draw_drop_shadow(buf, modal_area, area);
+                    Clear.render(modal_area, buf);
+
+                    let block = Block::default()
+                        .title(Line::from(vec![
+                            Span::raw(" "),
+                            Span::styled(" FILTER (REVSET) ", self.theme.header_active),
+                            Span::raw(" "),
+                        ]))
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Rounded)
+                        .border_style(self.theme.border_focus);
+
+                    let inner_area = block.inner(modal_area);
+                    block.render(modal_area, buf);
+
+                    let constraints = if self.app_state.recent_filters.is_empty() {
+                        vec![Constraint::Length(3), Constraint::Min(0)]
+                    } else {
+                        vec![
+                            Constraint::Length(3), // Input
+                            Constraint::Length(1), // Separator
+                            Constraint::Min(0),    // Recent filters
+                        ]
+                    };
+
+                    let layout = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints(constraints)
+                        .split(inner_area);
+
+                    // Render Input
+                    Widget::render(&input.text_area, layout[0], buf);
+
+                    // Render Recent Filters
+                    if !self.app_state.recent_filters.is_empty() {
+                        // Render Separator
+                        let separator = "─".repeat(layout[1].width as usize);
+                        buf.set_string(
+                            layout[1].x,
+                            layout[1].y,
+                            separator,
+                            self.theme.border_focus,
+                        );
+
+                        let items: Vec<ListItem> = self
+                            .app_state
+                            .recent_filters
+                            .iter()
+                            .enumerate()
+                            .map(|(i, f)| {
+                                let style = if Some(i) == self.app_state.selected_filter_index {
+                                    self.theme.list_selected
+                                } else {
+                                    self.theme.list_item
+                                };
+                                let prefix = if Some(i) == self.app_state.selected_filter_index {
+                                    "> "
+                                } else {
+                                    "  "
+                                };
+                                ListItem::new(format!("{}{}", prefix, f)).style(style)
+                            })
+                            .collect();
+
+                        let list = List::new(items).block(
+                            Block::default()
+                                .title(Span::styled(" Recent Filters ", self.theme.header_item))
+                                .borders(Borders::NONE),
+                        );
+                        list.render(layout[2], buf);
                     }
-                    .render(area, buf);
                 }
             }
             _ => {}

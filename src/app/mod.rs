@@ -3,6 +3,7 @@ pub mod command;
 pub mod command_palette;
 pub mod keymap;
 pub mod r#loop;
+pub mod persistence;
 pub mod recovery;
 pub mod reducer;
 pub mod state;

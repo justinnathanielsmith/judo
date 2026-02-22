@@ -52,6 +52,8 @@ pub enum Action {
     FilterMine,                                // Quick filter: mine()
     FilterTrunk,                               // Quick filter: trunk()
     FilterConflicts,                           // Quick filter: conflicts()
+    FilterNext,                                // Next recent filter
+    FilterPrev,                                // Previous recent filter
     EnterSquashMode,                           // Open squash selection modal
     FocusDiff,                                 // Switch focus to diff window
     FocusGraph,                                // Switch focus to revision graph
