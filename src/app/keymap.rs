@@ -108,6 +108,7 @@ impl KeyMap {
         global.insert(key_char('['), Action::PrevHunk);
         global.insert(key_char(']'), Action::NextHunk);
         global.insert(key_char(':'), Action::EnterCommandMode);
+        global.insert(key_char('C'), Action::ClearFilter);
         global.insert(key_code(KeyCode::Esc), Action::CancelMode);
 
         diff_mode.insert(key_char('h'), Action::FocusGraph);
@@ -168,6 +169,7 @@ impl KeyMap {
                     };
                     Some(Action::ApplyFilter(text))
                 }
+                KeyCode::Tab => Some(Action::ToggleFilterSource),
                 KeyCode::Down => Some(Action::FilterNext),
                 KeyCode::Up => Some(Action::FilterPrev),
                 KeyCode::Char('n') if event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -239,6 +241,13 @@ fn parse_action(s: &str) -> Option<Action> {
         "nexthunk" => Some(Action::NextHunk),
         "prevhunk" => Some(Action::PrevHunk),
         "cancel" => Some(Action::CancelMode),
+        "filterempty" => Some(Action::FilterEmpty),
+        "filterdivergent" => Some(Action::FilterDivergent),
+        "filtermerges" => Some(Action::FilterMerges),
+        "filtertags" => Some(Action::FilterTags),
+        "filterremotebookmarks" => Some(Action::FilterRemoteBookmarks),
+        "filterworking" => Some(Action::FilterWorking),
+        "clearfilter" => Some(Action::ClearFilter),
         _ => None,
     }
 }

@@ -137,6 +137,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::EnterFilterMode => {
             state.mode = AppMode::FilterInput;
+            state.is_selecting_presets = false;
             let mut text_area = AppTextArea::default();
             if let Some(revset) = &state.revset {
                 text_area.insert_str(revset);
@@ -195,37 +196,154 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
             return Some(Command::LoadRepo(None, 100, state.revset.clone()));
         }
+        Action::FilterAll => {
+            state.revset = Some("all()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: all()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterHeads => {
+            state.revset = Some("heads(all())".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: heads(all())".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterBookmarks => {
+            state.revset = Some("bookmarks()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: bookmarks()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterImmutable => {
+            state.revset = Some("immutable()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: immutable()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterMutable => {
+            state.revset = Some("mutable()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: mutable()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterEmpty => {
+            state.revset = Some("empty()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: empty()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterDivergent => {
+            state.revset = Some("divergent()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: divergent()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterMerges => {
+            state.revset = Some("merges()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: merges()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterTags => {
+            state.revset = Some("tags()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: tags()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterRemoteBookmarks => {
+            state.revset = Some("remote_bookmarks()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: remote_bookmarks()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::FilterWorking => {
+            state.revset = Some("working_copies()".to_string());
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filtering: working_copies()".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, state.revset.clone()));
+        }
+        Action::ClearFilter => {
+            state.revset = None;
+            state.log.list_state.select(Some(0));
+            state.status_message = Some("Filter cleared".to_string());
+            state.status_clear_time = Some(Instant::now() + STATUS_CLEAR_DURATION);
+            return Some(Command::LoadRepo(None, 100, None));
+        }
         Action::FilterNext => {
-            if state.mode == AppMode::FilterInput && !state.recent_filters.is_empty() {
-                let current = state.selected_filter_index;
-                let next = match current {
-                    Some(i) => (i + 1) % state.recent_filters.len(),
-                    None => 0,
+            if state.mode == AppMode::FilterInput {
+                let filters = if state.is_selecting_presets {
+                    &state.preset_filters
+                } else {
+                    &state.recent_filters
                 };
-                state.selected_filter_index = Some(next);
-                if let Some(input) = &mut state.input {
-                    input.text_area = AppTextArea::default();
-                    input.text_area.insert_str(&state.recent_filters[next]);
+
+                if !filters.is_empty() {
+                    let current = state.selected_filter_index;
+                    let next = match current {
+                        Some(i) => (i + 1) % filters.len(),
+                        None => 0,
+                    };
+                    state.selected_filter_index = Some(next);
+                    if let Some(input) = &mut state.input {
+                        input.text_area = AppTextArea::default();
+                        input.text_area.insert_str(&filters[next]);
+                    }
                 }
             }
         }
         Action::FilterPrev => {
-            if state.mode == AppMode::FilterInput && !state.recent_filters.is_empty() {
-                let current = state.selected_filter_index;
-                let next = match current {
-                    Some(i) => {
-                        if i == 0 {
-                            state.recent_filters.len() - 1
-                        } else {
-                            i - 1
-                        }
-                    }
-                    None => state.recent_filters.len() - 1,
+            if state.mode == AppMode::FilterInput {
+                let filters = if state.is_selecting_presets {
+                    &state.preset_filters
+                } else {
+                    &state.recent_filters
                 };
-                state.selected_filter_index = Some(next);
-                if let Some(input) = &mut state.input {
-                    input.text_area = AppTextArea::default();
-                    input.text_area.insert_str(&state.recent_filters[next]);
+
+                if !filters.is_empty() {
+                    let current = state.selected_filter_index;
+                    let next = match current {
+                        Some(i) => {
+                            if i == 0 {
+                                filters.len() - 1
+                            } else {
+                                i - 1
+                            }
+                        }
+                        None => filters.len() - 1,
+                    };
+                    state.selected_filter_index = Some(next);
+                    if let Some(input) = &mut state.input {
+                        input.text_area = AppTextArea::default();
+                        input.text_area.insert_str(&filters[next]);
+                    }
+                }
+            }
+        }
+        Action::ToggleFilterSource => {
+            if state.mode == AppMode::FilterInput {
+                state.is_selecting_presets = !state.is_selecting_presets;
+                state.selected_filter_index = Some(0);
+                let filters = if state.is_selecting_presets {
+                    &state.preset_filters
+                } else {
+                    &state.recent_filters
+                };
+                if !filters.is_empty() {
+                    if let Some(input) = &mut state.input {
+                        input.text_area = AppTextArea::default();
+                        input.text_area.insert_str(&filters[0]);
+                    }
                 }
             }
         }
@@ -301,6 +419,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.command_palette = None;
                 state.theme_selection = None;
                 state.selected_filter_index = None;
+                state.is_selecting_presets = false;
             } else {
                 state.log.selected_ids.clear();
             }
@@ -746,6 +865,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::ErrorOccurred(err) => {
+            // Auto-clear invalid revset filters to prevent error loops
+            let err_lower = err.to_lowercase();
+            let is_revset_error = state.revset.is_some()
+                && (err_lower.contains("revset")
+                    || err_lower.contains("parse error")
+                    || (err_lower.contains("error") && err_lower.contains("function"))
+                    || (err_lower.contains("invalid") && err_lower.contains("expression")));
+
+            if is_revset_error {
+                state.revset = None;
+            }
+
             state.last_error = Some(ErrorState {
                 suggestions: recovery::get_suggestions(&err),
                 message: err,
@@ -758,6 +889,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 } else {
                     AppMode::NoRepo
                 };
+            }
+
+            // Reload with the cleared filter so user isn't stuck
+            if is_revset_error {
+                return Some(Command::LoadRepo(None, 100, None));
             }
         }
 
@@ -1564,5 +1700,62 @@ mod tests {
         let cmd = update(&mut state, Action::DeleteBookmark("main".to_string()));
         assert_eq!(state.mode, AppMode::Normal);
         assert!(matches!(cmd, Some(Command::DeleteBookmark(ref name)) if name == "main"));
+    }
+
+    #[test]
+    fn test_filter_navigation_with_presets() {
+        let mut state = AppState {
+            mode: AppMode::FilterInput,
+            recent_filters: vec!["recent1".to_string()],
+            preset_filters: vec!["preset1".to_string(), "preset2".to_string()],
+            ..Default::default()
+        };
+        state.input = Some(state::InputState {
+            text_area: AppTextArea::default(),
+        });
+
+        // Initially selecting recent
+        assert!(!state.is_selecting_presets);
+
+        // Next in recent
+        update(&mut state, Action::FilterNext);
+        assert_eq!(state.selected_filter_index, Some(0));
+        assert_eq!(
+            state.input.as_ref().unwrap().text_area.lines()[0],
+            "recent1"
+        );
+
+        // Toggle to presets
+        update(&mut state, Action::ToggleFilterSource);
+        assert!(state.is_selecting_presets);
+        assert_eq!(state.selected_filter_index, Some(0));
+        assert_eq!(
+            state.input.as_ref().unwrap().text_area.lines()[0],
+            "preset1"
+        );
+
+        // Next in presets
+        update(&mut state, Action::FilterNext);
+        assert_eq!(state.selected_filter_index, Some(1));
+        assert_eq!(
+            state.input.as_ref().unwrap().text_area.lines()[0],
+            "preset2"
+        );
+
+        // Wrap next in presets
+        update(&mut state, Action::FilterNext);
+        assert_eq!(state.selected_filter_index, Some(0));
+        assert_eq!(
+            state.input.as_ref().unwrap().text_area.lines()[0],
+            "preset1"
+        );
+
+        // Prev in presets (wrap to last)
+        update(&mut state, Action::FilterPrev);
+        assert_eq!(state.selected_filter_index, Some(1));
+        assert_eq!(
+            state.input.as_ref().unwrap().text_area.lines()[0],
+            "preset2"
+        );
     }
 }

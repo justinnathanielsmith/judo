@@ -26,6 +26,15 @@ pub fn get_suggestions(msg: &str) -> Vec<String> {
         suggestions.push("Ensure you are in a jj/git repository or try: jj git init".to_string());
     }
 
+    if msg_lower.contains("revset")
+        || (msg_lower.contains("error") && msg_lower.contains("function"))
+        || msg_lower.contains("parse error")
+        || (msg_lower.contains("invalid") && msg_lower.contains("expression"))
+    {
+        suggestions.push("The revset filter was invalid and has been auto-cleared.".to_string());
+        suggestions.push("Press / to enter a new filter, or C to clear.".to_string());
+    }
+
     suggestions
 }
 
@@ -47,5 +56,11 @@ mod tests {
         assert!(
             s.contains(&"Try running: jj resolve (to open the external merge tool)".to_string())
         );
+
+        let s = get_suggestions("Jujutsu error: Revset function \"invalid\" doesn't exist");
+        assert!(s.iter().any(|x| x.contains("auto-cleared")));
+
+        let s = get_suggestions("Failed to load repo: Jujutsu error: parse error");
+        assert!(s.iter().any(|x| x.contains("auto-cleared")));
     }
 }

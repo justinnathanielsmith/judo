@@ -50,8 +50,8 @@ We strictly follow The Elm Architecture pattern to manage state and side effects
 
 * `src/domain/`: Core business logic and VCS abstractions.
 * `src/infrastructure/`: Adapters for external systems like `jj-lib`.
-* `src/app/`: Application-specific logic (state, reducer, loop).
-* `src/components/`: Reusable UI widgets.
+* `src/app/`: Application-specific logic (state, reducer, loop, keymap, recovery).
+* `src/components/`: Reusable UI widgets (header, footer, revision graph, diff view, modals).
 
 ## Workflow
 
@@ -61,6 +61,26 @@ We strictly follow The Elm Architecture pattern to manage state and side effects
 * Run `cargo check` to catch compilation errors.
 * Run `cargo test` to ensure no regressions.
 * Verify that the `Esc` key correctly cancels current modes and clears errors in the UI.
+
+## Revset Filter System
+
+The revset filter system provides comprehensive support for jj's revset language.
+
+### State (`state.rs`)
+* `revset: Option<String>` — the currently active revset expression.
+* `recent_filters: Vec<String>` — persisted history of user-entered filters.
+* `preset_filters: Vec<String>` — 21 built-in presets covering scope, bookmarks/tags, state, and DAG.
+* `is_selecting_presets: bool` — toggles between recent and preset list sources.
+* `get_revset_reference()` — returns categorized reference data (8 categories, 70+ entries) used by the filter modal.
+
+### Actions & Reducer
+* Preset filter actions (`FilterMine`, `FilterTrunk`, etc.) set `state.revset` and dispatch `LoadRepo`.
+* `ApplyFilter(String)` handles custom revset input, manages recent filter history.
+* `ClearFilter` resets `state.revset` to `None`.
+
+### Error Handling
+* **Auto-revert**: When `ErrorOccurred` fires with a revset-related error AND a filter is active, the reducer auto-clears `state.revset` and dispatches `LoadRepo(None)` to prevent infinite error loops.
+* **Recovery suggestions** (`recovery.rs`): Pattern-matches revset errors (keywords: `revset`, `parse error`, `function`, `invalid expression`) and suggests corrective actions.
 
 ## Lessons Learned
 

@@ -86,6 +86,66 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::FilterConflicts,
         },
         CommandDefinition {
+            name: "Filter: All",
+            description: "Show all revisions",
+            action: Action::FilterAll,
+        },
+        CommandDefinition {
+            name: "Filter: Heads",
+            description: "Show only head revisions",
+            action: Action::FilterHeads,
+        },
+        CommandDefinition {
+            name: "Filter: Bookmarks",
+            description: "Show revisions with local bookmarks",
+            action: Action::FilterBookmarks,
+        },
+        CommandDefinition {
+            name: "Filter: Immutable",
+            description: "Show only immutable revisions",
+            action: Action::FilterImmutable,
+        },
+        CommandDefinition {
+            name: "Filter: Mutable",
+            description: "Show only mutable revisions",
+            action: Action::FilterMutable,
+        },
+        CommandDefinition {
+            name: "Filter: Empty",
+            description: "Show commits modifying no files",
+            action: Action::FilterEmpty,
+        },
+        CommandDefinition {
+            name: "Filter: Divergent",
+            description: "Show divergent commits",
+            action: Action::FilterDivergent,
+        },
+        CommandDefinition {
+            name: "Filter: Merges",
+            description: "Show merge commits",
+            action: Action::FilterMerges,
+        },
+        CommandDefinition {
+            name: "Filter: Tags",
+            description: "Show tagged revisions",
+            action: Action::FilterTags,
+        },
+        CommandDefinition {
+            name: "Filter: Remote Bookmarks",
+            description: "Show remote bookmark targets",
+            action: Action::FilterRemoteBookmarks,
+        },
+        CommandDefinition {
+            name: "Filter: Working Copies",
+            description: "Show working copy commits",
+            action: Action::FilterWorking,
+        },
+        CommandDefinition {
+            name: "Clear Filter",
+            description: "Remove the active revset filter",
+            action: Action::ClearFilter,
+        },
+        CommandDefinition {
             name: "Filter: Custom",
             description: "Enter a custom revset filter",
             action: Action::EnterFilterMode,

@@ -131,6 +131,17 @@ impl Widget for HelpModal<'_> {
                 Cell::from(Span::styled(" c", key_style)),
                 Cell::from(Span::styled("Filter: conflicts()", desc_style)),
             ]),
+            Row::new(vec![
+                Cell::from(Span::styled(" C", key_style)),
+                Cell::from(Span::styled("Clear active filter", desc_style)),
+            ]),
+            Row::new(vec![
+                Cell::from(Span::styled(" Tab", key_style)),
+                Cell::from(Span::styled(
+                    "Toggle Recent/Presets (in / modal)",
+                    desc_style,
+                )),
+            ]),
             Row::new(vec![Cell::from(""), Cell::from("")]),
             // General
             Row::new(vec![
@@ -529,16 +540,29 @@ impl Widget for ModalManager<'_> {
             }
             AppMode::FilterInput => {
                 if let Some(input) = &self.app_state.input {
-                    let modal_area = centered_rect(60, 40, area); // Increased height for list
+                    let modal_area = centered_rect(80, 80, area);
                     draw_drop_shadow(buf, modal_area, area);
                     Clear.render(modal_area, buf);
 
-                    let block = Block::default()
-                        .title(Line::from(vec![
+                    // Title with active filter indicator
+                    let title_spans = if let Some(active) = &self.app_state.revset {
+                        vec![
                             Span::raw(" "),
                             Span::styled(" FILTER (REVSET) ", self.theme.header_active),
                             Span::raw(" "),
-                        ]))
+                            Span::styled(format!(" Active: {active} "), self.theme.header_warn),
+                            Span::raw(" "),
+                        ]
+                    } else {
+                        vec![
+                            Span::raw(" "),
+                            Span::styled(" FILTER (REVSET) ", self.theme.header_active),
+                            Span::raw(" "),
+                        ]
+                    };
+
+                    let block = Block::default()
+                        .title(Line::from(title_spans))
                         .borders(Borders::ALL)
                         .border_type(BorderType::Rounded)
                         .border_style(self.theme.border_focus);
@@ -546,62 +570,146 @@ impl Widget for ModalManager<'_> {
                     let inner_area = block.inner(modal_area);
                     block.render(modal_area, buf);
 
-                    let constraints = if self.app_state.recent_filters.is_empty() {
-                        vec![Constraint::Length(3), Constraint::Min(0)]
-                    } else {
-                        vec![
-                            Constraint::Length(3), // Input
-                            Constraint::Length(1), // Separator
-                            Constraint::Min(0),    // Recent filters
-                        ]
-                    };
-
-                    let layout = Layout::default()
+                    // Layout: Input | Separator | Lists side-by-side | Separator | Reference | Hints
+                    let main_layout = Layout::default()
                         .direction(Direction::Vertical)
-                        .constraints(constraints)
+                        .constraints([
+                            Constraint::Length(1), // Input
+                            Constraint::Length(1), // Separator
+                            Constraint::Length(8), // Recent + Preset lists
+                            Constraint::Length(1), // Separator
+                            Constraint::Min(0),    // Reference
+                            Constraint::Length(1), // Hint bar
+                        ])
                         .split(inner_area);
 
                     // Render Input
-                    Widget::render(&input.text_area, layout[0], buf);
+                    Widget::render(&input.text_area, main_layout[0], buf);
 
-                    // Render Recent Filters
-                    if !self.app_state.recent_filters.is_empty() {
-                        // Render Separator
-                        let separator = "─".repeat(layout[1].width as usize);
-                        buf.set_string(
-                            layout[1].x,
-                            layout[1].y,
-                            separator,
-                            self.theme.border_focus,
-                        );
+                    // Separator
+                    let separator = "─".repeat(main_layout[1].width as usize);
+                    buf.set_string(
+                        main_layout[1].x,
+                        main_layout[1].y,
+                        separator,
+                        self.theme.border_focus,
+                    );
 
-                        let items: Vec<ListItem> = self
-                            .app_state
-                            .recent_filters
-                            .iter()
-                            .enumerate()
-                            .map(|(i, f)| {
-                                let style = if Some(i) == self.app_state.selected_filter_index {
-                                    self.theme.list_selected
-                                } else {
-                                    self.theme.list_item
-                                };
-                                let prefix = if Some(i) == self.app_state.selected_filter_index {
-                                    "> "
-                                } else {
-                                    "  "
-                                };
-                                ListItem::new(format!("{prefix}{f}")).style(style)
-                            })
-                            .collect();
+                    // Side-by-side: Recent Filters | Preset Filters
+                    let list_layout = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                        .split(main_layout[2]);
 
-                        let list = List::new(items).block(
-                            Block::default()
-                                .title(Span::styled(" Recent Filters ", self.theme.header_item))
-                                .borders(Borders::NONE),
-                        );
-                        list.render(layout[2], buf);
-                    }
+                    let recent_style = if !self.app_state.is_selecting_presets {
+                        self.theme.header_active
+                    } else {
+                        self.theme.header_item
+                    };
+
+                    let recent_items: Vec<ListItem> = self
+                        .app_state
+                        .recent_filters
+                        .iter()
+                        .enumerate()
+                        .map(|(i, f)| {
+                            let is_selected = Some(i) == self.app_state.selected_filter_index
+                                && !self.app_state.is_selecting_presets;
+                            let style = if is_selected {
+                                self.theme.list_selected
+                            } else {
+                                self.theme.list_item
+                            };
+                            let prefix = if is_selected { "▸ " } else { "  " };
+                            ListItem::new(format!("{prefix}{f}")).style(style)
+                        })
+                        .collect();
+
+                    let recent_list = List::new(recent_items).block(
+                        Block::default()
+                            .title(Span::styled(" Recent ◂Tab▸ ", recent_style))
+                            .borders(Borders::RIGHT),
+                    );
+                    recent_list.render(list_layout[0], buf);
+
+                    let preset_style = if self.app_state.is_selecting_presets {
+                        self.theme.header_active
+                    } else {
+                        self.theme.header_item
+                    };
+
+                    let preset_items: Vec<ListItem> = self
+                        .app_state
+                        .preset_filters
+                        .iter()
+                        .enumerate()
+                        .map(|(i, f)| {
+                            let is_selected = Some(i) == self.app_state.selected_filter_index
+                                && self.app_state.is_selecting_presets;
+                            let style = if is_selected {
+                                self.theme.list_selected
+                            } else {
+                                self.theme.list_item
+                            };
+                            let prefix = if is_selected { "▸ " } else { "  " };
+                            ListItem::new(format!("{prefix}{f}")).style(style)
+                        })
+                        .collect();
+
+                    let preset_list = List::new(preset_items).block(
+                        Block::default()
+                            .title(Span::styled(" Presets ◂Tab▸ ", preset_style))
+                            .borders(Borders::NONE),
+                    );
+                    preset_list.render(list_layout[1], buf);
+
+                    // Separator
+                    let separator = "─".repeat(main_layout[3].width as usize);
+                    buf.set_string(
+                        main_layout[3].x,
+                        main_layout[3].y,
+                        separator,
+                        self.theme.border_focus,
+                    );
+
+                    // Render Categorized Revset Reference
+                    let reference = crate::app::state::get_revset_reference();
+                    let ref_area = main_layout[4];
+
+                    // Split reference into columns for better use of horizontal space
+                    let ref_cols = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                        .split(ref_area);
+
+                    let half = reference.len().div_ceil(2);
+                    let left_cats = &reference[..half.min(reference.len())];
+                    let right_cats = if half < reference.len() {
+                        &reference[half..]
+                    } else {
+                        &[]
+                    };
+
+                    render_revset_categories(buf, ref_cols[0], left_cats, self.theme);
+                    render_revset_categories(buf, ref_cols[1], right_cats, self.theme);
+
+                    // Hint bar
+                    let hints = Line::from(vec![
+                        Span::styled(" Tab", self.theme.footer_segment_key),
+                        Span::styled(" Toggle  ", self.theme.list_item),
+                        Span::styled("↑↓", self.theme.footer_segment_key),
+                        Span::styled(" Navigate  ", self.theme.list_item),
+                        Span::styled("Enter", self.theme.footer_segment_key),
+                        Span::styled(" Apply  ", self.theme.list_item),
+                        Span::styled("Esc", self.theme.footer_segment_key),
+                        Span::styled(" Cancel", self.theme.list_item),
+                    ]);
+                    buf.set_line(
+                        main_layout[5].x,
+                        main_layout[5].y,
+                        &hints,
+                        main_layout[5].width,
+                    );
                 }
             }
             _ => {}
@@ -718,5 +826,45 @@ fn draw_drop_shadow(buf: &mut Buffer, area: Rect, terminal_area: Rect) {
             cell.set_style(ratatui::style::Style::default().bg(Color::Black));
             cell.set_symbol(" ");
         }
+    }
+}
+
+fn render_revset_categories(
+    buf: &mut Buffer,
+    area: Rect,
+    categories: &[crate::app::state::RevsetCategory],
+    theme: &Theme,
+) {
+    let mut y = area.y;
+    let max_y = area.y + area.height;
+
+    for cat in categories {
+        if y >= max_y {
+            break;
+        }
+
+        // Category header
+        let header = Line::from(Span::styled(format!(" {} ", cat.name), theme.header_item));
+        buf.set_line(area.x, y, &header, area.width);
+        y += 1;
+
+        // Entries
+        for entry in &cat.entries {
+            if y >= max_y {
+                break;
+            }
+            let line = Line::from(vec![
+                Span::styled(format!("  {:<22}", entry.name), theme.footer_segment_key),
+                Span::styled(
+                    entry.description,
+                    theme.list_item.add_modifier(ratatui::style::Modifier::DIM),
+                ),
+            ]);
+            buf.set_line(area.x, y, &line, area.width);
+            y += 1;
+        }
+
+        // Spacing between categories
+        y += 1;
     }
 }

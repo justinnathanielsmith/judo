@@ -53,8 +53,21 @@ pub enum Action {
     FilterMine,                                // Quick filter: mine()
     FilterTrunk,                               // Quick filter: trunk()
     FilterConflicts,                           // Quick filter: conflicts()
+    FilterAll,                                 // Quick filter: all()
+    FilterHeads,                               // Quick filter: heads(all())
+    FilterBookmarks,                           // Quick filter: bookmarks()
+    FilterImmutable,                           // Quick filter: immutable()
+    FilterMutable,                             // Quick filter: mutable()
+    FilterEmpty,                               // Quick filter: empty()
+    FilterDivergent,                           // Quick filter: divergent()
+    FilterMerges,                              // Quick filter: merges()
+    FilterTags,                                // Quick filter: tags()
+    FilterRemoteBookmarks,                     // Quick filter: remote_bookmarks()
+    FilterWorking,                             // Quick filter: working_copies()
+    ClearFilter,                               // Clear the active revset filter
     FilterNext,                                // Next recent filter
     FilterPrev,                                // Previous recent filter
+    ToggleFilterSource,                        // Toggle between recent and preset filters
     EnterSquashMode,                           // Open squash selection modal
     FocusDiff,                                 // Switch focus to diff window
     FocusGraph,                                // Switch focus to revision graph

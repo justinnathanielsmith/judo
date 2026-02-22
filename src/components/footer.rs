@@ -59,6 +59,11 @@ impl Footer<'_> {
                             desc: "mine/trnk/conf",
                             highlighted: false,
                         },
+                        FooterItem {
+                            key: "C",
+                            desc: "clear",
+                            highlighted: self.state.revset.is_some(),
+                        },
                     ],
                 });
 
@@ -331,6 +336,13 @@ impl Widget for Footer<'_> {
         let theme = self.theme;
         let state = self.state;
 
+        // Active filter indicator
+        let filter_span = if let Some(revset) = &state.revset {
+            Span::styled(format!("  FILTER: {revset}  "), theme.header_warn)
+        } else {
+            Span::raw("")
+        };
+
         // Status segment
         let status_span = if let Some(err) = &state.last_error {
             Span::styled(format!("  ERROR: {}  ", err.message), theme.status_error)
@@ -341,6 +353,12 @@ impl Widget for Footer<'_> {
         };
 
         let mut spans = vec![status_span, Span::raw(" ")];
+
+        // Show active filter badge
+        if !filter_span.content.is_empty() {
+            spans.push(filter_span);
+            spans.push(Span::raw(" "));
+        }
 
         // Repo context (Workspace, WC & Operation)
         if !state.workspace_id.is_empty() {

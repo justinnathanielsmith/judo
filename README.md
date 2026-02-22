@@ -17,7 +17,7 @@
   - **Undo/Redo**: Navigate through your operation history with ease.
   - **Bookmarks**: Manage bookmarks (set/delete) on any revision.
   - **Fetch & Push**: Synchronize with remote repositories.
-- **Filtering**: Quickly filter the revision graph using `jj` revsets (e.g., `mine()`, `trunk()`, `conflicts()`).
+- **Comprehensive Revset Filtering**: Filter the revision graph using the full `jj` revset language — 21 preset filters, a categorized reference panel with 70+ operators/functions/patterns, recent filter history, and auto-recovery from invalid expressions.
 - **Conflict Resolution**: Launch external merge tools to resolve conflicts directly from the TUI.
 - **Real-time Monitoring**: Automatically refreshes the UI when changes are detected in the repository.
 
@@ -87,12 +87,19 @@ The TUI supports different keymaps for different modes (e.g., Normal Mode, Diff 
 | `p` | Push to the remote                                                   |
 
 #### Filtering
-| Key | Action                       |
-| --- | ---------------------------- |
-| `/` | Enter a custom revset filter |
-| `m` | Quick filter: `mine()`       |
-| `t` | Quick filter: `trunk()`      |
-| `c` | Quick filter: `conflicts()`  |
+| Key | Action                                                      |
+| --- | ----------------------------------------------------------- |
+| `/` | Open revset filter modal (with reference panel and presets) |
+| `m` | Quick filter: `mine()`                                      |
+| `t` | Quick filter: `trunk()`                                     |
+| `c` | Quick filter: `conflicts()`                                 |
+| `C` | Clear the active filter                                     |
+
+The filter modal (`/`) provides:
+- **Side-by-side lists**: Recent filters and 21 preset filters, switchable with `Tab`
+- **Categorized reference**: Operators, functions (scope, bookmarks, DAG, search, state), string patterns, and date patterns
+- **Active filter indicator**: Shown in both the modal header and the footer status bar
+- **Error auto-recovery**: Invalid revset expressions are automatically cleared with recovery suggestions
 
 ![Filtering & Operations Demo](demos/filtering.gif)
 
