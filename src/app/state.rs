@@ -45,6 +45,7 @@ pub struct ErrorState {
     pub message: String,
     pub timestamp: DateTime<Local>,
     pub severity: ErrorSeverity,
+    pub suggestions: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

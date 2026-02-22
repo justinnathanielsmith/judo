@@ -389,7 +389,7 @@ impl<'a> Widget for ErrorModal<'a> {
 
         let timestamp = self.error.timestamp.format("%H:%M:%S").to_string();
 
-        let text_lines = vec![
+        let mut text_lines = vec![
             Line::from(""),
             Line::from(vec![
                 Span::styled(format!("{} ", icon), title_style),
@@ -400,12 +400,27 @@ impl<'a> Widget for ErrorModal<'a> {
                 self.theme.list_item,
             )]),
             Line::from(""),
-            Line::from(vec![
-                Span::raw(" Press "),
-                Span::styled("Esc", self.theme.footer_segment_key),
-                Span::raw(" to acknowledge "),
-            ]),
         ];
+
+        if !self.error.suggestions.is_empty() {
+            text_lines.push(Line::from(Span::styled(
+                "Suggestions:",
+                self.theme.header_item,
+            )));
+            for suggestion in &self.error.suggestions {
+                text_lines.push(Line::from(vec![
+                    Span::styled("  • ", self.theme.header_item),
+                    Span::styled(suggestion, self.theme.footer_segment_key),
+                ]));
+            }
+            text_lines.push(Line::from(""));
+        }
+
+        text_lines.push(Line::from(vec![
+            Span::raw(" Press "),
+            Span::styled("Esc", self.theme.footer_segment_key),
+            Span::raw(" to acknowledge "),
+        ]));
 
         let paragraph = Paragraph::new(text_lines)
             .alignment(ratatui::layout::Alignment::Center)

@@ -545,7 +545,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj describe failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj describe failed: {}", stderr.trim()))
         }
     }
 
@@ -563,7 +564,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok("Snapshot created.".to_string())
         } else {
-            Err(anyhow!("jj snapshot failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj snapshot failed: {}", stderr.trim()))
         }
     }
 
@@ -583,7 +585,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj edit failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj edit failed: {}", stderr.trim()))
         }
     }
 
@@ -604,7 +607,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj squash failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj squash failed: {}", stderr.trim()))
         }
     }
 
@@ -624,7 +628,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj new failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj new failed: {}", stderr.trim()))
         }
     }
 
@@ -644,7 +649,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj abandon failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj abandon failed: {}", stderr.trim()))
         }
     }
 
@@ -667,7 +673,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj bookmark set failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj bookmark set failed: {}", stderr.trim()))
         }
     }
 
@@ -687,7 +694,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj bookmark delete failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj bookmark delete failed: {}", stderr.trim()))
         }
     }
 
@@ -705,7 +713,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj undo failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj undo failed: {}", stderr.trim()))
         }
     }
 
@@ -723,7 +732,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj redo failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj redo failed: {}", stderr.trim()))
         }
     }
 
@@ -742,7 +752,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj git fetch failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj git fetch failed: {}", stderr.trim()))
         }
     }
 
@@ -761,7 +772,8 @@ impl VcsFacade for JjAdapter {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!("jj git push failed"))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj git push failed: {}", stderr.trim()))
         }
     }
 

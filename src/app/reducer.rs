@@ -1,7 +1,7 @@
 use super::{
     action::Action,
     command::Command,
-    command_palette,
+    command_palette, recovery,
     state::{
         AppMode, AppState, AppTextArea, CommandPaletteState, ErrorSeverity, ErrorState,
         HeaderState, Panel,
@@ -547,6 +547,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 }
                 Err(err) => {
                     state.last_error = Some(ErrorState {
+                        suggestions: recovery::get_suggestions(&err),
                         message: err,
                         timestamp: Local::now(),
                         severity: ErrorSeverity::Error,
@@ -559,6 +560,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
         Action::ErrorOccurred(err) => {
             state.last_error = Some(ErrorState {
+                suggestions: recovery::get_suggestions(&err),
                 message: err,
                 timestamp: Local::now(),
                 severity: ErrorSeverity::Error,
@@ -971,6 +973,7 @@ mod tests {
                 message: "An error occurred".to_string(),
                 timestamp: Local::now(),
                 severity: ErrorSeverity::Error,
+                suggestions: vec![],
             }),
             mode: AppMode::Input,
             ..Default::default()
@@ -1096,7 +1099,7 @@ mod tests {
     #[test]
     fn test_comprehensive_esc_behavior() {
         let modes = [
-            AppMode::Command,
+            AppMode::CommandPalette,
             AppMode::SquashSelect,
             AppMode::BookmarkInput,
             AppMode::Input,
@@ -1113,6 +1116,7 @@ mod tests {
                     message: "error".to_string(),
                     timestamp: Local::now(),
                     severity: ErrorSeverity::Error,
+                    suggestions: vec![],
                 }),
                 context_menu: Some(state::ContextMenuState {
                     commit_id: CommitId("c1".to_string()),
