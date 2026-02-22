@@ -371,7 +371,10 @@ impl Widget for Footer<'_> {
         let groups = self.get_groups();
 
         let available_width = area.width.saturating_sub(4); // Margin
-        let mut current_width = spans.iter().map(ratatui::prelude::Span::width).sum::<usize>();
+        let mut current_width = spans
+            .iter()
+            .map(ratatui::prelude::Span::width)
+            .sum::<usize>();
 
         for group in groups {
             if group.items.is_empty() {

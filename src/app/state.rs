@@ -59,7 +59,7 @@ pub struct ContextMenuState {
 }
 
 impl ContextMenuState {
-    #[must_use] 
+    #[must_use]
     pub fn calculate_rect(&self, terminal_area: Rect) -> Rect {
         let longest_action = self
             .actions
@@ -165,7 +165,7 @@ pub struct LogState {
 }
 
 impl LogState {
-    #[must_use] 
+    #[must_use]
     pub fn is_selected(&self, id: &CommitId) -> bool {
         self.selected_ids.contains(id)
     }
@@ -258,7 +258,7 @@ pub struct AppState<'a> {
 }
 
 impl AppState<'_> {
-    #[must_use] 
+    #[must_use]
     pub fn new(config: KeyConfig) -> Self {
         Self {
             keymap: Arc::new(KeyMap::from_config(&config)),

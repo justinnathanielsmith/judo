@@ -1,7 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct CommitId(pub String);
 
 impl fmt::Display for CommitId {
@@ -53,7 +52,6 @@ pub struct GraphRow {
     pub changed_files: Vec<FileChange>,
     pub visual: GraphRowVisual,
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RepoStatus {

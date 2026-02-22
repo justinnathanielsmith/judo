@@ -205,7 +205,7 @@ pub enum PaletteType {
 }
 
 impl PaletteType {
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             PaletteType::CatppuccinMocha => "Catppuccin (Mocha)",
@@ -214,7 +214,7 @@ impl PaletteType {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn all() -> &'static [PaletteType] {
         &[
             PaletteType::CatppuccinMocha,
@@ -225,7 +225,7 @@ impl PaletteType {
 }
 
 impl Theme {
-    #[must_use] 
+    #[must_use]
     pub fn from_palette_type(t: PaletteType) -> Self {
         match t {
             PaletteType::CatppuccinMocha => Self::from_palette(&CATPPUCCIN_MOCHA),
@@ -234,7 +234,7 @@ impl Theme {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn from_palette(p: &Palette) -> Self {
         Self {
             border: Style::default().fg(p.surface2),

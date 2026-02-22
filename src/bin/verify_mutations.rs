@@ -51,9 +51,7 @@ async fn main() -> Result<()> {
     if new_entry_desc == new_desc {
         println!("SUCCESS: Description updated!");
     } else {
-        println!(
-            "FAILURE: Description mismatch! Expected '{new_desc}', got '{new_entry_desc}'"
-        );
+        println!("FAILURE: Description mismatch! Expected '{new_desc}', got '{new_entry_desc}'");
     }
 
     Ok(())

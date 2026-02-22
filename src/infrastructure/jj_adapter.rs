@@ -75,9 +75,8 @@ impl JjAdapter {
         while let Some(current_path) = current {
             let jj_repo_config = current_path.join(".jj").join("repo").join("config.toml");
             if jj_repo_config.is_file() {
-                let text = std::fs::read_to_string(&jj_repo_config).with_context(|| {
-                    format!("Failed to read repo config at {jj_repo_config:?}")
-                })?;
+                let text = std::fs::read_to_string(&jj_repo_config)
+                    .with_context(|| format!("Failed to read repo config at {jj_repo_config:?}"))?;
                 let layer =
                     jj_lib::config::ConfigLayer::parse(jj_lib::config::ConfigSource::User, &text)
                         .with_context(|| {

@@ -874,8 +874,7 @@ fn update_repository_derived_state(state: &mut AppState) {
         let short_wc = &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())];
         state.header_state.wc_text = format!(" WC: {short_wc} ");
 
-        state.header_state.stats_text =
-            format!(" | Mut: {mutable_count} Imm: {immutable_count} ");
+        state.header_state.stats_text = format!(" | Mut: {mutable_count} Imm: {immutable_count} ");
 
         // --- Calculate Graph Lanes (Business logic extracted from View) ---
         let mut active_commits: Vec<Option<String>> = Vec::new();
@@ -887,7 +886,8 @@ fn update_repository_derived_state(state: &mut AppState) {
                 .iter()
                 .position(|l| l.as_ref() == Some(commit_id_hex))
                 .unwrap_or_else(|| {
-                    if let Some(pos) = active_commits.iter().position(std::option::Option::is_none) {
+                    if let Some(pos) = active_commits.iter().position(std::option::Option::is_none)
+                    {
                         active_commits[pos] = Some(commit_id_hex.clone());
                         pos
                     } else {
@@ -898,7 +898,10 @@ fn update_repository_derived_state(state: &mut AppState) {
 
             // Store results in the model
             row.visual.column = current_lane;
-            row.visual.active_lanes = active_commits.iter().map(std::option::Option::is_some).collect();
+            row.visual.active_lanes = active_commits
+                .iter()
+                .map(std::option::Option::is_some)
+                .collect();
 
             // Track continuing lanes before we modify active_commits for parents
             let mut continuing = Vec::new();
@@ -919,7 +922,9 @@ fn update_repository_derived_state(state: &mut AppState) {
                     .position(|l| l.as_ref() == Some(parent_id))
                 {
                     pos
-                } else if let Some(pos) = active_commits.iter().position(std::option::Option::is_none) {
+                } else if let Some(pos) =
+                    active_commits.iter().position(std::option::Option::is_none)
+                {
                     active_commits[pos] = Some(parent_id.clone());
                     pos
                 } else {
@@ -945,7 +950,10 @@ fn update_repository_derived_state(state: &mut AppState) {
             // Map continuing lanes to their new positions (they shouldn't move in this simple model)
             row.visual.continuing_lanes = continuing.into_iter().map(|i| (i, i)).collect();
 
-            row.visual.connector_lanes = active_commits.iter().map(std::option::Option::is_some).collect();
+            row.visual.connector_lanes = active_commits
+                .iter()
+                .map(std::option::Option::is_some)
+                .collect();
         }
     } else {
         state.header_state = HeaderState::default();

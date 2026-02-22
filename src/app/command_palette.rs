@@ -7,7 +7,7 @@ pub struct CommandDefinition {
     pub action: Action,
 }
 
-#[must_use] 
+#[must_use]
 pub fn get_commands() -> Vec<CommandDefinition> {
     vec![
         CommandDefinition {
@@ -108,7 +108,7 @@ pub fn get_commands() -> Vec<CommandDefinition> {
     ]
 }
 
-#[must_use] 
+#[must_use]
 pub fn search_commands(query: &str) -> Vec<usize> {
     if query.is_empty() {
         return (0..get_commands().len()).collect();

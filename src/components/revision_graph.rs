@@ -11,7 +11,7 @@ use ratatui::{
     },
 };
 
-#[must_use] 
+#[must_use]
 pub fn calculate_row_height(row: &GraphRow, is_selected: bool, show_diffs: bool) -> u16 {
     let num_files = if is_selected && show_diffs {
         row.changed_files.len()

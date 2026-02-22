@@ -10,7 +10,7 @@ pub struct KeyConfig {
 }
 
 impl KeyConfig {
-    #[must_use] 
+    #[must_use]
     pub fn load() -> Self {
         if let Some(mut config_path) = home::home_dir() {
             config_path.push(".config");
@@ -45,7 +45,7 @@ pub struct KeyMap {
 }
 
 impl KeyMap {
-    #[must_use] 
+    #[must_use]
     pub fn from_config(config: &KeyConfig) -> Self {
         let mut map = Self::vim_profile();
 

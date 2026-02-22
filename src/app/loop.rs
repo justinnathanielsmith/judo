@@ -651,9 +651,7 @@ pub(crate) fn handle_command(
         Command::Edit(commit_id) => {
             tokio::spawn(async move {
                 let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Editing {commit_id}..."
-                    )))
+                    .send(Action::OperationStarted(format!("Editing {commit_id}...")))
                     .await;
                 match adapter.edit(&commit_id).await {
                     Ok(()) => {
@@ -935,8 +933,7 @@ mod tests {
         let adapter = Arc::new(mock);
         let (tx, mut rx) = mpsc::channel(1);
 
-        handle_command(Command::LoadDiff(commit_id), adapter, tx)
-            .unwrap();
+        handle_command(Command::LoadDiff(commit_id), adapter, tx).unwrap();
 
         // We expect a DiffLoaded action with an error message in it
         let action = rx.recv().await.unwrap();
@@ -961,8 +958,7 @@ mod tests {
         let adapter = Arc::new(mock);
         let (tx, mut rx) = mpsc::channel(1);
 
-        handle_command(Command::LoadDiff(commit_id), adapter, tx)
-            .unwrap();
+        handle_command(Command::LoadDiff(commit_id), adapter, tx).unwrap();
 
         let action = rx.recv().await.unwrap();
         if let Action::DiffLoaded(_, diff) = action {
@@ -982,8 +978,7 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(2);
         let mut state = crate::app::state::AppState::default();
 
-        handle_command(Command::Snapshot, adapter, tx)
-            .unwrap();
+        handle_command(Command::Snapshot, adapter, tx).unwrap();
 
         // 1. First action: OperationStarted
         let action1 = rx.recv().await.unwrap();
