@@ -358,9 +358,10 @@ impl VcsFacade for JjAdapter {
                     let description = commit.description().to_string();
                     let change_id = commit.change_id().hex();
                     let author = commit.author().email.clone();
-                    let timestamp_secs = commit.author().timestamp.timestamp.0;
-                    let datetime =
-                        chrono::DateTime::from_timestamp(timestamp_secs, 0).unwrap_or_default();
+                    let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
+                    let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)
+                        .unwrap_or_default()
+                        .with_timezone(&chrono::Local);
                     let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
                     let commit_id_str = commit.id().hex();
                     let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
@@ -453,8 +454,10 @@ impl VcsFacade for JjAdapter {
 
         let mut output = String::new();
         let author = commit.author();
-        let timestamp_sec = author.timestamp.timestamp.0;
-        let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0).unwrap_or_default();
+        let timestamp_sec = author.timestamp.timestamp.0 / 1000;
+        let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0)
+            .unwrap_or_default()
+            .with_timezone(&chrono::Local);
         let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
 
         output.push_str(&format!("Commit ID: {}\n", commit.id().hex()));

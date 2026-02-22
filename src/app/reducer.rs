@@ -1202,7 +1202,7 @@ mod tests {
         // Before refresh
         assert_eq!(state.header_state.repo_text, " no repo ");
 
-        refresh_derived_state(&mut state);
+        update_repository_derived_state(&mut state);
 
         // After refresh
         assert_eq!(state.header_state.op_text, " OP: op ");
@@ -1453,7 +1453,7 @@ mod tests {
             ..Default::default()
         };
 
-        refresh_derived_state(&mut state);
+        update_repository_derived_state(&mut state);
 
         let repo = state.repo.as_ref().unwrap();
 
