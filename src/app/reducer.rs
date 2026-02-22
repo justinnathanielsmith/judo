@@ -544,7 +544,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
 
-        _ => {}
+        Action::Render | Action::Resize(_, _) => {}
     }
     None
 }
