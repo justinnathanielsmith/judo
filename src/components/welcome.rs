@@ -11,7 +11,7 @@ pub struct Welcome<'a> {
     pub theme: &'a Theme,
 }
 
-impl<'a> Widget for Welcome<'a> {
+impl Widget for Welcome<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let logo_ascii = [
             r"   _ _   _ ___   ___ ",

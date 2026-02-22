@@ -59,6 +59,7 @@ pub struct ContextMenuState {
 }
 
 impl ContextMenuState {
+    #[must_use] 
     pub fn calculate_rect(&self, terminal_area: Rect) -> Rect {
         let longest_action = self
             .actions
@@ -109,16 +110,16 @@ impl Default for ThemeSelectionState {
 #[derive(Default)]
 pub struct AppTextArea<'a>(pub TextArea<'a>);
 
-impl<'a> Clone for AppTextArea<'a> {
+impl Clone for AppTextArea<'_> {
     fn clone(&self) -> Self {
-        let mut area = TextArea::new(self.0.lines().iter().map(|s| s.to_string()).collect());
+        let mut area = TextArea::new(self.0.lines().to_vec());
         let (row, col) = self.0.cursor();
         area.move_cursor(CursorMove::Jump(row as u16, col as u16));
         Self(area)
     }
 }
 
-impl<'a> std::fmt::Debug for AppTextArea<'a> {
+impl std::fmt::Debug for AppTextArea<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AppTextArea")
             .field("lines", &self.0.lines())
@@ -127,7 +128,7 @@ impl<'a> std::fmt::Debug for AppTextArea<'a> {
     }
 }
 
-impl<'a> PartialEq for AppTextArea<'a> {
+impl PartialEq for AppTextArea<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.lines() == other.0.lines() && self.0.cursor() == other.0.cursor()
     }
@@ -140,13 +141,13 @@ impl<'a> Deref for AppTextArea<'a> {
     }
 }
 
-impl<'a> DerefMut for AppTextArea<'a> {
+impl DerefMut for AppTextArea<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'a> Widget for &AppTextArea<'a> {
+impl Widget for &AppTextArea<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         Widget::render(&self.0, area, buf);
     }
@@ -164,6 +165,7 @@ pub struct LogState {
 }
 
 impl LogState {
+    #[must_use] 
     pub fn is_selected(&self, id: &CommitId) -> bool {
         self.selected_ids.contains(id)
     }
@@ -188,7 +190,7 @@ impl Default for HeaderState {
         Self {
             repo_text: " no repo ".to_string(),
             branch_text: " (detached) ".to_string(),
-            stats_text: "".to_string(),
+            stats_text: String::new(),
             wc_text: " Loading... ".to_string(),
             op_text: " OP: ........ ".to_string(),
         }
@@ -255,7 +257,8 @@ pub struct AppState<'a> {
     pub selected_filter_index: Option<usize>,
 }
 
-impl<'a> AppState<'a> {
+impl AppState<'_> {
+    #[must_use] 
     pub fn new(config: KeyConfig) -> Self {
         Self {
             keymap: Arc::new(KeyMap::from_config(&config)),
@@ -277,8 +280,7 @@ impl<'a> AppState<'a> {
 
     pub fn is_selected_file_conflicted(&self) -> bool {
         self.get_selected_file()
-            .map(|f| f.status == crate::domain::models::FileStatus::Conflicted)
-            .unwrap_or(false)
+            .is_some_and(|f| f.status == crate::domain::models::FileStatus::Conflicted)
     }
 
     pub fn get_selected_commit_ids(&self) -> Vec<CommitId> {
@@ -295,7 +297,7 @@ impl<'a> AppState<'a> {
     }
 }
 
-impl<'a> Default for AppState<'a> {
+impl Default for AppState<'_> {
     fn default() -> Self {
         Self {
             should_quit: false,
@@ -303,7 +305,7 @@ impl<'a> Default for AppState<'a> {
             last_error: None,
             status_message: None,
             status_clear_time: None,
-            workspace_id: "".to_string(),
+            workspace_id: String::new(),
             active_tasks: Vec::new(),
             repo: None,
             revset: None,

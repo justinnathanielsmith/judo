@@ -15,7 +15,7 @@ pub struct DiffView<'a> {
     pub hunk_highlight_time: Option<Instant>,
 }
 
-impl<'a> Widget for DiffView<'a> {
+impl Widget for DiffView<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let content = match self.diff_content {
             Some(c) if !c.is_empty() => c,
@@ -47,8 +47,7 @@ impl<'a> Widget for DiffView<'a> {
 
         let is_highlighting = self
             .hunk_highlight_time
-            .map(|t| t.elapsed().as_millis() < 200)
-            .unwrap_or(false);
+            .is_some_and(|t| t.elapsed().as_millis() < 200);
 
         let width = area.width as usize;
 
@@ -85,7 +84,7 @@ impl<'a> Widget for DiffView<'a> {
 
             // Pad the line to the full terminal width so the background tint fills the row.
             let padded = if line.len() < width {
-                format!("{:<width$}", line, width = width)
+                format!("{line:<width$}")
             } else {
                 line.to_string()
             };
@@ -111,7 +110,7 @@ pub struct DiffViewPanel<'a> {
     pub mode: AppMode,
 }
 
-impl<'a> Widget for DiffViewPanel<'a> {
+impl Widget for DiffViewPanel<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
             return;

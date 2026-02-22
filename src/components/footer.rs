@@ -23,7 +23,7 @@ pub struct Footer<'a> {
     pub theme: &'a Theme,
 }
 
-impl<'a> Footer<'a> {
+impl Footer<'_> {
     fn get_groups(&self) -> Vec<FooterGroup> {
         if self.state.last_error.is_some() {
             return vec![FooterGroup {
@@ -326,7 +326,7 @@ impl<'a> Footer<'a> {
     }
 }
 
-impl<'a> Widget for Footer<'a> {
+impl Widget for Footer<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let theme = self.theme;
         let state = self.state;
@@ -335,7 +335,7 @@ impl<'a> Widget for Footer<'a> {
         let status_span = if let Some(err) = &state.last_error {
             Span::styled(format!("  ERROR: {}  ", err.message), theme.status_error)
         } else if let Some(msg) = &state.status_message {
-            Span::styled(format!("  {}  ", msg), theme.status_info)
+            Span::styled(format!("  {msg}  "), theme.status_info)
         } else {
             Span::styled("  READY  ", theme.status_ready)
         };
@@ -356,7 +356,9 @@ impl<'a> Widget for Footer<'a> {
         spans.push(Span::raw(" "));
 
         // Background tasks
-        if !state.active_tasks.is_empty() {
+        if state.active_tasks.is_empty() {
+            spans.push(Span::raw("  "));
+        } else {
             let tasks_text = format!(
                 " {} tasks: {} ",
                 state.spinner,
@@ -364,14 +366,12 @@ impl<'a> Widget for Footer<'a> {
             );
             spans.push(Span::styled(tasks_text, theme.status_info));
             spans.push(Span::raw("  "));
-        } else {
-            spans.push(Span::raw("  "));
         }
 
         let groups = self.get_groups();
 
         let available_width = area.width.saturating_sub(4); // Margin
-        let mut current_width = spans.iter().map(|s| s.width()).sum::<usize>();
+        let mut current_width = spans.iter().map(ratatui::prelude::Span::width).sum::<usize>();
 
         for group in groups {
             if group.items.is_empty() {

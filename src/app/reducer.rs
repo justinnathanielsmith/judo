@@ -154,19 +154,19 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 None
             } else {
                 // Update recent filters
-                if !state.recent_filters.iter().any(|f| f == &revset_str) {
-                    state.recent_filters.insert(0, revset_str.clone());
-                    if state.recent_filters.len() > 10 {
-                        state.recent_filters.truncate(10);
-                    }
-                    super::persistence::save_recent_filters(&state.recent_filters);
-                } else {
+                if state.recent_filters.iter().any(|f| f == &revset_str) {
                     // Move to front
                     if let Some(pos) = state.recent_filters.iter().position(|f| f == &revset_str) {
                         state.recent_filters.remove(pos);
                         state.recent_filters.insert(0, revset_str.clone());
                         super::persistence::save_recent_filters(&state.recent_filters);
                     }
+                } else {
+                    state.recent_filters.insert(0, revset_str.clone());
+                    if state.recent_filters.len() > 10 {
+                        state.recent_filters.truncate(10);
+                    }
+                    super::persistence::save_recent_filters(&state.recent_filters);
                 }
                 Some(revset_str)
             };
@@ -292,9 +292,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log.selected_ids.clear();
         }
         Action::CancelMode | Action::CloseContextMenu => {
-            if !state.log.selected_ids.is_empty() {
-                state.log.selected_ids.clear();
-            } else {
+            if state.log.selected_ids.is_empty() {
                 state.mode = AppMode::Normal;
                 state.focused_panel = Panel::Graph;
                 state.last_error = None;
@@ -303,6 +301,8 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.command_palette = None;
                 state.theme_selection = None;
                 state.selected_filter_index = None;
+            } else {
+                state.log.selected_ids.clear();
             }
         }
         Action::CommandPaletteNext => {
@@ -440,27 +440,26 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     } else if row.bookmarks.len() == 1 {
                         // Push the single bookmark
                         return Some(Command::Push(Some(row.bookmarks[0].clone())));
-                    } else {
-                        // Multiple bookmarks: open context menu for selection
-                        let mut actions = Vec::new();
-                        for bookmark in &row.bookmarks {
-                            actions.push((
-                                format!("Push bookmark: {}", bookmark),
-                                Action::Push(Some(bookmark.clone())),
-                            ));
-                        }
-                        actions.push(("Push All".to_string(), Action::Push(None)));
-
-                        // Position it near the selection if possible, or just center-ish
-                        state.mode = AppMode::ContextMenu;
-                        state.context_menu = Some(super::state::ContextMenuState {
-                            commit_id: row.commit_id.clone(),
-                            x: 10, // Default position, loop.rs might override if we had mouse pos
-                            y: 10,
-                            selected_index: 0,
-                            actions,
-                        });
                     }
+                    // Multiple bookmarks: open context menu for selection
+                    let mut actions = Vec::new();
+                    for bookmark in &row.bookmarks {
+                        actions.push((
+                            format!("Push bookmark: {bookmark}"),
+                            Action::Push(Some(bookmark.clone())),
+                        ));
+                    }
+                    actions.push(("Push All".to_string(), Action::Push(None)));
+
+                    // Position it near the selection if possible, or just center-ish
+                    state.mode = AppMode::ContextMenu;
+                    state.context_menu = Some(super::state::ContextMenuState {
+                        commit_id: row.commit_id.clone(),
+                        x: 10, // Default position, loop.rs might override if we had mouse pos
+                        y: 10,
+                        selected_index: 0,
+                        actions,
+                    });
                 }
             }
         }
@@ -506,7 +505,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                         let mut actions = Vec::new();
                         for bookmark in &row.bookmarks {
                             actions.push((
-                                format!("Delete: {}", bookmark),
+                                format!("Delete: {bookmark}"),
                                 Action::DeleteBookmark(bookmark.clone()),
                             ));
                         }
@@ -614,14 +613,14 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                         }
                     }
                 }
-                if !heads.is_empty() {
+                if heads.is_empty() {
+                    state.has_more = false;
+                } else {
                     state.is_loading_more = true;
                     // Deduplicate heads
                     heads.sort_by(|a, b| a.0.cmp(&b.0));
                     heads.dedup();
                     return Some(Command::LoadRepo(Some(heads), 100, state.revset.clone()));
-                } else {
-                    state.has_more = false;
                 }
             }
         }
@@ -663,12 +662,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                         state.log.list_state.select(Some(new_idx));
                         // If we are looking at this commit, maybe refresh its diff just in case
                         return handle_selection(state);
-                    } else {
-                        // Current selection disappeared
-                        state.log.list_state.select(Some(0));
-                        state.log.current_diff = None;
-                        return handle_selection(state);
                     }
+                    // Current selection disappeared
+                    state.log.list_state.select(Some(0));
+                    state.log.current_diff = None;
+                    return handle_selection(state);
                 }
             } else if state.log.list_state.selected().is_none() {
                 state.log.list_state.select(Some(0));
@@ -803,7 +801,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
 }
 
 fn move_selection(state: &mut AppState, delta: isize) -> Option<Command> {
-    let len = state.repo.as_ref().map(|r| r.graph.len()).unwrap_or(0);
+    let len = state.repo.as_ref().map_or(0, |r| r.graph.len());
     let current_index = state.log.list_state.selected();
     let new_index = calculate_new_index(current_index, delta, len);
 
@@ -831,11 +829,10 @@ fn handle_selection(state: &mut AppState) -> Option<Command> {
                 state.log.current_diff = Some(cached_diff.clone());
                 state.log.is_loading_diff = false;
                 return None;
-            } else {
-                state.log.current_diff = None;
-                state.log.is_loading_diff = true;
-                return Some(Command::LoadDiff(commit_id));
             }
+            state.log.current_diff = None;
+            state.log.is_loading_diff = true;
+            return Some(Command::LoadDiff(commit_id));
         }
     }
     None
@@ -857,7 +854,7 @@ fn update_repository_derived_state(state: &mut AppState) {
         } else {
             repo.repo_name.clone()
         };
-        state.header_state.repo_text = format!(" {} ", repo_name);
+        state.header_state.repo_text = format!(" {repo_name} ");
 
         // Find branch/bookmark of working copy
         let wc_id = &repo.working_copy_id;
@@ -872,13 +869,13 @@ fn update_repository_derived_state(state: &mut AppState) {
             format!(" {} {} ", crate::theme::glyphs::BRANCH, branch_name);
 
         let short_op = &repo.operation_id[..8.min(repo.operation_id.len())];
-        state.header_state.op_text = format!(" OP: {} ", short_op);
+        state.header_state.op_text = format!(" OP: {short_op} ");
 
         let short_wc = &repo.working_copy_id.0[..8.min(repo.working_copy_id.0.len())];
-        state.header_state.wc_text = format!(" WC: {} ", short_wc);
+        state.header_state.wc_text = format!(" WC: {short_wc} ");
 
         state.header_state.stats_text =
-            format!(" | Mut: {} Imm: {} ", mutable_count, immutable_count);
+            format!(" | Mut: {mutable_count} Imm: {immutable_count} ");
 
         // --- Calculate Graph Lanes (Business logic extracted from View) ---
         let mut active_commits: Vec<Option<String>> = Vec::new();
@@ -890,7 +887,7 @@ fn update_repository_derived_state(state: &mut AppState) {
                 .iter()
                 .position(|l| l.as_ref() == Some(commit_id_hex))
                 .unwrap_or_else(|| {
-                    if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
+                    if let Some(pos) = active_commits.iter().position(std::option::Option::is_none) {
                         active_commits[pos] = Some(commit_id_hex.clone());
                         pos
                     } else {
@@ -901,7 +898,7 @@ fn update_repository_derived_state(state: &mut AppState) {
 
             // Store results in the model
             row.visual.column = current_lane;
-            row.visual.active_lanes = active_commits.iter().map(|l| l.is_some()).collect();
+            row.visual.active_lanes = active_commits.iter().map(std::option::Option::is_some).collect();
 
             // Track continuing lanes before we modify active_commits for parents
             let mut continuing = Vec::new();
@@ -922,7 +919,7 @@ fn update_repository_derived_state(state: &mut AppState) {
                     .position(|l| l.as_ref() == Some(parent_id))
                 {
                     pos
-                } else if let Some(pos) = active_commits.iter().position(|l| l.is_none()) {
+                } else if let Some(pos) = active_commits.iter().position(std::option::Option::is_none) {
                     active_commits[pos] = Some(parent_id.clone());
                     pos
                 } else {
@@ -934,13 +931,13 @@ fn update_repository_derived_state(state: &mut AppState) {
             row.visual.parent_columns = parent_cols.clone();
             row.visual.parent_min = parent_cols
                 .iter()
-                .cloned()
+                .copied()
                 .min()
                 .unwrap_or(row.visual.column)
                 .min(row.visual.column);
             row.visual.parent_max = parent_cols
                 .iter()
-                .cloned()
+                .copied()
                 .max()
                 .unwrap_or(row.visual.column)
                 .max(row.visual.column);
@@ -948,7 +945,7 @@ fn update_repository_derived_state(state: &mut AppState) {
             // Map continuing lanes to their new positions (they shouldn't move in this simple model)
             row.visual.continuing_lanes = continuing.into_iter().map(|i| (i, i)).collect();
 
-            row.visual.connector_lanes = active_commits.iter().map(|l| l.is_some()).collect();
+            row.visual.connector_lanes = active_commits.iter().map(std::option::Option::is_some).collect();
         }
     } else {
         state.header_state = HeaderState::default();
@@ -984,10 +981,10 @@ mod tests {
         for i in 0..count {
             graph.push(GraphRow {
                 timestamp_secs: 0,
-                commit_id: CommitId(format!("commit-{}", i)),
-                commit_id_short: format!("c{}", i),
-                change_id: format!("change-{}", i),
-                change_id_short: format!("ch{}", i),
+                commit_id: CommitId(format!("commit-{i}")),
+                commit_id_short: format!("c{i}"),
+                change_id: format!("change-{i}"),
+                change_id_short: format!("ch{i}"),
                 description: "desc".to_string(),
                 author: "author".to_string(),
                 timestamp: "time".to_string(),
@@ -1078,11 +1075,11 @@ mod tests {
         let graph = (0..num_rows)
             .map(|i| GraphRow {
                 timestamp_secs: 0,
-                commit_id: CommitId(format!("commit{}", i)),
-                commit_id_short: format!("c{}", i),
-                change_id: format!("change{}", i),
-                change_id_short: format!("ch{}", i),
-                description: format!("desc{}", i),
+                commit_id: CommitId(format!("commit{i}")),
+                commit_id_short: format!("c{i}"),
+                change_id: format!("change{i}"),
+                change_id_short: format!("ch{i}"),
+                description: format!("desc{i}"),
                 author: "author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
                 is_working_copy: i == 0,
@@ -1351,23 +1348,19 @@ mod tests {
             assert_eq!(
                 state.mode,
                 AppMode::Normal,
-                "Mode should reset to Normal from {:?}",
-                mode
+                "Mode should reset to Normal from {mode:?}"
             );
             assert_eq!(
                 state.last_error, None,
-                "Error should be cleared from {:?}",
-                mode
+                "Error should be cleared from {mode:?}"
             );
             assert_eq!(
                 state.context_menu, None,
-                "Context menu should be cleared from {:?}",
-                mode
+                "Context menu should be cleared from {mode:?}"
             );
             assert!(
                 state.input.is_none(),
-                "Input should be cleared from {:?}",
-                mode
+                "Input should be cleared from {mode:?}"
             );
         }
     }

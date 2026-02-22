@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
         if diff != "(No changes or diff not implemented)" && !diff.contains("Root commit") {
             println!("SUCCESS: Found non-empty diff!");
             println!("Diff length: {}", diff.len());
-            println!("Diff preview: {:.200}", diff);
+            println!("Diff preview: {diff:.200}");
             break;
         }
     }

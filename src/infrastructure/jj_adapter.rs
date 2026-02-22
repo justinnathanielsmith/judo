@@ -58,13 +58,13 @@ impl JjAdapter {
             for config_path in paths {
                 if config_path.exists() {
                     let text = std::fs::read_to_string(&config_path).with_context(|| {
-                        format!("Failed to read user config at {:?}", config_path)
+                        format!("Failed to read user config at {config_path:?}")
                     })?;
                     let layer = jj_lib::config::ConfigLayer::parse(
                         jj_lib::config::ConfigSource::User,
                         &text,
                     )
-                    .with_context(|| format!("Failed to parse user config at {:?}", config_path))?;
+                    .with_context(|| format!("Failed to parse user config at {config_path:?}"))?;
                     config.add_layer(layer);
                 }
             }
@@ -76,12 +76,12 @@ impl JjAdapter {
             let jj_repo_config = current_path.join(".jj").join("repo").join("config.toml");
             if jj_repo_config.is_file() {
                 let text = std::fs::read_to_string(&jj_repo_config).with_context(|| {
-                    format!("Failed to read repo config at {:?}", jj_repo_config)
+                    format!("Failed to read repo config at {jj_repo_config:?}")
                 })?;
                 let layer =
                     jj_lib::config::ConfigLayer::parse(jj_lib::config::ConfigSource::User, &text)
                         .with_context(|| {
-                        format!("Failed to parse user config at {:?}", jj_repo_config)
+                        format!("Failed to parse user config at {jj_repo_config:?}")
                     })?;
                 config.add_layer(layer);
                 found_ws_root = Some(current_path.to_path_buf());
@@ -245,7 +245,7 @@ impl VcsFacade for JjAdapter {
                                     let first_parent: Option<jj_lib::commit::Commit> =
                                         commit.parents().next().transpose().unwrap_or_default();
                                     let tree = commit.tree();
-                                    let parent_tree = first_parent.as_ref().map(|p| p.tree());
+                                    let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
                                     let is_working_copy =
                                         Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
                                     let is_immutable = repo_arc.view().heads().contains(&id)
@@ -272,13 +272,12 @@ impl VcsFacade for JjAdapter {
                                 }
                             }
                             return Ok(results);
-                        } else {
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            return Err(anyhow!("Jujutsu error: {}", stderr.trim()));
                         }
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        return Err(anyhow!("Jujutsu error: {}", stderr.trim()));
                     }
                     Err(e) => {
-                        return Err(anyhow!("Failed to execute 'jj' command: {}. Is 'jj' installed and in your PATH?", e));
+                        return Err(anyhow!("Failed to execute 'jj' command: {e}. Is 'jj' installed and in your PATH?"));
                     }
                 }
             }
@@ -318,7 +317,7 @@ impl VcsFacade for JjAdapter {
                 let first_parent: Option<jj_lib::commit::Commit> =
                     commit.parents().next().transpose().unwrap_or_default();
                 let tree = commit.tree();
-                let parent_tree = first_parent.as_ref().map(|p| p.tree());
+                let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
                 let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
                 let is_immutable =
                     repo_arc.view().heads().contains(&id) || commit.parents().next().is_none();
@@ -421,7 +420,7 @@ impl VcsFacade for JjAdapter {
 
         let wc_id = match repo.view().get_wc_commit_id(&workspace_id) {
             Some(id) => CommitId(id.hex()),
-            None => CommitId("".to_string()),
+            None => CommitId(String::new()),
         };
 
         let repo_name = ws_root
@@ -505,7 +504,7 @@ impl VcsFacade for JjAdapter {
             }
             let values = entry.values?;
 
-            output.push_str(&format!("File: {}\n", path_str));
+            output.push_str(&format!("File: {path_str}\n"));
 
             if !values.after.is_resolved() {
                 output.push_str("Status: Conflicted\n");
@@ -519,7 +518,7 @@ impl VcsFacade for JjAdapter {
 
             let mut before_content = Vec::new();
             let mut before_is_binary = false;
-            for value in values.before.iter() {
+            for value in &values.before {
                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
                     let mut reader = repo
                         .store()
@@ -540,7 +539,7 @@ impl VcsFacade for JjAdapter {
 
             let mut after_content = Vec::new();
             let mut after_is_binary = false;
-            for value in values.after.iter() {
+            for value in &values.after {
                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
                     let mut reader = repo
                         .store()

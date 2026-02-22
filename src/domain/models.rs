@@ -1,6 +1,7 @@
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub struct CommitId(pub String);
 
 impl fmt::Display for CommitId {
@@ -53,11 +54,6 @@ pub struct GraphRow {
     pub visual: GraphRowVisual,
 }
 
-impl Default for CommitId {
-    fn default() -> Self {
-        Self("".to_string())
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RepoStatus {

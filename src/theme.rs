@@ -6,9 +6,9 @@ use ratatui::style::{Color, Modifier, Style};
 fn dim_color(c: Color, factor: f32) -> Color {
     if let Color::Rgb(r, g, b) = c {
         Color::Rgb(
-            (r as f32 * factor) as u8,
-            (g as f32 * factor) as u8,
-            (b as f32 * factor) as u8,
+            (f32::from(r) * factor) as u8,
+            (f32::from(g) * factor) as u8,
+            (f32::from(b) * factor) as u8,
         )
     } else {
         c
@@ -205,6 +205,7 @@ pub enum PaletteType {
 }
 
 impl PaletteType {
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             PaletteType::CatppuccinMocha => "Catppuccin (Mocha)",
@@ -213,6 +214,7 @@ impl PaletteType {
         }
     }
 
+    #[must_use] 
     pub fn all() -> &'static [PaletteType] {
         &[
             PaletteType::CatppuccinMocha,
@@ -223,6 +225,7 @@ impl PaletteType {
 }
 
 impl Theme {
+    #[must_use] 
     pub fn from_palette_type(t: PaletteType) -> Self {
         match t {
             PaletteType::CatppuccinMocha => Self::from_palette(&CATPPUCCIN_MOCHA),
@@ -231,6 +234,7 @@ impl Theme {
         }
     }
 
+    #[must_use] 
     pub fn from_palette(p: &Palette) -> Self {
         Self {
             border: Style::default().fg(p.surface2),

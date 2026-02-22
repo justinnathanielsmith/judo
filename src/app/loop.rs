@@ -68,8 +68,8 @@ pub async fn run_loop_with_events<B: Backend>(
         loop {
             if pending {
                 tokio::select! {
-                    Some(_) = notify_rx.recv() => {}
-                    _ = tokio::time::sleep(debounce_duration) => {
+                    Some(()) = notify_rx.recv() => {}
+                    () = tokio::time::sleep(debounce_duration) => {
                         let _ = action_tx_clone.send(Action::ExternalChangeDetected).await;
                         pending = false;
                     }
@@ -88,8 +88,7 @@ pub async fn run_loop_with_events<B: Backend>(
             Command::LoadRepo(None, 100, None),
             adapter.clone(),
             action_tx.clone(),
-        )
-        .await?;
+        )?;
     }
 
     loop {
@@ -152,8 +151,7 @@ pub async fn run_loop_with_events<B: Backend>(
                         terminal.clear()?;
                         let _ = action_tx
                             .send(Action::OperationCompleted(Err(format!(
-                                "Invalid path: {}",
-                                path
+                                "Invalid path: {path}"
                             ))))
                             .await;
                         continue;
@@ -178,13 +176,13 @@ pub async fn run_loop_with_events<B: Backend>(
                     // 4. Trigger refresh
                     let _ = action_tx
                         .send(Action::OperationCompleted(if status.success() {
-                            Ok(format!("Resolved {}", path))
+                            Ok(format!("Resolved {path}"))
                         } else {
-                            Err(format!("Resolve failed for {}", path))
+                            Err(format!("Resolve failed for {path}"))
                         }))
                         .await;
                 } else {
-                    handle_command(cmd, adapter.clone(), action_tx.clone()).await?;
+                    handle_command(cmd, adapter.clone(), action_tx.clone())?;
                 }
             }
         }
@@ -298,7 +296,7 @@ pub fn map_event_to_action(
         crate::app::state::AppMode::Loading => None,
         crate::app::state::AppMode::Help => match event {
             Event::Key(key) => match key.code {
-                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?') => Some(Action::ToggleHelp),
+                KeyCode::Esc | KeyCode::Char('q' | '?') => Some(Action::ToggleHelp),
                 _ => None,
             },
             _ => None,
@@ -554,7 +552,7 @@ pub fn map_event_to_action(
     }
 }
 
-pub(crate) async fn handle_command(
+pub(crate) fn handle_command(
     command: Command,
     adapter: Arc<dyn VcsFacade>,
     tx: mpsc::Sender<Action>,
@@ -571,8 +569,7 @@ pub(crate) async fn handle_command(
                     Err(e) => {
                         let _ = tx
                             .send(Action::ErrorOccurred(format!(
-                                "Background sync failed: {}",
-                                e
+                                "Background sync failed: {e}"
                             )))
                             .await;
                     }
@@ -592,7 +589,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::ErrorOccurred(format!("Failed to load repo: {}", e)))
+                            .send(Action::ErrorOccurred(format!("Failed to load repo: {e}")))
                             .await;
                     }
                 }
@@ -607,7 +604,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::DiffLoaded(commit_id_clone, format!("Error: {}", e)))
+                            .send(Action::DiffLoaded(commit_id_clone, format!("Error: {e}")))
                             .await;
                     }
                 }
@@ -617,19 +614,18 @@ pub(crate) async fn handle_command(
             tokio::spawn(async move {
                 let _ = tx
                     .send(Action::OperationStarted(format!(
-                        "Describing {}...",
-                        commit_id
+                        "Describing {commit_id}..."
                     )))
                     .await;
                 match adapter.describe_revision(&commit_id.0, &message).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok("Described".to_string())))
                             .await;
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -646,7 +642,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -656,12 +652,11 @@ pub(crate) async fn handle_command(
             tokio::spawn(async move {
                 let _ = tx
                     .send(Action::OperationStarted(format!(
-                        "Editing {}...",
-                        commit_id
+                        "Editing {commit_id}..."
                     )))
                     .await;
                 match adapter.edit(&commit_id).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(
                                 Ok("Edit successful".to_string()),
@@ -670,7 +665,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -685,7 +680,7 @@ pub(crate) async fn handle_command(
                 };
                 let _ = tx.send(Action::OperationStarted(msg)).await;
                 match adapter.squash(&commit_ids).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
                                 "Squash successful".to_string()
@@ -694,7 +689,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -704,12 +699,11 @@ pub(crate) async fn handle_command(
             tokio::spawn(async move {
                 let _ = tx
                     .send(Action::OperationStarted(format!(
-                        "Creating child of {}...",
-                        commit_id
+                        "Creating child of {commit_id}..."
                     )))
                     .await;
                 match adapter.new_child(&commit_id).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
                                 "New revision created".to_string()
@@ -718,7 +712,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -733,7 +727,7 @@ pub(crate) async fn handle_command(
                 };
                 let _ = tx.send(Action::OperationStarted(msg)).await;
                 match adapter.abandon(&commit_ids).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
                                 "Revision(s) abandoned".to_string()
@@ -742,7 +736,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -752,22 +746,20 @@ pub(crate) async fn handle_command(
             tokio::spawn(async move {
                 let _ = tx
                     .send(Action::OperationStarted(format!(
-                        "Setting bookmark {}...",
-                        name
+                        "Setting bookmark {name}..."
                     )))
                     .await;
                 match adapter.set_bookmark(&commit_id, &name).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(format!(
-                                "Bookmark {} set",
-                                name
+                                "Bookmark {name} set"
                             ))))
                             .await;
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -777,22 +769,20 @@ pub(crate) async fn handle_command(
             tokio::spawn(async move {
                 let _ = tx
                     .send(Action::OperationStarted(format!(
-                        "Deleting bookmark {}...",
-                        name
+                        "Deleting bookmark {name}..."
                     )))
                     .await;
                 match adapter.delete_bookmark(&name).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(format!(
-                                "Bookmark {} deleted",
-                                name
+                                "Bookmark {name} deleted"
                             ))))
                             .await;
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -804,7 +794,7 @@ pub(crate) async fn handle_command(
                     .send(Action::OperationStarted("Undoing...".to_string()))
                     .await;
                 match adapter.undo().await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(
                                 Ok("Undo successful".to_string()),
@@ -813,7 +803,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -825,7 +815,7 @@ pub(crate) async fn handle_command(
                     .send(Action::OperationStarted("Redoing...".to_string()))
                     .await;
                 match adapter.redo().await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(
                                 Ok("Redo successful".to_string()),
@@ -834,7 +824,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -846,7 +836,7 @@ pub(crate) async fn handle_command(
                     .send(Action::OperationStarted("Fetching...".to_string()))
                     .await;
                 match adapter.fetch().await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
                                 "Fetch successful".to_string()
@@ -855,7 +845,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -865,13 +855,13 @@ pub(crate) async fn handle_command(
             let bookmark_clone = bookmark.clone();
             tokio::spawn(async move {
                 let msg = if let Some(ref b) = bookmark_clone {
-                    format!("Pushing {}...", b)
+                    format!("Pushing {b}...")
                 } else {
                     "Pushing...".to_string()
                 };
                 let _ = tx.send(Action::OperationStarted(msg)).await;
                 match adapter.push(bookmark_clone).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(
                                 Ok("Push successful".to_string()),
@@ -880,7 +870,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -897,7 +887,7 @@ pub(crate) async fn handle_command(
                     ))
                     .await;
                 match adapter.init_repo().await {
-                    Ok(_) => {
+                    Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
                                 "Repository initialized".to_string()
@@ -906,7 +896,7 @@ pub(crate) async fn handle_command(
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {}", e))))
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
                             .await;
                     }
                 }
@@ -946,7 +936,6 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(1);
 
         handle_command(Command::LoadDiff(commit_id), adapter, tx)
-            .await
             .unwrap();
 
         // We expect a DiffLoaded action with an error message in it
@@ -954,7 +943,7 @@ mod tests {
         if let Action::DiffLoaded(_, diff) = action {
             assert!(diff.contains("Error: VCS Error"));
         } else {
-            panic!("Expected Action::DiffLoaded, got {:?}", action);
+            panic!("Expected Action::DiffLoaded, got {action:?}");
         }
     }
 
@@ -973,14 +962,13 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(1);
 
         handle_command(Command::LoadDiff(commit_id), adapter, tx)
-            .await
             .unwrap();
 
         let action = rx.recv().await.unwrap();
         if let Action::DiffLoaded(_, diff) = action {
             assert_eq!(diff, "Diff Content");
         } else {
-            panic!("Expected Action::DiffLoaded, got {:?}", action);
+            panic!("Expected Action::DiffLoaded, got {action:?}");
         }
     }
 
@@ -995,7 +983,6 @@ mod tests {
         let mut state = crate::app::state::AppState::default();
 
         handle_command(Command::Snapshot, adapter, tx)
-            .await
             .unwrap();
 
         // 1. First action: OperationStarted

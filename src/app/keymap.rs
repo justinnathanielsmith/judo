@@ -10,6 +10,7 @@ pub struct KeyConfig {
 }
 
 impl KeyConfig {
+    #[must_use] 
     pub fn load() -> Self {
         if let Some(mut config_path) = home::home_dir() {
             config_path.push(".config");
@@ -44,6 +45,7 @@ pub struct KeyMap {
 }
 
 impl KeyMap {
+    #[must_use] 
     pub fn from_config(config: &KeyConfig) -> Self {
         let mut map = Self::vim_profile();
 
@@ -74,15 +76,15 @@ impl KeyMap {
         global.insert(key_char('S'), Action::EnterSquashMode);
         global.insert(
             key_char('e'),
-            Action::EditRevision(crate::domain::models::CommitId("".to_string())),
+            Action::EditRevision(crate::domain::models::CommitId(String::new())),
         );
         global.insert(
             key_char('n'),
-            Action::NewRevision(crate::domain::models::CommitId("".to_string())),
+            Action::NewRevision(crate::domain::models::CommitId(String::new())),
         );
         global.insert(
             key_char('a'),
-            Action::AbandonRevision(crate::domain::models::CommitId("".to_string())),
+            Action::AbandonRevision(crate::domain::models::CommitId(String::new())),
         );
         global.insert(key_char('b'), Action::SetBookmarkIntent);
         global.insert(key_char('B'), Action::DeleteBookmarkIntent);
@@ -90,7 +92,7 @@ impl KeyMap {
         global.insert(key_char('m'), Action::FilterMine);
         global.insert(
             key_char('x'),
-            Action::ToggleSelection(crate::domain::models::CommitId("".to_string())),
+            Action::ToggleSelection(crate::domain::models::CommitId(String::new())),
         );
         global.insert(key_char('t'), Action::FilterTrunk);
         global.insert(key_char('c'), Action::FilterConflicts);
@@ -217,14 +219,14 @@ fn parse_action(s: &str) -> Option<Action> {
         "selectprevfile" => Some(Action::SelectPrevFile),
         "snapshot" => Some(Action::SnapshotWorkingCopy),
         "edit" => Some(Action::EditRevision(crate::domain::models::CommitId(
-            "".to_string(),
+            String::new(),
         ))),
         "new" => Some(Action::NewRevision(crate::domain::models::CommitId(
-            "".to_string(),
+            String::new(),
         ))),
         "describe" => Some(Action::DescribeRevisionIntent),
         "abandon" => Some(Action::AbandonRevision(crate::domain::models::CommitId(
-            "".to_string(),
+            String::new(),
         ))),
         "setbookmark" => Some(Action::SetBookmarkIntent),
         "deletebookmark" => Some(Action::DeleteBookmarkIntent),

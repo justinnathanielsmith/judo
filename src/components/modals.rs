@@ -14,7 +14,7 @@ pub struct HelpModal<'a> {
     pub theme: &'a Theme,
 }
 
-impl<'a> Widget for HelpModal<'a> {
+impl Widget for HelpModal<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let help_area = centered_rect(70, 80, area);
         if help_area.width == 0 || help_area.height == 0 {
@@ -168,7 +168,7 @@ pub struct TextInputModal<'a> {
     pub height_percent: u16,
 }
 
-impl<'a> Widget for TextInputModal<'a> {
+impl Widget for TextInputModal<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let modal_area = if self.height_percent == 0 {
             centered_rect_fixed_height(60, 3, area)
@@ -218,7 +218,7 @@ pub struct ContextMenuModal<'a> {
     pub state: &'a ContextMenuState,
 }
 
-impl<'a> Widget for ContextMenuModal<'a> {
+impl Widget for ContextMenuModal<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let menu_area = self.state.calculate_rect(area);
         if menu_area.width == 0 || menu_area.height == 0 {
@@ -235,9 +235,9 @@ impl<'a> Widget for ContextMenuModal<'a> {
             .enumerate()
             .map(|(i, (name, _))| {
                 if i == self.state.selected_index {
-                    ListItem::new(format!("> {}", name)).style(self.theme.list_selected)
+                    ListItem::new(format!("> {name}")).style(self.theme.list_selected)
                 } else {
-                    ListItem::new(format!("  {}", name)).style(self.theme.list_item)
+                    ListItem::new(format!("  {name}")).style(self.theme.list_item)
                 }
             })
             .collect();
@@ -257,7 +257,7 @@ pub struct CommandPaletteModal<'a> {
     pub state: &'a crate::app::state::CommandPaletteState,
 }
 
-impl<'a> Widget for CommandPaletteModal<'a> {
+impl Widget for CommandPaletteModal<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let modal_area = centered_rect(60, 40, area);
         if modal_area.width == 0 || modal_area.height == 0 {
@@ -360,7 +360,7 @@ pub struct ThemeSelectionModal<'a> {
     pub state: &'a crate::app::state::ThemeSelectionState,
 }
 
-impl<'a> Widget for ThemeSelectionModal<'a> {
+impl Widget for ThemeSelectionModal<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let modal_area = centered_rect(40, 30, area);
         if modal_area.width == 0 || modal_area.height == 0 {
@@ -415,7 +415,7 @@ pub struct ErrorModal<'a> {
     pub error: &'a ErrorState,
 }
 
-impl<'a> Widget for ErrorModal<'a> {
+impl Widget for ErrorModal<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let modal_area = centered_rect(60, 20, area);
         if modal_area.width == 0 || modal_area.height == 0 {
@@ -447,11 +447,11 @@ impl<'a> Widget for ErrorModal<'a> {
         let mut text_lines = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled(format!("{} ", icon), title_style),
+                Span::styled(format!("{icon} "), title_style),
                 Span::styled(&self.error.message, self.theme.footer_segment_val),
             ]),
             Line::from(vec![Span::styled(
-                format!("Occurred at: {}", timestamp),
+                format!("Occurred at: {timestamp}"),
                 self.theme.list_item,
             )]),
             Line::from(""),
@@ -490,7 +490,7 @@ pub struct ModalManager<'a> {
     pub app_state: &'a crate::app::state::AppState<'a>,
 }
 
-impl<'a> Widget for ModalManager<'a> {
+impl Widget for ModalManager<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         use crate::app::state::AppMode;
 
@@ -591,7 +591,7 @@ impl<'a> Widget for ModalManager<'a> {
                                 } else {
                                     "  "
                                 };
-                                ListItem::new(format!("{}{}", prefix, f)).style(style)
+                                ListItem::new(format!("{prefix}{f}")).style(style)
                             })
                             .collect();
 

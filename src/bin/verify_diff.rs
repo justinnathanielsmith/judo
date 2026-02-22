@@ -10,7 +10,7 @@ async fn main() -> Result<()> {
     println!("Fetching operation log...");
     let log = adapter.get_operation_log(None, 100, None).await?;
     let wc_id = &log.working_copy_id;
-    println!("Working Copy ID: {}", wc_id);
+    println!("Working Copy ID: {wc_id}");
 
     // Also try to get the parent of the working copy to see a committed change diff
     // The graph is somewhat ordered, let's just picking the second one if available
@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     let diff_output = adapter.get_commit_diff(commit_to_diff).await?;
 
     println!("--- Diff Output ---");
-    println!("{}", diff_output);
+    println!("{diff_output}");
     println!("-------------------");
 
     Ok(())

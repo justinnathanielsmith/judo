@@ -6,6 +6,7 @@ pub struct RecentFilters {
     pub filters: Vec<String>,
 }
 
+#[must_use] 
 pub fn get_config_path() -> Option<PathBuf> {
     home::home_dir().map(|mut path| {
         path.push(".config");
@@ -15,6 +16,7 @@ pub fn get_config_path() -> Option<PathBuf> {
     })
 }
 
+#[must_use] 
 pub fn load_recent_filters() -> Vec<String> {
     if let Some(path) = get_config_path() {
         if path.exists() {

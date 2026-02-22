@@ -15,7 +15,7 @@ pub struct Header<'a> {
     pub terminal_width: u16,
 }
 
-impl<'a> Widget for Header<'a> {
+impl Widget for Header<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Segment background colors for separator transitions
         let logo_bg = self.theme.header_logo.bg.unwrap_or(Color::Reset);

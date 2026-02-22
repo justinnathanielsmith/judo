@@ -1,3 +1,4 @@
+#[must_use] 
 pub fn get_suggestions(msg: &str) -> Vec<String> {
     let mut suggestions = Vec::new();
     let msg_lower = msg.to_lowercase();

@@ -11,6 +11,7 @@ use ratatui::{
     },
 };
 
+#[must_use] 
 pub fn calculate_row_height(row: &GraphRow, is_selected: bool, show_diffs: bool) -> u16 {
     let num_files = if is_selected && show_diffs {
         row.changed_files.len()
@@ -34,9 +35,9 @@ pub struct RevisionGraph<'a> {
 fn age_dimmed_style(style: Style, factor: f32) -> Style {
     if let Some(Color::Rgb(r, g, b)) = style.fg {
         style.fg(Color::Rgb(
-            (r as f32 * factor) as u8,
-            (g as f32 * factor) as u8,
-            (b as f32 * factor) as u8,
+            (f32::from(r) * factor) as u8,
+            (f32::from(g) * factor) as u8,
+            (f32::from(b) * factor) as u8,
         ))
     } else {
         style
@@ -71,7 +72,7 @@ fn max_lanes(graph: &[crate::domain::models::GraphRow]) -> usize {
         .unwrap_or(1)
 }
 
-impl<'a> StatefulWidget for RevisionGraph<'a> {
+impl StatefulWidget for RevisionGraph<'_> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
@@ -115,7 +116,7 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                     .visual
                     .active_lanes
                     .get(lane_idx)
-                    .cloned()
+                    .copied()
                     .unwrap_or(false)
                 {
                     // Connector pipes: age-dimmed
@@ -146,13 +147,13 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                         .visual
                         .active_lanes
                         .get(lane_idx)
-                        .cloned()
+                        .copied()
                         .unwrap_or(false);
                     let is_active_below = row
                         .visual
                         .connector_lanes
                         .get(lane_idx)
-                        .cloned()
+                        .copied()
                         .unwrap_or(false);
 
                     let mut symbol = if is_active_below { "│" } else { " " };
@@ -333,7 +334,7 @@ pub struct RevisionGraphPanel<'a> {
     pub selected_ids: &'a std::collections::HashSet<crate::domain::models::CommitId>,
 }
 
-impl<'a> StatefulWidget for RevisionGraphPanel<'a> {
+impl StatefulWidget for RevisionGraphPanel<'_> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
@@ -403,7 +404,7 @@ impl<'a> StatefulWidget for RevisionGraphPanel<'a> {
                     if revset == "conflicts()" {
                         " 🎉 No Conflicts Found ".to_string()
                     } else {
-                        format!(" No results for: {} ", revset)
+                        format!(" No results for: {revset} ")
                     }
                 } else {
                     " Repository is empty ".to_string()
