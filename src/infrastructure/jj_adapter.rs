@@ -40,7 +40,8 @@ impl JjAdapter {
         let layer = jj_lib::config::ConfigLayer::parse(
             jj_lib::config::ConfigSource::Default,
             crate::infrastructure::defaults::DEFAULT_FALLBACK_CONFIG,
-        ).context("Failed to parse internal fallback config (this is a Judo bug)")?;
+        )
+        .context("Failed to parse internal fallback config (this is a Judo bug)")?;
         config.add_layer(layer);
 
         let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
@@ -57,7 +58,8 @@ impl JjAdapter {
                     let layer = jj_lib::config::ConfigLayer::parse(
                         jj_lib::config::ConfigSource::User,
                         &text,
-                    ).with_context(|| format!("Failed to parse user config at {:?}", path))?;
+                    )
+                    .with_context(|| format!("Failed to parse user config at {:?}", path))?;
                     config.add_layer(layer);
                 }
             }
@@ -67,12 +69,14 @@ impl JjAdapter {
         while let Some(path) = current {
             let jj_repo_config = path.join(".jj").join("repo").join("config.toml");
             if jj_repo_config.is_file() {
-                let text = std::fs::read_to_string(&jj_repo_config)
-                    .with_context(|| format!("Failed to read repo config at {:?}", jj_repo_config))?;
-                let layer = jj_lib::config::ConfigLayer::parse(
-                    jj_lib::config::ConfigSource::User,
-                    &text,
-                ).with_context(|| format!("Failed to parse user config at {:?}", jj_repo_config))?;
+                let text = std::fs::read_to_string(&jj_repo_config).with_context(|| {
+                    format!("Failed to read repo config at {:?}", jj_repo_config)
+                })?;
+                let layer =
+                    jj_lib::config::ConfigLayer::parse(jj_lib::config::ConfigSource::User, &text)
+                        .with_context(|| {
+                        format!("Failed to parse user config at {:?}", jj_repo_config)
+                    })?;
                 config.add_layer(layer);
                 break;
             }
@@ -90,7 +94,8 @@ impl JjAdapter {
             &cwd,
             &store_factories,
             &working_copy_factories,
-        ).ok();
+        )
+        .ok();
 
         let workspace_root = if let Some(ws) = &workspace {
             ws.workspace_root().to_path_buf()
@@ -109,7 +114,9 @@ impl JjAdapter {
     async fn validate_commit(&self, commit_id: &CommitId) -> Result<JjCommitId> {
         let repo = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.repo_loader().load_at_head()?
         };
         let id = JjCommitId::try_from_hex(&commit_id.0)
@@ -139,7 +146,9 @@ impl VcsFacade for JjAdapter {
     ) -> Result<RepoStatus> {
         let (repo, ws_root) = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             let repo = ws.repo_loader().load_at_head()?;
             (repo, ws.workspace_root().to_path_buf())
         };
@@ -399,7 +408,9 @@ impl VcsFacade for JjAdapter {
     async fn get_commit_diff(&self, commit_id: &CommitId) -> Result<String> {
         let repo = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.repo_loader().load_at_head()?
         };
 
@@ -531,7 +542,9 @@ impl VcsFacade for JjAdapter {
     async fn describe_revision(&self, change_id: &str, message: &str) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -553,7 +566,9 @@ impl VcsFacade for JjAdapter {
     async fn snapshot(&self) -> Result<String> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -573,7 +588,9 @@ impl VcsFacade for JjAdapter {
         self.validate_commit(commit_id).await?;
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -593,7 +610,9 @@ impl VcsFacade for JjAdapter {
     async fn squash(&self, commit_ids: &[CommitId]) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let mut cmd = tokio::process::Command::new("jj");
@@ -616,7 +635,9 @@ impl VcsFacade for JjAdapter {
         self.validate_commit(commit_id).await?;
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -636,7 +657,9 @@ impl VcsFacade for JjAdapter {
     async fn abandon(&self, commit_ids: &[CommitId]) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let mut cmd = tokio::process::Command::new("jj");
@@ -659,7 +682,9 @@ impl VcsFacade for JjAdapter {
         self.validate_commit(commit_id).await?;
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -682,7 +707,9 @@ impl VcsFacade for JjAdapter {
     async fn delete_bookmark(&self, name: &str) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -703,7 +730,9 @@ impl VcsFacade for JjAdapter {
     async fn undo(&self) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -722,7 +751,9 @@ impl VcsFacade for JjAdapter {
     async fn redo(&self) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -741,7 +772,9 @@ impl VcsFacade for JjAdapter {
     async fn fetch(&self) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let output = tokio::process::Command::new("jj")
@@ -761,7 +794,9 @@ impl VcsFacade for JjAdapter {
     async fn push(&self, bookmark: Option<String>) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt.as_ref().ok_or_else(|| anyhow!("No repository found"))?;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
             ws.workspace_root().to_path_buf()
         };
         let mut cmd = tokio::process::Command::new("jj");
@@ -793,14 +828,16 @@ impl VcsFacade for JjAdapter {
             let store_factories = StoreFactories::default();
             let mut working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>> =
                 HashMap::new();
-            working_copy_factories.insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
+            working_copy_factories
+                .insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
 
             let workspace = Workspace::load(
                 &self.user_settings,
                 &self.workspace_root,
                 &store_factories,
                 &working_copy_factories,
-            ).context("Failed to load workspace after init")?;
+            )
+            .context("Failed to load workspace after init")?;
             *ws_opt = Some(workspace);
             Ok(())
         } else {

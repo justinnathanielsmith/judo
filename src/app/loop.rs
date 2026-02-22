@@ -185,9 +185,11 @@ pub fn map_event_to_action(
                 Event::Key(key) => match key.code {
                     KeyCode::Esc => Some(Action::CancelMode),
                     KeyCode::Enter => {
-                        if let (Some(repo), Some(idx), Some(input)) =
-                            (&app_state.repo, app_state.log.list_state.selected(), &app_state.input)
-                        {
+                        if let (Some(repo), Some(idx), Some(input)) = (
+                            &app_state.repo,
+                            app_state.log.list_state.selected(),
+                            &app_state.input,
+                        ) {
                             if let Some(row) = repo.graph.get(idx) {
                                 if app_state.mode == crate::app::state::AppMode::BookmarkInput {
                                     Some(Action::SetBookmark(
@@ -212,17 +214,15 @@ pub fn map_event_to_action(
                 _ => None,
             }
         }
-        crate::app::state::AppMode::FilterInput => {
-            match event {
-                Event::Key(key) => {
-                    if let Some(action) = app_state.keymap.get_action(key, app_state) {
-                        return Some(action);
-                    }
-                    Some(Action::TextAreaInput(key))
+        crate::app::state::AppMode::FilterInput => match event {
+            Event::Key(key) => {
+                if let Some(action) = app_state.keymap.get_action(key, app_state) {
+                    return Some(action);
                 }
-                _ => None,
+                Some(Action::TextAreaInput(key))
             }
-        }
+            _ => None,
+        },
         crate::app::state::AppMode::ContextMenu => {
             match event {
                 Event::Key(key) => match key.code {
@@ -267,26 +267,22 @@ pub fn map_event_to_action(
                 _ => None,
             }
         }
-        crate::app::state::AppMode::NoRepo => {
-            match event {
-                Event::Key(key) => match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => Some(Action::Quit),
-                    KeyCode::Char('i') | KeyCode::Enter => Some(Action::InitRepo),
-                    _ => None,
-                },
+        crate::app::state::AppMode::NoRepo => match event {
+            Event::Key(key) => match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => Some(Action::Quit),
+                KeyCode::Char('i') | KeyCode::Enter => Some(Action::InitRepo),
                 _ => None,
-            }
-        }
+            },
+            _ => None,
+        },
         crate::app::state::AppMode::Loading => None,
-        crate::app::state::AppMode::Help => {
-            match event {
-                Event::Key(key) => match key.code {
-                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?') => Some(Action::ToggleHelp),
-                    _ => None,
-                },
+        crate::app::state::AppMode::Help => match event {
+            Event::Key(key) => match key.code {
+                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?') => Some(Action::ToggleHelp),
                 _ => None,
-            }
-        }
+            },
+            _ => None,
+        },
         crate::app::state::AppMode::Diff => {
             match event {
                 Event::Key(key) => {
@@ -301,9 +297,12 @@ pub fn map_event_to_action(
                                 if let Some(row) = repo.graph.get(idx) {
                                     if let Some(file_idx) = app_state.log.selected_file_index {
                                         if let Some(file) = row.changed_files.get(file_idx) {
-                                            if file.status == crate::domain::models::FileStatus::Conflicted
+                                            if file.status
+                                                == crate::domain::models::FileStatus::Conflicted
                                             {
-                                                return Some(Action::ResolveConflict(file.path.clone()));
+                                                return Some(Action::ResolveConflict(
+                                                    file.path.clone(),
+                                                ));
                                             }
                                         }
                                     }
@@ -313,15 +312,16 @@ pub fn map_event_to_action(
                         }
                         _ => None,
                     }
-                },
+                }
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::ScrollUp => Some(Action::ScrollDiffUp(1)),
                     MouseEventKind::ScrollDown => Some(Action::ScrollDiffDown(1)),
                     MouseEventKind::Down(MouseButton::Left) => {
                         let now = Instant::now();
-                        let is_double_click = app_state.last_click_time.is_some_and(|t| {
-                            now.duration_since(t).as_millis() < 500
-                        }) && app_state.last_click_pos == Some((mouse.column, mouse.row));
+                        let is_double_click = app_state
+                            .last_click_time
+                            .is_some_and(|t| now.duration_since(t).as_millis() < 500)
+                            && app_state.last_click_pos == Some((mouse.column, mouse.row));
 
                         let area = ratatui::layout::Rect::new(
                             0,
@@ -350,7 +350,12 @@ pub fn map_event_to_action(
                                         let row = &repo.graph[i];
                                         let is_selected =
                                             app_state.log.list_state.selected() == Some(i);
-                                        let row_height = calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
+                                        let row_height = calculate_row_height(
+                                            row,
+                                            is_selected,
+                                            app_state.show_diffs,
+                                        )
+                                            as usize;
 
                                         if clicked_row >= current_y
                                             && clicked_row < current_y + row_height
@@ -390,9 +395,10 @@ pub fn map_event_to_action(
                     return Some(action);
                 }
                 None
-            },
+            }
             Event::Mouse(mouse) => {
-                let area = ratatui::layout::Rect::new(0, 0, terminal_size.width, terminal_size.height);
+                let area =
+                    ratatui::layout::Rect::new(0, 0, terminal_size.width, terminal_size.height);
                 let layout = ui::get_layout(area, app_state);
 
                 let graph_area = layout.body[0];
@@ -421,9 +427,10 @@ pub fn map_event_to_action(
                     }
                     MouseEventKind::Down(MouseButton::Left) => {
                         let now = Instant::now();
-                        let is_double_click = app_state.last_click_time.is_some_and(|t| {
-                            now.duration_since(t).as_millis() < 500
-                        }) && app_state.last_click_pos == Some((mouse.column, mouse.row));
+                        let is_double_click = app_state
+                            .last_click_time
+                            .is_some_and(|t| now.duration_since(t).as_millis() < 500)
+                            && app_state.last_click_pos == Some((mouse.column, mouse.row));
 
                         // Double click anywhere toggles the diff panel
                         if is_double_click {
@@ -846,12 +853,16 @@ pub(crate) async fn handle_command(
         Command::InitRepo => {
             tokio::spawn(async move {
                 let _ = tx
-                    .send(Action::OperationStarted("Initializing repository...".to_string()))
+                    .send(Action::OperationStarted(
+                        "Initializing repository...".to_string(),
+                    ))
                     .await;
                 match adapter.init_repo().await {
                     Ok(_) => {
                         let _ = tx
-                            .send(Action::OperationCompleted(Ok("Repository initialized".to_string())))
+                            .send(Action::OperationCompleted(Ok(
+                                "Repository initialized".to_string()
+                            )))
                             .await;
                     }
                     Err(e) => {
@@ -895,7 +906,9 @@ mod tests {
         let adapter = Arc::new(mock);
         let (tx, mut rx) = mpsc::channel(1);
 
-        handle_command(Command::LoadDiff(commit_id), adapter, tx).await.unwrap();
+        handle_command(Command::LoadDiff(commit_id), adapter, tx)
+            .await
+            .unwrap();
 
         // We expect a DiffLoaded action with an error message in it
         let action = rx.recv().await.unwrap();
@@ -915,14 +928,14 @@ mod tests {
         // Simulate a success
         mock.expect_get_commit_diff()
             .with(mockall::predicate::eq(commit_id_clone))
-            .returning(|_| {
-                Ok("Diff Content".to_string())
-            });
+            .returning(|_| Ok("Diff Content".to_string()));
 
         let adapter = Arc::new(mock);
         let (tx, mut rx) = mpsc::channel(1);
 
-        handle_command(Command::LoadDiff(commit_id), adapter, tx).await.unwrap();
+        handle_command(Command::LoadDiff(commit_id), adapter, tx)
+            .await
+            .unwrap();
 
         let action = rx.recv().await.unwrap();
         if let Action::DiffLoaded(_, diff) = action {
@@ -942,13 +955,18 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(2);
         let mut state = crate::app::state::AppState::default();
 
-        handle_command(Command::Snapshot, adapter, tx).await.unwrap();
+        handle_command(Command::Snapshot, adapter, tx)
+            .await
+            .unwrap();
 
         // 1. First action: OperationStarted
         let action1 = rx.recv().await.unwrap();
         crate::app::reducer::update(&mut state, action1);
         assert_eq!(state.mode, crate::app::state::AppMode::Loading);
-        assert!(state.active_tasks.iter().any(|t| t.contains("Snapshotting")));
+        assert!(state
+            .active_tasks
+            .iter()
+            .any(|t| t.contains("Snapshotting")));
 
         // 2. Second action: OperationCompleted(Err)
         let action2 = rx.recv().await.unwrap();
@@ -957,7 +975,11 @@ mod tests {
         // Mode should reset to NoRepo (since no repo in state) and error should be set
         assert_eq!(state.mode, crate::app::state::AppMode::NoRepo);
         assert!(state.last_error.is_some());
-        assert!(state.last_error.unwrap().message.contains("Error: Snapshot failed"));
+        assert!(state
+            .last_error
+            .unwrap()
+            .message
+            .contains("Error: Snapshot failed"));
     }
 
     #[tokio::test]
@@ -966,58 +988,48 @@ mod tests {
         // Setup mock to return some data to avoid crashes in UI
         mock.expect_workspace_root()
             .returning(|| std::path::PathBuf::from("/tmp"));
-        mock.expect_get_operation_log()
-            .returning(|_, _, _| {
-                Ok(crate::domain::models::RepoStatus {
-                    repo_name: "test-repo".to_string(),
-                    operation_id: "test".to_string(),
-                    workspace_id: "default".to_string(),
-                    working_copy_id: crate::domain::models::CommitId("wc".to_string()),
-                    graph: vec![crate::domain::models::GraphRow {
-                        timestamp_secs: 0,
-                        commit_id: crate::domain::models::CommitId("wc".to_string()), commit_id_short: "wc".to_string(),
-                        change_id: "wc".to_string(), change_id_short: "wc".to_string(),
-                        description: "desc".to_string(),
-                        author: "author".to_string(),
-                        timestamp: "time".to_string(),
-                        is_working_copy: true,
-                        is_immutable: false,
-                        parents: vec![],
-                        bookmarks: vec![],
-                        changed_files: vec![crate::domain::models::FileChange {
-                            path: "file.txt".to_string(),
-                            status: crate::domain::models::FileStatus::Modified,
-                        }],
-                        visual: crate::domain::models::GraphRowVisual::default(),
+        mock.expect_get_operation_log().returning(|_, _, _| {
+            Ok(crate::domain::models::RepoStatus {
+                repo_name: "test-repo".to_string(),
+                operation_id: "test".to_string(),
+                workspace_id: "default".to_string(),
+                working_copy_id: crate::domain::models::CommitId("wc".to_string()),
+                graph: vec![crate::domain::models::GraphRow {
+                    timestamp_secs: 0,
+                    commit_id: crate::domain::models::CommitId("wc".to_string()),
+                    commit_id_short: "wc".to_string(),
+                    change_id: "wc".to_string(),
+                    change_id_short: "wc".to_string(),
+                    description: "desc".to_string(),
+                    author: "author".to_string(),
+                    timestamp: "time".to_string(),
+                    is_working_copy: true,
+                    is_immutable: false,
+                    parents: vec![],
+                    bookmarks: vec![],
+                    changed_files: vec![crate::domain::models::FileChange {
+                        path: "file.txt".to_string(),
+                        status: crate::domain::models::FileStatus::Modified,
                     }],
-                })
-            });
+                    visual: crate::domain::models::GraphRowVisual::default(),
+                }],
+            })
+        });
         mock.expect_get_commit_diff()
             .returning(|_| Ok("diff content".to_string()));
         mock.expect_snapshot()
             .returning(|| Ok("snapshot".to_string()));
-        mock.expect_new_child()
-            .returning(|_| Ok(()));
-        mock.expect_edit()
-            .returning(|_| Ok(()));
-        mock.expect_squash()
-            .returning(|_| Ok(()));
-        mock.expect_abandon()
-            .returning(|_| Ok(()));
-        mock.expect_set_bookmark()
-            .returning(|_, _| Ok(()));
-        mock.expect_delete_bookmark()
-            .returning(|_| Ok(()));
-        mock.expect_undo()
-            .returning(|| Ok(()));
-        mock.expect_redo()
-            .returning(|| Ok(()));
-        mock.expect_fetch()
-            .returning(|| Ok(()));
-        mock.expect_push()
-            .returning(|_| Ok(()));
-        mock.expect_describe_revision()
-            .returning(|_, _| Ok(()));
+        mock.expect_new_child().returning(|_| Ok(()));
+        mock.expect_edit().returning(|_| Ok(()));
+        mock.expect_squash().returning(|_| Ok(()));
+        mock.expect_abandon().returning(|_| Ok(()));
+        mock.expect_set_bookmark().returning(|_, _| Ok(()));
+        mock.expect_delete_bookmark().returning(|_| Ok(()));
+        mock.expect_undo().returning(|| Ok(()));
+        mock.expect_redo().returning(|| Ok(()));
+        mock.expect_fetch().returning(|| Ok(()));
+        mock.expect_push().returning(|_| Ok(()));
+        mock.expect_describe_revision().returning(|_, _| Ok(()));
 
         let adapter = Arc::new(mock);
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();

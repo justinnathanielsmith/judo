@@ -312,8 +312,8 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                 Constraint::Min(0),
             ],
         )
-            .row_highlight_style(self.theme.highlight)
-            .highlight_symbol(" ");
+        .row_highlight_style(self.theme.highlight)
+        .highlight_symbol(" ");
 
         StatefulWidget::render(table, area, buf, state);
     }
