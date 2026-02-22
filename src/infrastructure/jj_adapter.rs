@@ -29,7 +29,7 @@ pub struct JjAdapter {
     diff_semaphore: Arc<Semaphore>,
 }
 
-const MAX_DIFF_SIZE: u64 = 1 * 1024 * 1024; // 1MB
+const MAX_DIFF_SIZE: u64 = 1024 * 1024; // 1MB
 const MAX_CONCURRENT_DIFFS: usize = 4;
 
 impl JjAdapter {

@@ -74,12 +74,10 @@ pub async fn run_loop_with_events<B: Backend>(
                         pending = false;
                     }
                 }
+            } else if notify_rx.recv().await.is_some() {
+                pending = true;
             } else {
-                if notify_rx.recv().await.is_some() {
-                    pending = true;
-                } else {
-                    break;
-                }
+                break;
             }
         }
     });
@@ -217,10 +215,7 @@ pub fn map_event_to_action(
                                     if name.is_empty() {
                                         return None;
                                     }
-                                    Some(Action::SetBookmark(
-                                        row.commit_id.clone(),
-                                        name,
-                                    ))
+                                    Some(Action::SetBookmark(row.commit_id.clone(), name))
                                 } else {
                                     Some(Action::DescribeRevision(
                                         row.commit_id.clone(),
@@ -569,11 +564,16 @@ pub(crate) async fn handle_command(
             tokio::spawn(async move {
                 match adapter.get_operation_log(None, limit, revset).await {
                     Ok(repo) => {
-                        let _ = tx.send(Action::RepoReloadedBackground(Box::new(repo))).await;
+                        let _ = tx
+                            .send(Action::RepoReloadedBackground(Box::new(repo)))
+                            .await;
                     }
                     Err(e) => {
                         let _ = tx
-                            .send(Action::ErrorOccurred(format!("Background sync failed: {}", e)))
+                            .send(Action::ErrorOccurred(format!(
+                                "Background sync failed: {}",
+                                e
+                            )))
                             .await;
                     }
                 }
