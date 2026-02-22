@@ -144,7 +144,7 @@ jobs:
       - name: Install Jujutsu
         uses: taiki-e/install-action@v2
         with:
-          tool: jujutsu
+          tool: jj-cli
 
       - name: Initialize Jujutsu repo
         run: |
