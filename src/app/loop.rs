@@ -716,6 +716,51 @@ pub(crate) fn handle_command(
                 }
             });
         }
+        Command::Absorb => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted("Absorbing changes...".to_string()))
+                    .await;
+                match adapter.absorb().await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Absorb successful".to_string()
+                            )))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Duplicate(commit_ids) => {
+            tokio::spawn(async move {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Duplicating {}...", commit_ids[0])
+                } else {
+                    format!("Duplicating {} revisions...", commit_ids.len())
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.duplicate(&commit_ids).await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Revision(s) duplicated".to_string()
+                            )))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
         Command::Abandon(commit_ids) => {
             tokio::spawn(async move {
                 let msg = if commit_ids.len() == 1 {
@@ -1044,6 +1089,8 @@ mod tests {
         mock.expect_edit().returning(|_| Ok(()));
         mock.expect_squash().returning(|_| Ok(()));
         mock.expect_abandon().returning(|_| Ok(()));
+        mock.expect_absorb().returning(|| Ok(()));
+        mock.expect_duplicate().returning(|_| Ok(()));
         mock.expect_set_bookmark().returning(|_, _| Ok(()));
         mock.expect_delete_bookmark().returning(|_| Ok(()));
         mock.expect_undo().returning(|| Ok(()));

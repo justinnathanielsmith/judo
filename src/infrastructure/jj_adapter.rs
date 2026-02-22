@@ -712,6 +712,50 @@ impl VcsFacade for JjAdapter {
         }
     }
 
+    async fn absorb(&self) -> Result<()> {
+        let ws_root = {
+            let ws_opt = self.workspace.lock().await;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
+            ws.workspace_root().to_path_buf()
+        };
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("absorb");
+        let output = cmd.current_dir(ws_root).output().await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj absorb failed: {}", stderr.trim()))
+        }
+    }
+
+    async fn duplicate(&self, commit_ids: &[CommitId]) -> Result<()> {
+        let ws_root = {
+            let ws_opt = self.workspace.lock().await;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
+            ws.workspace_root().to_path_buf()
+        };
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("duplicate");
+        for id in commit_ids {
+            self.validate_commit(id).await?;
+            cmd.arg("-r").arg(&id.0);
+        }
+        let output = cmd.current_dir(ws_root).output().await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj duplicate failed: {}", stderr.trim()))
+        }
+    }
+
     async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
         self.validate_commit(commit_id).await?;
         let ws_root = {

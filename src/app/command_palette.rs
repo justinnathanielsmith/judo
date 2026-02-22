@@ -41,6 +41,16 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::SquashRevision(crate::domain::models::CommitId(String::new())),
         },
         CommandDefinition {
+            name: "Absorb",
+            description: "Absorb changes into matching parents",
+            action: Action::Absorb,
+        },
+        CommandDefinition {
+            name: "Duplicate",
+            description: "Duplicate the selected revision",
+            action: Action::DuplicateRevision(crate::domain::models::CommitId(String::new())),
+        },
+        CommandDefinition {
             name: "Set Bookmark",
             description: "Set a bookmark on the selected revision",
             action: Action::SetBookmarkIntent,

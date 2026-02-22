@@ -11,6 +11,8 @@ pub enum Command {
     Squash(Vec<CommitId>),
     New(CommitId),
     Abandon(Vec<CommitId>),
+    Absorb,
+    Duplicate(Vec<CommitId>),
     SetBookmark(CommitId, String),
     DeleteBookmark(String),
     Undo,
