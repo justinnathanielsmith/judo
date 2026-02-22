@@ -57,12 +57,29 @@ fn brightness_for_age(age_days: f32) -> f32 {
     }
 }
 
+/// Compute the maximum number of lanes across all graph rows for dynamic column sizing.
+fn max_lanes(graph: &[crate::domain::models::GraphRow]) -> usize {
+    graph
+        .iter()
+        .map(|r| {
+            r.visual
+                .active_lanes
+                .len()
+                .max(r.visual.connector_lanes.len())
+        })
+        .max()
+        .unwrap_or(1)
+}
+
 impl<'a> StatefulWidget for RevisionGraph<'a> {
     type State = TableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut TableState) {
         let now_secs = self.now_secs;
         let mut rows: Vec<Row> = Vec::new();
+        let max_lanes_total = max_lanes(&self.repo.graph);
+        // Each lane needs ~2 chars; ensure graph column accommodates all branches
+        let graph_col_width = (max_lanes_total * 2 + 4).clamp(10, 32);
 
         for (i, row) in self.repo.graph.iter().enumerate() {
             let is_selected = state.selected() == Some(i);
@@ -184,11 +201,22 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
                                 };
                             }
                         } else if lane_idx > range_min && lane_idx < range_max {
+                            // Horizontal span between branch/merge arms - use commit's lane
+                            // color so each branch is visually distinct
                             symbol = if is_active_above { "┼" } else { "─" };
                         }
                     }
 
-                    connector_line.push(Span::styled(symbol, dim_style));
+                    // Use the current commit's lane color for horizontal branch spans
+                    // (between parent columns) so divergent branches are visually distinct
+                    let style = if lane_idx > range_min && lane_idx < range_max {
+                        let commit_lane = self.theme.graph_lanes
+                            [row.visual.column % self.theme.graph_lanes.len()];
+                        age_dimmed_style(commit_lane, brightness)
+                    } else {
+                        dim_style
+                    };
+                    connector_line.push(Span::styled(symbol, style));
                 }
                 connector_line.push(Span::raw("  "));
                 graph_lines.push(Line::from(connector_line));
@@ -277,7 +305,13 @@ impl<'a> StatefulWidget for RevisionGraph<'a> {
             );
         }
 
-        let table = Table::new(rows, [Constraint::Length(16), Constraint::Min(0)])
+        let table = Table::new(
+            rows,
+            [
+                Constraint::Length(graph_col_width as u16),
+                Constraint::Min(0),
+            ],
+        )
             .row_highlight_style(self.theme.highlight)
             .highlight_symbol(" ");
 
