@@ -5,7 +5,6 @@ use crate::components::header::Header;
 use crate::components::modals::ModalManager;
 use crate::components::revision_graph::RevisionGraphPanel;
 use crate::components::welcome::Welcome;
-use crate::theme::Theme;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -48,7 +47,8 @@ pub fn get_layout(area: Rect, app_state: &AppState) -> AppLayout {
     AppLayout { main, body }
 }
 
-pub fn draw(f: &mut Frame, app_state: &mut AppState, theme: &Theme) {
+pub fn draw(f: &mut Frame, app_state: &mut AppState) {
+    let theme = &app_state.theme;
     if app_state.mode == AppMode::NoRepo {
         let welcome = Welcome { app_state, theme };
         f.render_widget(welcome, f.area());

@@ -16,9 +16,25 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
     match action {
         // --- Navigation ---
         Action::SelectNext => {
+            if state.mode == AppMode::ThemeSelection {
+                if let Some(ts) = &mut state.theme_selection {
+                    ts.selected_index = (ts.selected_index + 1) % ts.themes.len();
+                }
+                return None;
+            }
             return move_selection(state, 1);
         }
         Action::SelectPrev => {
+            if state.mode == AppMode::ThemeSelection {
+                if let Some(ts) = &mut state.theme_selection {
+                    ts.selected_index = if ts.selected_index == 0 {
+                        ts.themes.len() - 1
+                    } else {
+                        ts.selected_index - 1
+                    };
+                }
+                return None;
+            }
             return move_selection(state, -1);
         }
         Action::SelectIndex(i) => {
@@ -183,6 +199,23 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.mode = AppMode::Help;
             }
         }
+        Action::EnterThemeSelection => {
+            state.mode = AppMode::ThemeSelection;
+            state.theme_selection = Some(super::state::ThemeSelectionState::default());
+            // Set current index based on existing palette_type
+            if let Some(ts) = &mut state.theme_selection {
+                ts.selected_index = ts
+                    .themes
+                    .iter()
+                    .position(|p| *p == state.palette_type)
+                    .unwrap_or(0);
+            }
+        }
+        Action::SwitchTheme(palette) => {
+            state.palette_type = palette;
+            state.theme = crate::theme::Theme::from_palette_type(palette);
+            state.mode = AppMode::Normal;
+        }
         Action::CancelMode | Action::CloseContextMenu => {
             state.mode = AppMode::Normal;
             if state.mode == AppMode::Normal {
@@ -192,6 +225,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.input = None;
             state.context_menu = None;
             state.command_palette = None;
+            state.theme_selection = None;
         }
         Action::CommandPaletteNext => {
             if let Some(cp) = &mut state.command_palette {
@@ -219,6 +253,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     state.command_palette = None;
                     state.mode = AppMode::Normal;
                     return update(state, action);
+                }
+            } else if state.mode == AppMode::ThemeSelection {
+                if let Some(ts) = &state.theme_selection {
+                    if let Some(palette) = ts.themes.get(ts.selected_index) {
+                        let palette = *palette;
+                        return update(state, Action::SwitchTheme(palette));
+                    }
                 }
             }
         }

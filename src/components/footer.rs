@@ -284,6 +284,26 @@ impl<'a> Footer<'a> {
                     highlighted: false,
                 }],
             }],
+            AppMode::ThemeSelection => vec![FooterGroup {
+                name: "THEME",
+                items: vec![
+                    FooterItem {
+                        key: "j/k",
+                        desc: "select",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "ENTER",
+                        desc: "apply",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "Esc",
+                        desc: "cancel",
+                        highlighted: false,
+                    },
+                ],
+            }],
             AppMode::NoRepo => vec![
                 FooterGroup {
                     name: "INIT",

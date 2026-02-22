@@ -141,6 +141,7 @@ pub const GRUVBOX: Palette = Palette {
     rosewater: Color::Rgb(168, 153, 132),
 };
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Theme {
     pub border: Style,
     pub border_focus: Style,
@@ -195,12 +196,30 @@ pub struct Theme {
     pub dimmed: Style,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaletteType {
     CatppuccinMocha,
     Nord,
     Gruvbox,
+}
+
+impl PaletteType {
+    pub fn label(&self) -> &'static str {
+        match self {
+            PaletteType::CatppuccinMocha => "Catppuccin (Mocha)",
+            PaletteType::Nord => "Nord",
+            PaletteType::Gruvbox => "Gruvbox",
+        }
+    }
+
+    pub fn all() -> &'static [PaletteType] {
+        &[
+            PaletteType::CatppuccinMocha,
+            PaletteType::Nord,
+            PaletteType::Gruvbox,
+        ]
+    }
 }
 
 impl Theme {

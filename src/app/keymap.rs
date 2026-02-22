@@ -96,6 +96,7 @@ impl KeyMap {
         global.insert(key_char('/'), Action::EnterFilterMode);
         global.insert(key_char('p'), Action::PushIntent);
         global.insert(key_char('?'), Action::ToggleHelp);
+        global.insert(key_char('T'), Action::EnterThemeSelection);
         global.insert(key_code(KeyCode::PageDown), Action::ScrollDiffDown(10));
         global.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
         global.insert(key_char('['), Action::PrevHunk);
@@ -136,6 +137,14 @@ impl KeyMap {
                     Some(Action::CommandPalettePrev)
                 }
                 _ => Some(Action::TextAreaInput(event)),
+            };
+        } else if mode == super::state::AppMode::ThemeSelection {
+            return match event.code {
+                KeyCode::Esc => Some(Action::CancelMode),
+                KeyCode::Char('j') | KeyCode::Down => Some(Action::SelectNext),
+                KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectPrev),
+                KeyCode::Enter => Some(Action::CommandPaletteSelect),
+                _ => None,
             };
         }
         self.global.get(&event).cloned()

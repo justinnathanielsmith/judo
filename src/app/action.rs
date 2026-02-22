@@ -55,6 +55,8 @@ pub enum Action {
     FocusGraph,                                // Switch focus to revision graph
     CancelMode,                                // ESC key (close modal/mode)
     ToggleHelp,                                // Toggle the help overlay (?)
+    EnterThemeSelection,                       // Open theme selection modal (T)
+    SwitchTheme(crate::theme::PaletteType),    // Apply a new theme
     TextAreaInput(crossterm::event::KeyEvent), // Handle text area input
     OpenContextMenu(CommitId, (u16, u16)),     // Open menu at position
     SelectContextMenuAction(usize),            // Select action by index

@@ -30,6 +30,7 @@ pub enum AppMode {
     Help,           // Showing the help overlay
     NoRepo,         // No repository found, showing welcome screen
     CommandPalette, // Fuzzy finder for commands
+    ThemeSelection, // Choosing a UI theme
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -96,6 +97,21 @@ impl Default for CommandPaletteState {
             query: String::new(),
             matches: Vec::new(),
             selected_index: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ThemeSelectionState {
+    pub selected_index: usize,
+    pub themes: Vec<crate::theme::PaletteType>,
+}
+
+impl Default for ThemeSelectionState {
+    fn default() -> Self {
+        Self {
+            selected_index: 0,
+            themes: crate::theme::PaletteType::all().to_vec(),
         }
     }
 }
@@ -234,6 +250,9 @@ pub struct AppState<'a> {
     // --- Command Palette ---
     pub command_palette: Option<CommandPaletteState>,
 
+    // --- Theme Selection ---
+    pub theme_selection: Option<ThemeSelectionState>,
+
     // --- Animation ---
     pub frame_count: u64,
     pub hunk_highlight_time: Option<Instant>,
@@ -244,6 +263,8 @@ pub struct AppState<'a> {
 
     // --- Config ---
     pub keymap: Arc<KeyMap>,
+    pub palette_type: crate::theme::PaletteType,
+    pub theme: crate::theme::Theme,
 }
 
 impl<'a> AppState<'a> {
@@ -295,11 +316,14 @@ impl<'a> Default for AppState<'a> {
             last_click_pos: None,
             context_menu: None,
             command_palette: None,
+            theme_selection: None,
             frame_count: 0,
             hunk_highlight_time: None,
             diff_ratio: 50,
             focused_panel: Panel::Graph,
             keymap: Arc::new(KeyMap::from_config(&KeyConfig::default())),
+            palette_type: crate::theme::PaletteType::CatppuccinMocha,
+            theme: crate::theme::Theme::default(),
         }
     }
 }

@@ -1,7 +1,6 @@
 use crate::app::{action::Action, command::Command, reducer, state::AppState, ui};
 use crate::components::revision_graph::calculate_row_height;
 use crate::domain::vcs::VcsFacade;
-use crate::theme::Theme;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, MouseButton, MouseEventKind};
@@ -46,7 +45,6 @@ pub async fn run_loop_with_events<B: Backend>(
 ) -> Result<()> {
     let (action_tx, mut action_rx) = mpsc::channel(100);
     let mut interval = interval(TICK_RATE);
-    let theme = Theme::default();
 
     // Repository Watcher
     let (notify_tx, mut notify_rx) = mpsc::channel(1);
@@ -75,7 +73,7 @@ pub async fn run_loop_with_events<B: Backend>(
     loop {
         // --- 1. Render ---
         terminal.draw(|f| {
-            ui::draw(f, &mut app_state, &theme);
+            ui::draw(f, &mut app_state);
         })?;
 
         // --- 2. Event Handling (TEA Runtime) ---
