@@ -141,6 +141,18 @@ jobs:
         run: cargo test
 
       # ── Verification binaries ───────────────────────────────────────────────
+      - name: Install Jujutsu
+        uses: taiki-e/install-action@v2
+        with:
+          tool: jujutsu
+
+      - name: Initialize Jujutsu repo
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI Runner"
+          jj git init --colocate
+          jj status
+
       - name: Run verify_mutations
         run: cargo run --bin verify_mutations
 

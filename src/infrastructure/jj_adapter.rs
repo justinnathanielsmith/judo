@@ -35,6 +35,10 @@ const MAX_CONCURRENT_DIFFS: usize = 4;
 impl JjAdapter {
     pub fn new() -> Result<Self> {
         let cwd = std::env::current_dir()?;
+        Self::for_path(cwd)
+    }
+
+    pub fn for_path(path: std::path::PathBuf) -> Result<Self> {
         let mut config = jj_lib::config::StackedConfig::with_defaults();
 
         let layer = jj_lib::config::ConfigLayer::parse(
@@ -51,24 +55,27 @@ impl JjAdapter {
                 std::path::PathBuf::from(&home_dir).join(".jj/config.toml"),
                 std::path::PathBuf::from(&home_dir).join(".config/jj/config.toml"),
             ];
-            for path in paths {
-                if path.exists() {
-                    let text = std::fs::read_to_string(&path)
-                        .with_context(|| format!("Failed to read user config at {:?}", path))?;
+            for config_path in paths {
+                if config_path.exists() {
+                    let text = std::fs::read_to_string(&config_path).with_context(|| {
+                        format!("Failed to read user config at {:?}", config_path)
+                    })?;
                     let layer = jj_lib::config::ConfigLayer::parse(
                         jj_lib::config::ConfigSource::User,
                         &text,
                     )
-                    .with_context(|| format!("Failed to parse user config at {:?}", path))?;
+                    .with_context(|| {
+                        format!("Failed to parse user config at {:?}", config_path)
+                    })?;
                     config.add_layer(layer);
                 }
             }
         }
 
-        let mut current = Some(cwd.as_path());
+        let mut current = Some(path.as_path());
         let mut found_ws_root = None;
-        while let Some(path) = current {
-            let jj_repo_config = path.join(".jj").join("repo").join("config.toml");
+        while let Some(current_path) = current {
+            let jj_repo_config = current_path.join(".jj").join("repo").join("config.toml");
             if jj_repo_config.is_file() {
                 let text = std::fs::read_to_string(&jj_repo_config).with_context(|| {
                     format!("Failed to read repo config at {:?}", jj_repo_config)
@@ -79,10 +86,10 @@ impl JjAdapter {
                         format!("Failed to parse user config at {:?}", jj_repo_config)
                     })?;
                 config.add_layer(layer);
-                found_ws_root = Some(path.to_path_buf());
+                found_ws_root = Some(current_path.to_path_buf());
                 break;
             }
-            current = path.parent();
+            current = current_path.parent();
         }
 
         let user_settings = UserSettings::from_config(config)?;
@@ -91,7 +98,7 @@ impl JjAdapter {
             HashMap::new();
         working_copy_factories.insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
 
-        let ws_root = found_ws_root.unwrap_or_else(|| cwd.clone());
+        let ws_root = found_ws_root.unwrap_or_else(|| path.clone());
 
         let workspace = Workspace::load(
             &user_settings,
@@ -882,13 +889,12 @@ mod tests {
     #[tokio::test]
     async fn test_jj_adapter_new() -> Result<()> {
         let temp_dir = tempfile::tempdir()?;
-        let path = temp_dir.path();
+        let path = temp_dir.path().to_path_buf();
         let config = jj_lib::config::StackedConfig::with_defaults();
         let user_settings = UserSettings::from_config(config)?;
-        Workspace::init_simple(&user_settings, path)?;
-        let _adapter = JjAdapter::new()?;
-        // Since JjAdapter::new uses current_dir, we need to be careful in tests.
-        // But for this purpose, let's just assume it works if Workspace::load succeeded.
+        Workspace::init_simple(&user_settings, &path)?;
+        let adapter = JjAdapter::for_path(path)?;
+        assert!(adapter.is_valid().await);
         Ok(())
     }
 
