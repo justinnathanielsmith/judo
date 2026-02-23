@@ -387,16 +387,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.theme = crate::theme::Theme::from_palette_type(palette);
             state.mode = AppMode::Normal;
         }
-        Action::ToggleSelection(commit_id) => {
-            let id = if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    repo.graph.get(idx).map(|r| r.commit_id.clone())
-                } else {
-                    None
-                }
-            } else {
-                Some(commit_id)
-            };
+        Action::ToggleSelection(id_opt) => {
+            let id = id_opt.or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
 
             if let Some(id) = id {
                 if state.log.selected_ids.contains(&id) {
@@ -518,18 +514,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::InitRepo => {
             return Some(Command::InitRepo);
         }
-        Action::EditRevision(commit_id) => {
-            if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::Edit(row.commit_id.clone()));
-                    }
-                }
-                return None;
+        Action::EditRevision(commit_id_opt) => {
+            let id = commit_id_opt.or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
+            if let Some(id) = id {
+                return Some(Command::Edit(id));
             }
-            return Some(Command::Edit(commit_id));
+            return None;
         }
-        Action::SquashRevision(_commit_id) => {
+        Action::SquashRevision => {
             let ids = state.get_selected_commit_ids();
             if ids.is_empty() {
                 if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
@@ -542,32 +538,32 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log.selected_ids.clear();
             return Some(Command::Squash(ids));
         }
-        Action::SplitRevision(commit_id) => {
-            if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::Split(row.commit_id.clone()));
-                    }
-                }
-                return None;
+        Action::SplitRevision(commit_id_opt) => {
+            let id = commit_id_opt.or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
+            if let Some(id) = id {
+                return Some(Command::Split(id));
             }
-            return Some(Command::Split(commit_id));
+            return None;
         }
-        Action::NewRevision(commit_id) => {
-            if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::New(row.commit_id.clone()));
-                    }
-                }
-                return None;
+        Action::NewRevision(commit_id_opt) => {
+            let id = commit_id_opt.or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
+            if let Some(id) = id {
+                return Some(Command::New(id));
             }
-            return Some(Command::New(commit_id));
+            return None;
         }
         Action::Absorb => {
             return Some(Command::Absorb);
         }
-        Action::DuplicateRevision(_commit_id) => {
+        Action::DuplicateRevision => {
             let ids = state.get_selected_commit_ids();
             if ids.is_empty() {
                 if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
@@ -580,7 +576,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log.selected_ids.clear();
             return Some(Command::Duplicate(ids));
         }
-        Action::ParallelizeRevision(_commit_id) => {
+        Action::ParallelizeRevision => {
             let ids = state.get_selected_commit_ids();
             if ids.is_empty() {
                 if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
@@ -608,31 +604,29 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.rebase_sources.clear();
             return Some(Command::Rebase(commit_ids, destination));
         }
-        Action::AbandonRevision(_commit_id) => {
-            let ids = state.get_selected_commit_ids();
+        Action::AbandonRevision(commit_id_opt) => {
+            let mut ids = state.get_selected_commit_ids();
             if ids.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::Abandon(vec![row.commit_id.clone()]));
-                    }
+                let id = commit_id_opt.or_else(|| {
+                    let repo = state.repo.as_ref()?;
+                    let idx = state.log.list_state.selected()?;
+                    repo.graph.get(idx).map(|r| r.commit_id.clone())
+                });
+                if let Some(id) = id {
+                    ids.push(id);
                 }
+            }
+
+            if ids.is_empty() {
                 return None;
             }
             state.log.selected_ids.clear();
             return Some(Command::Abandon(ids));
         }
-        Action::RevertRevision(_commit_id) => {
-            let ids = state.get_selected_commit_ids();
-            if ids.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    if let Some(row) = repo.graph.get(idx) {
-                        return Some(Command::Revert(vec![row.commit_id.clone()]));
-                    }
-                }
-                return None;
-            }
+        Action::RevertRevision(commit_ids) => {
+            // RevertRevision(Vec<CommitId>) already has the IDs
             state.log.selected_ids.clear();
-            return Some(Command::Revert(ids));
+            return Some(Command::Revert(commit_ids));
         }
         Action::Undo => {
             return Some(Command::Undo);
@@ -692,6 +686,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 }
             }
             state.input = Some(super::state::InputState { text_area });
+            return None;
         }
         Action::DescribeRevision(commit_id, message) => {
             state.mode = AppMode::Normal;
@@ -754,16 +749,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
 
         // --- Evolog ---
-        Action::EvologRevision(commit_id) => {
-            let id = if commit_id.0.is_empty() {
-                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                    repo.graph.get(idx).map(|r| r.commit_id.clone())
-                } else {
-                    None
-                }
-            } else {
-                Some(commit_id)
-            };
+        Action::EvologRevision(commit_id_opt) => {
+            let id = commit_id_opt.or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
 
             if let Some(id) = id {
                 return Some(Command::Evolog(id));
@@ -799,7 +790,13 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         }
 
         // --- Context Menu ---
-        Action::OpenContextMenu(commit_id, pos) => {
+        Action::OpenContextMenu(commit_id_opt, pos) => {
+            let commit_id = commit_id_opt.or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
+
             let mut actions = vec![
                 ("Describe".to_string(), Action::DescribeRevisionIntent),
                 ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
@@ -808,72 +805,54 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                     Action::NewRevision(commit_id.clone()),
                 ),
                 ("Rebase...".to_string(), Action::RebaseRevisionIntent),
-                (
-                    "Duplicate".to_string(),
-                    Action::DuplicateRevision(commit_id.clone()),
-                ),
-                (
-                    "Parallelize".to_string(),
-                    Action::ParallelizeRevision(commit_id.clone()),
-                ),
+                ("Duplicate".to_string(), Action::DuplicateRevision),
+                ("Parallelize".to_string(), Action::ParallelizeRevision),
                 (
                     "Abandon".to_string(),
                     Action::AbandonRevision(commit_id.clone()),
                 ),
-                (
-                    "New Child".to_string(),
-                    Action::NewRevision(commit_id.clone()),
-                ),
-                ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
                 (
                     "Split Revision".to_string(),
                     Action::SplitRevision(commit_id.clone()),
                 ),
-                (
-                    "Squash into Parent".to_string(),
-                    Action::SquashRevision(commit_id.clone()),
-                ),
-                ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
-                (
-                    "Duplicate".to_string(),
-                    Action::DuplicateRevision(commit_id.clone()),
-                ),
-                ("Rebase".to_string(), Action::RebaseRevisionIntent),
-                (
-                    "Abandon".to_string(),
-                    Action::AbandonRevision(commit_id.clone()),
-                ),
+                ("Squash into Parent".to_string(), Action::SquashRevision),
                 (
                     "Revert".to_string(),
-                    Action::RevertRevision(vec![commit_id.clone()]),
+                    Action::RevertRevision(
+                        commit_id
+                            .as_ref()
+                            .map(|id| vec![id.clone()])
+                            .unwrap_or_default(),
+                    ),
                 ),
                 ("Set Bookmark".to_string(), Action::SetBookmarkIntent),
                 ("Toggle Diffs".to_string(), Action::ToggleDiffs),
             ];
 
             // Conditionally add Delete Bookmark if the commit has bookmarks
-            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
-                if let Some(row) = repo.graph.get(idx) {
-                    if !row.bookmarks.is_empty() {
-                        actions.insert(
-                            actions.len() - 1,
-                            ("Delete Bookmark".to_string(), Action::DeleteBookmarkIntent),
-                        );
+            if let Some(id) = &commit_id {
+                if let Some(repo) = &state.repo {
+                    if let Some(row) = repo.graph.iter().find(|r| r.commit_id == *id) {
+                        if !row.bookmarks.is_empty() {
+                            actions.insert(
+                                actions.len() - 1,
+                                ("Delete Bookmark".to_string(), Action::DeleteBookmarkIntent),
+                            );
+                        }
                     }
                 }
             }
 
-            // If we are in SquashSelect mode, maybe add squash target?
-            // For now, let's keep it simple.
-
-            state.mode = AppMode::ContextMenu;
-            state.context_menu = Some(super::state::ContextMenuState {
-                commit_id,
-                x: pos.0,
-                y: pos.1,
-                selected_index: 0,
-                actions,
-            });
+            if let Some(id) = commit_id {
+                state.mode = AppMode::ContextMenu;
+                state.context_menu = Some(super::state::ContextMenuState {
+                    commit_id: id,
+                    x: pos.0,
+                    y: pos.1,
+                    selected_index: 0,
+                    actions,
+                });
+            }
         }
         Action::SelectContextMenuAction(idx) => {
             if let Some(menu) = &state.context_menu {
@@ -992,18 +971,11 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
         }
         Action::DiffLoaded(commit_id, diff) => {
-            state.log.diff_cache.insert(commit_id, diff.clone());
+            state.log.diff_cache.insert(commit_id.clone(), diff.clone());
             // Only update current_diff if it matches the current selection
             if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
                 if let Some(row) = repo.graph.get(idx) {
-                    if row.commit_id
-                        == *state
-                            .log
-                            .diff_cache
-                            .keys()
-                            .find(|k| **k == row.commit_id)
-                            .unwrap_or(&row.commit_id)
-                    {
+                    if row.commit_id == commit_id {
                         state.log.current_diff = Some(diff);
                         state.log.is_loading_diff = false;
                     }
@@ -1942,5 +1914,42 @@ mod tests {
             state.input.as_ref().unwrap().text_area.lines()[0],
             "preset2"
         );
+    }
+    #[test]
+    fn test_rebase_intent_and_select() {
+        let mut state = AppState {
+            repo: Some(create_repo_with_bookmarks(vec![])),
+            ..Default::default()
+        };
+        state.log.list_state.select(Some(0));
+
+        let cmd = update(&mut state, Action::RebaseRevisionIntent);
+        assert!(cmd.is_none(), "Intent should yield no command");
+        assert_eq!(state.mode, AppMode::RebaseSelect);
+        assert_eq!(state.rebase_sources, vec![CommitId("commit0".to_string())]);
+
+        // Attempting to cancel clears state
+        let cmd = update(&mut state, Action::CancelMode);
+        assert!(cmd.is_none());
+        assert_eq!(state.mode, AppMode::Normal);
+        assert!(state.rebase_sources.is_empty());
+
+        // Select again and rebase
+        state.log.list_state.select(Some(0));
+        update(&mut state, Action::RebaseRevisionIntent);
+        assert_eq!(state.mode, AppMode::RebaseSelect);
+
+        // Let's pretend user hit enter and dispatched RebaseRevision
+        let sources = state.rebase_sources.clone();
+        let cmd = update(
+            &mut state,
+            Action::RebaseRevision(sources, "main".to_string()),
+        );
+        assert_eq!(state.mode, AppMode::Normal);
+        assert!(state.rebase_sources.is_empty());
+        assert!(matches!(
+            cmd,
+            Some(Command::Rebase(sources, dest)) if sources == vec![CommitId("commit0".to_string())] && dest == "main"
+        ));
     }
 }

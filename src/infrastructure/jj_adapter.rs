@@ -7,16 +7,17 @@ use async_trait::async_trait;
 use jj_lib::{
     backend::{CommitId as JjCommitId, TreeValue},
     local_working_copy::LocalWorkingCopyFactory,
+    matchers::EverythingMatcher,
     object_id::ObjectId,
-    repo::Repo,
-    repo::StoreFactories,
+    repo::{ReadonlyRepo, Repo, StoreFactories},
     settings::UserSettings,
     working_copy::WorkingCopyFactory,
     workspace::Workspace,
+    ref_name::{WorkspaceName, WorkspaceNameBuf},
 };
+use std::path::PathBuf;
 
 use futures::StreamExt;
-use jj_lib::matchers::EverythingMatcher;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
@@ -144,28 +145,73 @@ impl JjAdapter {
     }
 
     async fn validate_commit(&self, commit_id: &CommitId) -> Result<JjCommitId> {
-        let repo = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.repo_loader().load_at_head()?
-        };
+        let (repo, _): (Arc<ReadonlyRepo>, _) = self.get_repo_and_ws().await?;
         let id = JjCommitId::try_from_hex(&commit_id.0)
             .ok_or_else(|| anyhow!("Invalid commit ID format: {}", commit_id.0))?;
 
-        if !repo.view().heads().contains(&id) {
-            // If it's not a head, it might be an ancestor.
-            // We check if the store has it and if it's visible in the current index.
-            if !repo.index().has_id(&id).map_err(|e| anyhow!(e))? {
-                return Err(anyhow!(
-                    "Commit {} is no longer valid or has been rewritten/abandoned.",
-                    commit_id.0
-                ));
-            }
+        if !repo.index().has_id(&id).map_err(|e| anyhow!(e))? {
+            return Err(anyhow!(
+                "Commit {} is no longer valid or has been rewritten/abandoned.",
+                commit_id.0
+            ));
         }
         Ok(id)
     }
+
+    async fn get_repo_and_ws(&self) -> Result<(Arc<ReadonlyRepo>, PathBuf)> {
+        let ws_opt = self.workspace.lock().await;
+        let ws = ws_opt
+            .as_ref()
+            .ok_or_else(|| anyhow!("No repository found"))?;
+        let repo = ws.repo_loader().load_at_head()?;
+        Ok((repo, ws.workspace_root().to_path_buf()))
+    }
+}
+
+fn build_commit_info(
+    repo: &ReadonlyRepo,
+    id: &JjCommitId,
+    ws_id: &WorkspaceName,
+) -> Result<(
+    jj_lib::commit::Commit,
+    jj_lib::merged_tree::MergedTree,
+    Option<jj_lib::merged_tree::MergedTree>,
+    Vec<CommitId>,
+    bool,
+    bool,
+    Vec<String>,
+)> {
+    let commit = repo.store().get_commit(id)?;
+    let mut parent_ids_domain = Vec::new();
+    for parent_id in commit.parent_ids() {
+        parent_ids_domain.push(CommitId(parent_id.hex()));
+    }
+
+    let first_parent: Option<jj_lib::commit::Commit> =
+        commit.parents().next().transpose().unwrap_or_default();
+    let tree = commit.tree();
+    let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
+    let is_working_copy = Some(id) == repo.view().get_wc_commit_id(ws_id);
+    // Heuristic: root commit is immutable.
+    // Heads are definitely NOT necessarily immutable.
+    let is_immutable = commit.parents().next().is_none();
+
+    let bookmarks = repo
+        .view()
+        .local_bookmarks()
+        .filter(|(_, target)| target.added_ids().any(|added_id| added_id == id))
+        .map(|(name, _)| name.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    Ok((
+        commit,
+        tree,
+        parent_tree,
+        parent_ids_domain,
+        is_working_copy,
+        is_immutable,
+        bookmarks,
+    ))
 }
 
 #[async_trait]
@@ -176,24 +222,17 @@ impl VcsFacade for JjAdapter {
         limit: usize,
         revset: Option<String>,
     ) -> Result<RepoStatus> {
-        let (repo, ws_root) = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            let repo = ws.repo_loader().load_at_head()?;
-            (repo, ws.workspace_root().to_path_buf())
-        };
+        let (repo, ws_root): (Arc<ReadonlyRepo>, PathBuf) = self.get_repo_and_ws().await?;
         let op_id = repo.operation().id().clone().hex();
 
-        let (workspace_id, _) = repo
+        let (workspace_id, _): (&WorkspaceNameBuf, &JjCommitId) = repo
             .view()
             .wc_commit_ids()
             .iter()
             .next()
-            .ok_or_else(|| anyhow!("No working copy found in view"))?;
-        let workspace_id = workspace_id.clone();
+            .ok_or_else(|| anyhow!("No working copy found"))?;
 
+        let workspace_id: WorkspaceNameBuf = workspace_id.clone();
         let repo_arc = repo.clone();
         let ws_id_clone = workspace_id.clone();
         let ws_root_for_closure = ws_root.clone();
@@ -232,42 +271,9 @@ impl VcsFacade for JjAdapter {
 
                             for id_hex in ids.iter().take(limit) {
                                 if let Some(id) = JjCommitId::try_from_hex(id_hex) {
-                                    let commit = match repo_arc.store().get_commit(&id) {
-                                        Ok(c) => c,
-                                        Err(_) => continue, // skip corrupt/unreadable commits
-                                    };
-                                    let mut parent_ids_domain = Vec::new();
-                                    for parent_id in commit.parent_ids() {
-                                        parent_ids_domain.push(CommitId(parent_id.hex()));
+                                    if let Ok(info) = build_commit_info(&repo_arc, &id, &ws_id_clone) {
+                                        results.push(info);
                                     }
-
-                                    let first_parent: Option<jj_lib::commit::Commit> =
-                                        commit.parents().next().transpose().unwrap_or_default();
-                                    let tree = commit.tree();
-                                    let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
-                                    let is_working_copy =
-                                        Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
-                                    let is_immutable = repo_arc.view().heads().contains(&id)
-                                        || commit.parents().next().is_none();
-
-                                    let bookmarks = repo_arc
-                                        .view()
-                                        .local_bookmarks()
-                                        .filter(|(_, target)| {
-                                            target.added_ids().any(|added_id| added_id == &id)
-                                        })
-                                        .map(|(name, _)| name.as_str().to_string())
-                                        .collect::<Vec<_>>();
-
-                                    results.push((
-                                        commit,
-                                        tree,
-                                        parent_tree,
-                                        parent_ids_domain,
-                                        is_working_copy,
-                                        is_immutable,
-                                        bookmarks,
-                                    ));
                                 }
                             }
                             return Ok(results);
@@ -303,40 +309,12 @@ impl VcsFacade for JjAdapter {
                 }
                 visited.insert(id.clone());
 
-                let commit = match repo_arc.store().get_commit(&id) {
-                    Ok(c) => c,
-                    Err(_) => continue, // skip corrupt/unreadable commits
-                };
-                let mut parent_ids_domain = Vec::new();
-                for parent_id in commit.parent_ids() {
-                    parent_ids_domain.push(CommitId(parent_id.hex()));
-                    queue.push_back(parent_id.clone());
+                if let Ok(info) = build_commit_info(&repo_arc, &id, &ws_id_clone) {
+                    for parent_id in info.0.parent_ids() {
+                        queue.push_back(parent_id.clone());
+                    }
+                    results.push(info);
                 }
-
-                let first_parent: Option<jj_lib::commit::Commit> =
-                    commit.parents().next().transpose().unwrap_or_default();
-                let tree = commit.tree();
-                let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
-                let is_working_copy = Some(&id) == repo_arc.view().get_wc_commit_id(&ws_id_clone);
-                let is_immutable =
-                    repo_arc.view().heads().contains(&id) || commit.parents().next().is_none();
-
-                let bookmarks = repo_arc
-                    .view()
-                    .local_bookmarks()
-                    .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
-                    .map(|(name, _)| name.as_str().to_string())
-                    .collect::<Vec<_>>();
-
-                results.push((
-                    commit,
-                    tree,
-                    parent_tree,
-                    parent_ids_domain,
-                    is_working_copy,
-                    is_immutable,
-                    bookmarks,
-                ));
             }
             Ok::<_, anyhow::Error>(results)
         })
@@ -352,6 +330,14 @@ impl VcsFacade for JjAdapter {
                     is_working_copy,
                     is_immutable,
                     bookmarks,
+                ): (
+                    jj_lib::commit::Commit,
+                    jj_lib::merged_tree::MergedTree,
+                    Option<jj_lib::merged_tree::MergedTree>,
+                    Vec<CommitId>,
+                    bool,
+                    bool,
+                    Vec<String>,
                 )| async move {
                     let description = commit.description().to_string();
                     let change_id = commit.change_id().hex();
@@ -464,7 +450,7 @@ impl VcsFacade for JjAdapter {
         let bookmarks = repo
             .view()
             .local_bookmarks()
-            .filter(|(_, target)| target.added_ids().any(|added_id| added_id == &id))
+            .filter(|(_, target)| target.added_ids().any(|added_id| *added_id == id))
             .map(|(name, _)| name.as_str().to_string())
             .collect::<Vec<_>>();
         if !bookmarks.is_empty() {
@@ -573,17 +559,11 @@ impl VcsFacade for JjAdapter {
         Ok(output)
     }
 
-    async fn describe_revision(&self, change_id: &str, message: &str) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+    async fn describe_revision(&self, commit_id: &str, message: &str) -> Result<()> {
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("describe")
-            .arg(change_id)
+            .arg(commit_id)
             .arg("-m")
             .arg(message)
             .current_dir(ws_root)
@@ -598,13 +578,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn commit(&self, message: &str) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("commit")
             .arg("-m")
@@ -621,13 +595,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn snapshot(&self) -> Result<String> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("status")
             .current_dir(&ws_root)
@@ -665,13 +633,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn squash(&self, commit_ids: &[CommitId]) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("squash");
         for id in commit_ids {
@@ -712,13 +674,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn abandon(&self, commit_ids: &[CommitId]) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("abandon");
         for id in commit_ids {
@@ -736,13 +692,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn revert(&self, commit_ids: &[CommitId]) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("revert");
         for id in commit_ids {
@@ -760,13 +710,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn absorb(&self) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("absorb");
         let output = cmd.current_dir(ws_root).output().await?;
@@ -780,13 +724,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn duplicate(&self, commit_ids: &[CommitId]) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("duplicate");
         for id in commit_ids {
@@ -804,13 +742,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn parallelize(&self, commit_ids: &[CommitId]) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("parallelize");
         for id in commit_ids {
@@ -828,13 +760,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn rebase(&self, commit_ids: &[CommitId], destination: &str) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("rebase");
         for id in commit_ids {
@@ -879,13 +805,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn delete_bookmark(&self, name: &str) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("bookmark")
             .arg("delete")
@@ -902,13 +822,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn evolog(&self, commit_id: &CommitId) -> Result<String> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
 
         let output = tokio::process::Command::new("jj")
             .arg("evolog")
@@ -930,13 +844,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn operation_log(&self) -> Result<String> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
 
         let output = tokio::process::Command::new("jj")
             .arg("op")
@@ -957,13 +865,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn undo(&self) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("undo")
             .current_dir(ws_root)
@@ -978,13 +880,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn redo(&self) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("redo")
             .current_dir(ws_root)
@@ -999,13 +895,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn fetch(&self) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let output = tokio::process::Command::new("jj")
             .arg("git")
             .arg("fetch")
@@ -1021,13 +911,7 @@ impl VcsFacade for JjAdapter {
     }
 
     async fn push(&self, bookmark: Option<String>) -> Result<()> {
-        let ws_root = {
-            let ws_opt = self.workspace.lock().await;
-            let ws = ws_opt
-                .as_ref()
-                .ok_or_else(|| anyhow!("No repository found"))?;
-            ws.workspace_root().to_path_buf()
-        };
+        let (_, ws_root) = self.get_repo_and_ws().await?;
         let mut cmd = tokio::process::Command::new("jj");
         cmd.arg("git").arg("push").current_dir(ws_root);
         if let Some(b) = bookmark {

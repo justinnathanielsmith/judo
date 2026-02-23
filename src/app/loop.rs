@@ -142,7 +142,11 @@ pub async fn run_loop_with_events<B: Backend>(
                         // 2. Run external tool
                         // We'll use 'jj resolve' which uses the configured tool
                         // SECURITY: Validate path to prevent path traversal
-                        if path.contains("..") {
+                        use std::path::Component;
+                        if std::path::Path::new(&path)
+                            .components()
+                            .any(|c| matches!(c, Component::ParentDir))
+                        {
                             crossterm::terminal::enable_raw_mode()?;
                             crossterm::execute!(
                                 std::io::stdout(),
@@ -227,6 +231,34 @@ pub async fn run_loop_with_events<B: Backend>(
     }
 
     Ok(())
+}
+
+fn resolve_clicked_row(
+    app_state: &AppState<'_>,
+    clicked_row: usize,
+) -> Option<(usize, Option<usize>)> {
+    let offset = app_state.log.list_state.offset();
+    let repo = app_state.repo.as_ref()?;
+    
+    let mut current_y = 0;
+    for i in offset..repo.graph.len() {
+        let row = &repo.graph[i];
+        let is_selected = app_state.log.list_state.selected() == Some(i);
+        let row_height = calculate_row_height(row, is_selected, app_state.show_diffs) as usize;
+
+        if clicked_row >= current_y && clicked_row < current_y + row_height {
+            let file_idx = if is_selected && app_state.show_diffs && clicked_row >= current_y + 2 {
+                Some(clicked_row - (current_y + 2))
+            } else {
+                None
+            };
+            return Some((i, file_idx));
+        }
+        current_y += row_height;
+        // Optimization: if we're past the possible clicked area we could break
+        // but we don't have the graph_area.height here, so we just iterate.
+    }
+    None
 }
 
 pub fn map_event_to_action(
@@ -409,42 +441,15 @@ pub fn map_event_to_action(
                                 Some(Action::ToggleDiffs)
                             } else {
                                 let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
-                                let offset = app_state.log.list_state.offset();
-                                let mut result = None;
-                                if let Some(repo) = &app_state.repo {
-                                    let mut current_y = 0;
-                                    for i in offset..repo.graph.len() {
-                                        let row = &repo.graph[i];
-                                        let is_selected =
-                                            app_state.log.list_state.selected() == Some(i);
-                                        let row_height = calculate_row_height(
-                                            row,
-                                            is_selected,
-                                            app_state.show_diffs,
-                                        )
-                                            as usize;
-
-                                        if clicked_row >= current_y
-                                            && clicked_row < current_y + row_height
-                                        {
-                                            if is_selected
-                                                && app_state.show_diffs
-                                                && clicked_row >= current_y + 2
-                                            {
-                                                let file_idx = clicked_row - (current_y + 2);
-                                                result = Some(Action::SelectFile(file_idx));
-                                            } else {
-                                                result = Some(Action::SelectIndex(i));
-                                            }
-                                            break;
-                                        }
-                                        current_y += row_height;
-                                        if current_y > graph_area.height as usize {
-                                            break;
-                                        }
+                                if let Some((i, file_idx)) = resolve_clicked_row(app_state, clicked_row) {
+                                    if let Some(idx) = file_idx {
+                                        Some(Action::SelectFile(idx))
+                                    } else {
+                                        Some(Action::SelectIndex(i))
                                     }
+                                } else {
+                                    None
                                 }
-                                result
                             }
                         } else {
                             None
@@ -508,41 +513,15 @@ pub fn map_event_to_action(
                             && mouse.row < graph_area.y + graph_area.height - 1
                         {
                             let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
-                            let offset = app_state.log.list_state.offset();
-                            let mut result = None;
-                            if let Some(repo) = &app_state.repo {
-                                let mut current_y = 0;
-                                for i in offset..repo.graph.len() {
-                                    let row = &repo.graph[i];
-                                    let is_selected =
-                                        app_state.log.list_state.selected() == Some(i);
-                                    let row_height = calculate_row_height(
-                                        row,
-                                        is_selected,
-                                        app_state.show_diffs,
-                                    ) as usize;
-
-                                    if clicked_row >= current_y
-                                        && clicked_row < current_y + row_height
-                                    {
-                                        if is_selected
-                                            && app_state.show_diffs
-                                            && clicked_row >= current_y + 2
-                                        {
-                                            let file_idx = clicked_row - (current_y + 2);
-                                            result = Some(Action::SelectFile(file_idx));
-                                        } else {
-                                            result = Some(Action::SelectIndex(i));
-                                        }
-                                        break;
-                                    }
-                                    current_y += row_height;
-                                    if current_y > graph_area.height as usize {
-                                        break;
-                                    }
+                            if let Some((i, file_idx)) = resolve_clicked_row(app_state, clicked_row) {
+                                if let Some(idx) = file_idx {
+                                    Some(Action::SelectFile(idx))
+                                } else {
+                                    Some(Action::SelectIndex(i))
                                 }
+                            } else {
+                                None
                             }
-                            result
                         } else if app_state.show_diffs
                             && mouse.column >= diff_area.x
                             && mouse.column < diff_area.x + diff_area.width
@@ -559,36 +538,17 @@ pub fn map_event_to_action(
                             && mouse.row < graph_area.y + graph_area.height - 1
                         {
                             let clicked_row = (mouse.row - (graph_area.y + 1)) as usize;
-                            let offset = app_state.log.list_state.offset();
-                            let mut result = None;
-                            if let Some(repo) = &app_state.repo {
-                                let mut current_y = 0;
-                                for i in offset..repo.graph.len() {
-                                    let row = &repo.graph[i];
-                                    let is_selected =
-                                        app_state.log.list_state.selected() == Some(i);
-                                    let row_height = calculate_row_height(
-                                        row,
-                                        is_selected,
-                                        app_state.show_diffs,
-                                    ) as usize;
-
-                                    if clicked_row >= current_y
-                                        && clicked_row < current_y + row_height
-                                    {
-                                        result = Some(Action::OpenContextMenu(
-                                            row.commit_id.clone(),
+                            if let Some((i, _)) = resolve_clicked_row(app_state, clicked_row) {
+                                if let Some(repo) = &app_state.repo {
+                                    if let Some(row) = repo.graph.get(i) {
+                                        return Some(Action::OpenContextMenu(
+                                            Some(row.commit_id.clone()),
                                             (mouse.column, mouse.row),
                                         ));
-                                        break;
-                                    }
-                                    current_y += row_height;
-                                    if current_y > graph_area.height as usize {
-                                        break;
                                     }
                                 }
                             }
-                            result
+                            None
                         } else {
                             None
                         }
@@ -598,6 +558,32 @@ pub fn map_event_to_action(
             }
             _ => None,
         },
+    }
+}
+
+use std::future::Future;
+
+async fn run_operation<F, Fut>(
+    tx: mpsc::Sender<Action>,
+    start_msg: String,
+    success_msg: &'static str,
+    action: F,
+) where
+    F: FnOnce() -> Fut + Send + 'static,
+    Fut: Future<Output = Result<()>> + Send,
+{
+    let _ = tx.send(Action::OperationStarted(start_msg)).await;
+    match action().await {
+        Ok(()) => {
+            let _ = tx
+                .send(Action::OperationCompleted(Ok(success_msg.to_string())))
+                .await;
+        }
+        Err(e) => {
+            let _ = tx
+                .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                .await;
+        }
     }
 }
 
@@ -661,42 +647,24 @@ pub(crate) fn handle_command(
         }
         Command::DescribeRevision(commit_id, message) => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Describing {commit_id}..."
-                    )))
-                    .await;
-                match adapter.describe_revision(&commit_id.0, &message).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok("Described".to_string())))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    format!("Describing {commit_id}..."),
+                    "Described",
+                    move || async move { adapter.describe_revision(&commit_id.0, &message).await },
+                )
+                .await;
             });
         }
         Command::Commit(message) => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted("Committing...".to_string()))
-                    .await;
-                match adapter.commit(&message).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok("Committed".to_string())))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    "Committing...".to_string(),
+                    "Committed",
+                    move || async move { adapter.commit(&message).await },
+                )
+                .await;
             });
         }
         Command::Snapshot => {
@@ -718,23 +686,13 @@ pub(crate) fn handle_command(
         }
         Command::Edit(commit_id) => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!("Editing {commit_id}...")))
-                    .await;
-                match adapter.edit(&commit_id).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(
-                                Ok("Edit successful".to_string()),
-                            ))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    format!("Editing {commit_id}..."),
+                    "Edit successful",
+                    move || async move { adapter.edit(&commit_id).await },
+                )
+                .await;
             });
         }
         Command::Squash(commit_ids) => {
@@ -744,65 +702,32 @@ pub(crate) fn handle_command(
                 } else {
                     format!("Squashing {} revisions...", commit_ids.len())
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.squash(&commit_ids).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Squash successful".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, msg, "Squash successful", move || async move {
+                    adapter.squash(&commit_ids).await
+                })
+                .await;
             });
         }
         Command::New(commit_id) => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Creating child of {commit_id}..."
-                    )))
-                    .await;
-                match adapter.new_child(&commit_id).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "New revision created".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    format!("Creating child of {commit_id}..."),
+                    "New revision created",
+                    move || async move { adapter.new_child(&commit_id).await },
+                )
+                .await;
             });
         }
         Command::Absorb => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted("Absorbing changes...".to_string()))
-                    .await;
-                match adapter.absorb().await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Absorb successful".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    "Absorbing changes...".to_string(),
+                    "Absorb successful",
+                    move || async move { adapter.absorb().await },
+                )
+                .await;
             });
         }
         Command::Duplicate(commit_ids) => {
@@ -812,21 +737,10 @@ pub(crate) fn handle_command(
                 } else {
                     format!("Duplicating {} revisions...", commit_ids.len())
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.duplicate(&commit_ids).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Revision(s) duplicated".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, msg, "Revision(s) duplicated", move || async move {
+                    adapter.duplicate(&commit_ids).await
+                })
+                .await;
             });
         }
         Command::Rebase(commit_ids, destination) => {
@@ -836,21 +750,10 @@ pub(crate) fn handle_command(
                 } else {
                     format!("Rebasing {} revisions onto {}...", commit_ids.len(), destination)
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.rebase(&commit_ids, &destination).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Rebase successful".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, msg, "Rebase successful", move || async move {
+                    adapter.rebase(&commit_ids, &destination).await
+                })
+                .await;
             });
         }
         Command::Parallelize(commit_ids) => {
@@ -860,21 +763,13 @@ pub(crate) fn handle_command(
                 } else {
                     format!("Parallelizing {} revisions...", commit_ids.len())
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.parallelize(&commit_ids).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Revision(s) parallelized".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    msg,
+                    "Revision(s) parallelized",
+                    move || async move { adapter.parallelize(&commit_ids).await },
+                )
+                .await;
             });
         }
         Command::Abandon(commit_ids) => {
@@ -884,21 +779,10 @@ pub(crate) fn handle_command(
                 } else {
                     format!("Abandoning {} revisions...", commit_ids.len())
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.abandon(&commit_ids).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Revision(s) abandoned".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, msg, "Revision(s) abandoned", move || async move {
+                    adapter.abandon(&commit_ids).await
+                })
+                .await;
             });
         }
         Command::Revert(commit_ids) => {
@@ -908,21 +792,10 @@ pub(crate) fn handle_command(
                 } else {
                     format!("Reverting {} revisions...", commit_ids.len())
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.revert(&commit_ids).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Revision(s) reverted".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, msg, "Revision(s) reverted", move || async move {
+                    adapter.revert(&commit_ids).await
+                })
+                .await;
             });
         }
 
@@ -930,112 +803,51 @@ pub(crate) fn handle_command(
             // Handled directly in run_loop because it requires suspending TUI
         }
         Command::SetBookmark(commit_id, name) => {
+            let name_clone = name.clone();
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Setting bookmark {name}..."
-                    )))
-                    .await;
-                match adapter.set_bookmark(&commit_id, &name).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(format!(
-                                "Bookmark {name} set"
-                            ))))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    format!("Setting bookmark {name_clone}..."),
+                    "Bookmark set", // Note: The previous success message sent back the bookmark name, but we use a static str now.
+                    move || async move { adapter.set_bookmark(&commit_id, &name_clone).await },
+                )
+                .await;
             });
         }
         Command::DeleteBookmark(name) => {
+            let name_clone = name.clone();
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(format!(
-                        "Deleting bookmark {name}..."
-                    )))
-                    .await;
-                match adapter.delete_bookmark(&name).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(format!(
-                                "Bookmark {name} deleted"
-                            ))))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    format!("Deleting bookmark {name_clone}..."),
+                    "Bookmark deleted", // Note: Previous sent back the bookmark name
+                    move || async move { adapter.delete_bookmark(&name_clone).await },
+                )
+                .await;
             });
         }
         Command::Undo => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted("Undoing...".to_string()))
-                    .await;
-                match adapter.undo().await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(
-                                Ok("Undo successful".to_string()),
-                            ))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, "Undoing...".to_string(), "Undo successful", move || async move {
+                    adapter.undo().await
+                })
+                .await;
             });
         }
         Command::Redo => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted("Redoing...".to_string()))
-                    .await;
-                match adapter.redo().await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(
-                                Ok("Redo successful".to_string()),
-                            ))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, "Redoing...".to_string(), "Redo successful", move || async move {
+                    adapter.redo().await
+                })
+                .await;
             });
         }
         Command::Fetch => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted("Fetching...".to_string()))
-                    .await;
-                match adapter.fetch().await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Fetch successful".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, "Fetching...".to_string(), "Fetch successful", move || async move {
+                    adapter.fetch().await
+                })
+                .await;
             });
         }
         Command::Push(bookmark) => {
@@ -1046,21 +858,10 @@ pub(crate) fn handle_command(
                 } else {
                     "Pushing...".to_string()
                 };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.push(bookmark_clone).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(
-                                Ok("Push successful".to_string()),
-                            ))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(tx, msg, "Push successful", move || async move {
+                    adapter.push(bookmark_clone).await
+                })
+                .await;
             });
         }
         Command::ResolveConflict(_) => {
@@ -1068,25 +869,13 @@ pub(crate) fn handle_command(
         }
         Command::InitRepo => {
             tokio::spawn(async move {
-                let _ = tx
-                    .send(Action::OperationStarted(
-                        "Initializing repository...".to_string(),
-                    ))
-                    .await;
-                match adapter.init_repo().await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Repository initialized".to_string()
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
+                run_operation(
+                    tx,
+                    "Initializing repository...".to_string(),
+                    "Repository initialized",
+                    move || async move { adapter.init_repo().await },
+                )
+                .await;
             });
         }
         Command::Evolog(commit_id) => {
@@ -1282,6 +1071,9 @@ mod tests {
         mock.expect_push().returning(|_| Ok(()));
         mock.expect_describe_revision().returning(|_, _| Ok(()));
         mock.expect_evolog().returning(|_| Ok("evolog".to_string()));
+        mock.expect_rebase().returning(|_, _| Ok(()));
+        mock.expect_parallelize().returning(|_| Ok(()));
+        mock.expect_revert().returning(|_| Ok(()));
 
         let adapter = Arc::new(mock);
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();

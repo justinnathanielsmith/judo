@@ -74,26 +74,14 @@ impl KeyMap {
         global.insert(key_code(KeyCode::Up), Action::SelectPrev);
         global.insert(key_char('s'), Action::SnapshotWorkingCopy);
         global.insert(key_char('S'), Action::EnterSquashMode);
-        global.insert(
-            key_char('e'),
-            Action::EditRevision(crate::domain::models::CommitId(String::new())),
-        );
-        global.insert(
-            key_char('n'),
-            Action::NewRevision(crate::domain::models::CommitId(String::new())),
-        );
-        global.insert(
-            key_char('a'),
-            Action::AbandonRevision(crate::domain::models::CommitId(String::new())),
-        );
+        global.insert(key_char('e'), Action::EditRevision(None));
+        global.insert(key_char('n'), Action::NewRevision(None));
+        global.insert(key_char('a'), Action::AbandonRevision(None));
         global.insert(key_char('b'), Action::SetBookmarkIntent);
         global.insert(key_char('B'), Action::DeleteBookmarkIntent);
         global.insert(key_char('d'), Action::DescribeRevisionIntent);
         global.insert(key_char('m'), Action::FilterMine);
-        global.insert(
-            key_char('x'),
-            Action::ToggleSelection(crate::domain::models::CommitId(String::new())),
-        );
+        global.insert(key_char('x'), Action::ToggleSelection(None));
         global.insert(key_char('t'), Action::FilterTrunk);
         global.insert(key_char('c'), Action::FilterConflicts);
         global.insert(key_char('u'), Action::Undo);
@@ -104,10 +92,7 @@ impl KeyMap {
         global.insert(key_char('?'), Action::ToggleHelp);
         global.insert(key_char('T'), Action::EnterThemeSelection);
         global.insert(key_char('r'), Action::RebaseRevisionIntent);
-        global.insert(
-            key_char('v'),
-            Action::EvologRevision(crate::domain::models::CommitId(String::new())),
-        );
+        global.insert(key_char('v'), Action::EvologRevision(None));
         global.insert(key_code(KeyCode::PageDown), Action::ScrollDiffDown(10));
         global.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
         global.insert(key_char('['), Action::PrevHunk);
@@ -277,17 +262,11 @@ fn parse_action(s: &str) -> Option<Action> {
         "selectnextfile" => Some(Action::SelectNextFile),
         "selectprevfile" => Some(Action::SelectPrevFile),
         "snapshot" => Some(Action::SnapshotWorkingCopy),
-        "edit" => Some(Action::EditRevision(crate::domain::models::CommitId(
-            String::new(),
-        ))),
-        "new" => Some(Action::NewRevision(crate::domain::models::CommitId(
-            String::new(),
-        ))),
+        "edit" => Some(Action::EditRevision(None)),
+        "new" => Some(Action::NewRevision(None)),
         "describe" => Some(Action::DescribeRevisionIntent),
         "commit" => Some(Action::CommitWorkingCopyIntent),
-        "abandon" => Some(Action::AbandonRevision(crate::domain::models::CommitId(
-            String::new(),
-        ))),
+        "abandon" => Some(Action::AbandonRevision(None)),
         "setbookmark" => Some(Action::SetBookmarkIntent),
         "deletebookmark" => Some(Action::DeleteBookmarkIntent),
         "undo" => Some(Action::Undo),
@@ -306,13 +285,9 @@ fn parse_action(s: &str) -> Option<Action> {
         "filterremotebookmarks" => Some(Action::FilterRemoteBookmarks),
         "filterworking" => Some(Action::FilterWorking),
         "clearfilter" => Some(Action::ClearFilter),
-        "split" => Some(Action::SplitRevision(crate::domain::models::CommitId(
-            String::new(),
-        ))),
+        "split" => Some(Action::SplitRevision(None)),
         "rebase" => Some(Action::RebaseRevisionIntent),
-        "evolog" => Some(Action::EvologRevision(crate::domain::models::CommitId(
-            String::new(),
-        ))),
+        "evolog" => Some(Action::EvologRevision(None)),
         "oplog" | "operationlog" => Some(Action::OperationLog),
         _ => None,
     }

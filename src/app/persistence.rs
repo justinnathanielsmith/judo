@@ -20,10 +20,12 @@ pub fn get_config_path() -> Option<PathBuf> {
 pub fn load_recent_filters() -> Vec<String> {
     if let Some(path) = get_config_path() {
         if path.exists() {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                if let Ok(recent) = toml::from_str::<RecentFilters>(&content) {
-                    return recent.filters;
-                }
+            match std::fs::read_to_string(&path) {
+                Ok(content) => match toml::from_str::<RecentFilters>(&content) {
+                    Ok(recent) => return recent.filters,
+                    Err(e) => eprintln!("Failed to parse {}: {}", path.display(), e),
+                },
+                Err(e) => eprintln!("Failed to read {}: {}", path.display(), e),
             }
         }
     }
@@ -32,17 +34,24 @@ pub fn load_recent_filters() -> Vec<String> {
 
 pub fn save_recent_filters(filters: &[String]) {
     if let Some(path) = get_config_path() {
-        // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("Failed to create directory {}: {}", parent.display(), e);
+                return;
+            }
         }
 
         let recent = RecentFilters {
             filters: filters.to_vec(),
         };
 
-        if let Ok(content) = toml::to_string(&recent) {
-            let _ = std::fs::write(path, content);
+        match toml::to_string(&recent) {
+            Ok(content) => {
+                if let Err(e) = std::fs::write(&path, content) {
+                    eprintln!("Failed to write {}: {}", path.display(), e);
+                }
+            }
+            Err(e) => eprintln!("Failed to serialize recent filters: {}", e),
         }
     }
 }

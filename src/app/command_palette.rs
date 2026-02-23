@@ -7,8 +7,9 @@ pub struct CommandDefinition {
     pub action: Action,
 }
 
-#[must_use]
-pub fn get_commands() -> Vec<CommandDefinition> {
+use std::sync::LazyLock;
+
+static COMMANDS: LazyLock<Vec<CommandDefinition>> = LazyLock::new(|| {
     vec![
         CommandDefinition {
             name: "Snapshot",
@@ -28,27 +29,27 @@ pub fn get_commands() -> Vec<CommandDefinition> {
         CommandDefinition {
             name: "New Child",
             description: "Create a new child revision",
-            action: Action::NewRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::NewRevision(None),
         },
         CommandDefinition {
             name: "Edit",
             description: "Edit the selected revision",
-            action: Action::EditRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::EditRevision(None),
         },
         CommandDefinition {
             name: "Abandon",
             description: "Abandon the selected revision",
-            action: Action::AbandonRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::AbandonRevision(None),
         },
         CommandDefinition {
             name: "Squash",
             description: "Squash revision into parent",
-            action: Action::SquashRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::SquashRevision,
         },
         CommandDefinition {
             name: "Split",
             description: "Split the revision into two",
-            action: Action::SplitRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::SplitRevision(None),
         },
         CommandDefinition {
             name: "Absorb",
@@ -58,12 +59,12 @@ pub fn get_commands() -> Vec<CommandDefinition> {
         CommandDefinition {
             name: "Duplicate",
             description: "Duplicate the selected revision",
-            action: Action::DuplicateRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::DuplicateRevision,
         },
         CommandDefinition {
             name: "Parallelize",
             description: "Parallelize revisions by making them siblings",
-            action: Action::ParallelizeRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::ParallelizeRevision,
         },
         CommandDefinition {
             name: "Rebase",
@@ -73,7 +74,7 @@ pub fn get_commands() -> Vec<CommandDefinition> {
         CommandDefinition {
             name: "Evolution Log",
             description: "Show the evolution log of the selected revision",
-            action: Action::EvologRevision(crate::domain::models::CommitId(String::new())),
+            action: Action::EvologRevision(None),
         },
         CommandDefinition {
             name: "Operation Log",
@@ -102,13 +103,18 @@ pub fn get_commands() -> Vec<CommandDefinition> {
         },
         CommandDefinition {
             name: "Fetch",
-            description: "Fetch from the remote",
+            description: "Fetch from remote",
             action: Action::Fetch,
         },
         CommandDefinition {
             name: "Push",
-            description: "Push to the remote",
+            description: "Push to remote",
             action: Action::PushIntent,
+        },
+        CommandDefinition {
+            name: "Init Repo",
+            description: "Initialize a new jj repository",
+            action: Action::InitRepo,
         },
         CommandDefinition {
             name: "Filter: Mine",
@@ -206,9 +212,12 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::Quit,
         },
     ]
-}
+});
 
 #[must_use]
+pub fn get_commands() -> &'static [CommandDefinition] {
+    &COMMANDS
+}
 pub fn search_commands(query: &str) -> Vec<usize> {
     if query.is_empty() {
         return (0..get_commands().len()).collect();
