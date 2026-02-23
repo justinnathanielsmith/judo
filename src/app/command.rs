@@ -6,6 +6,7 @@ pub enum Command {
     LoadRepoBackground(usize, Option<String>),
     LoadDiff(CommitId),
     DescribeRevision(CommitId, String),
+    Commit(String),
     Snapshot,
     Edit(CommitId),
     Squash(Vec<CommitId>),

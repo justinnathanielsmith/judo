@@ -21,6 +21,11 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::DescribeRevisionIntent,
         },
         CommandDefinition {
+            name: "Commit",
+            description: "Commit the working copy",
+            action: Action::CommitWorkingCopyIntent,
+        },
+        CommandDefinition {
             name: "New Child",
             description: "Create a new child revision",
             action: Action::NewRevision(crate::domain::models::CommitId(String::new())),

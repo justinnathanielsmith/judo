@@ -199,6 +199,7 @@ impl Footer<'_> {
             ],
             AppMode::Input
             | AppMode::BookmarkInput
+            | AppMode::CommitInput
             | AppMode::FilterInput
             | AppMode::RebaseInput => vec![FooterGroup {
                 name: "INPUT",

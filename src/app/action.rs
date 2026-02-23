@@ -32,6 +32,8 @@ pub enum Action {
     NewRevision(CommitId),                 // `jj new <rev>` (create child)
     DescribeRevisionIntent,                // Start describing the selected revision
     DescribeRevision(CommitId, String),    // `jj describe <rev> -m "msg"`
+    CommitWorkingCopyIntent,               // Start committing the working copy
+    CommitWorkingCopy(String),             // `jj commit -m "msg"`
     AbandonRevision(CommitId),             // `jj abandon <rev>`
     Absorb,                                // `jj absorb`
     DuplicateRevision(CommitId),           // `jj duplicate -r <rev>`

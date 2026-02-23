@@ -267,6 +267,7 @@ fn parse_action(s: &str) -> Option<Action> {
             String::new(),
         ))),
         "describe" => Some(Action::DescribeRevisionIntent),
+        "commit" => Some(Action::CommitWorkingCopyIntent),
         "abandon" => Some(Action::AbandonRevision(crate::domain::models::CommitId(
             String::new(),
         ))),

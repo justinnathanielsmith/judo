@@ -22,6 +22,7 @@ pub enum AppMode {
     Normal,         // Navigating the log
     SquashSelect,   // Selecting a target to squash into
     BookmarkInput,  // Inputting a bookmark name
+    CommitInput,    // Inputting a commit message
     Input,          // A generic text input modal (e.g., for commit messages)
     Loading,        // Blocking interaction (optional, often better handled with a flag)
     Diff,           // Focusing the diff window for scrolling

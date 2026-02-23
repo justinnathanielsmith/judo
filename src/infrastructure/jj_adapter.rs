@@ -597,6 +597,29 @@ impl VcsFacade for JjAdapter {
         }
     }
 
+    async fn commit(&self, message: &str) -> Result<()> {
+        let ws_root = {
+            let ws_opt = self.workspace.lock().await;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
+            ws.workspace_root().to_path_buf()
+        };
+        let output = tokio::process::Command::new("jj")
+            .arg("commit")
+            .arg("-m")
+            .arg(message)
+            .current_dir(ws_root)
+            .output()
+            .await?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj commit failed: {}", stderr.trim()))
+        }
+    }
+
     async fn snapshot(&self) -> Result<String> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;

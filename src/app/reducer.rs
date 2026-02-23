@@ -668,6 +668,21 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.input = None;
             return Some(Command::DescribeRevision(commit_id, message));
         }
+        Action::CommitWorkingCopyIntent => {
+            state.mode = AppMode::CommitInput;
+            let mut text_area = AppTextArea::default();
+            if let Some(repo) = &state.repo {
+                if let Some(row) = repo.graph.iter().find(|r| r.is_working_copy) {
+                    text_area.insert_str(&row.description);
+                }
+            }
+            state.input = Some(super::state::InputState { text_area });
+        }
+        Action::CommitWorkingCopy(message) => {
+            state.mode = AppMode::Normal;
+            state.input = None;
+            return Some(Command::Commit(message));
+        }
         Action::SetBookmarkIntent => {
             state.mode = AppMode::BookmarkInput;
             state.input = Some(super::state::InputState {

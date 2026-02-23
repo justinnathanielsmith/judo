@@ -235,11 +235,22 @@ pub fn map_event_to_action(
     terminal_size: ratatui::layout::Size,
 ) -> Option<Action> {
     match app_state.mode {
-        crate::app::state::AppMode::Input | crate::app::state::AppMode::BookmarkInput => {
+        crate::app::state::AppMode::Input 
+        | crate::app::state::AppMode::BookmarkInput 
+        | crate::app::state::AppMode::CommitInput => {
             match event {
                 Event::Key(key) => match key.code {
                     KeyCode::Esc => Some(Action::CancelMode),
                     KeyCode::Enter => {
+                        if app_state.mode == crate::app::state::AppMode::CommitInput {
+                            if let Some(input) = &app_state.input {
+                                return Some(Action::CommitWorkingCopy(
+                                    input.text_area.lines().join("\n"),
+                                ));
+                            }
+                            return None;
+                        }
+                        
                         if let (Some(repo), Some(idx), Some(input)) = (
                             &app_state.repo,
                             app_state.log.list_state.selected(),
@@ -659,6 +670,25 @@ pub(crate) fn handle_command(
                     Ok(()) => {
                         let _ = tx
                             .send(Action::OperationCompleted(Ok("Described".to_string())))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Commit(message) => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted("Committing...".to_string()))
+                    .await;
+                match adapter.commit(&message).await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok("Committed".to_string())))
                             .await;
                     }
                     Err(e) => {

@@ -16,8 +16,9 @@ pub trait VcsFacade: Send + Sync {
     // Get diff for a specific commit
     async fn get_commit_diff(&self, commit_id: &CommitId) -> Result<String>;
 
-    // JJ specific: "Describe"
+    // JJ specific: "Describe" and "Commit"
     async fn describe_revision(&self, change_id: &str, message: &str) -> Result<()>;
+    async fn commit(&self, message: &str) -> Result<()>;
 
     // Snapshot
     async fn snapshot(&self) -> Result<String>;
