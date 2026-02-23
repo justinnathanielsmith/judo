@@ -107,4 +107,11 @@ pub enum Action {
     CloseEvolog,              // Close evolog modal
     ScrollEvologUp(u16),      // Scroll evolog up
     ScrollEvologDown(u16),    // Scroll evolog down
+
+    // --- Operation Log ---
+    OperationLog,                // Trigger `jj op log`
+    OpenOperationLog(String),    // Open operation log modal with content
+    CloseOperationLog,           // Close operation log modal
+    ScrollOperationLogUp(u16),   // Scroll operation log up
+    ScrollOperationLogDown(u16), // Scroll operation log down
 }

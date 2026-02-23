@@ -211,6 +211,15 @@ impl KeyMap {
                 KeyCode::PageUp => Some(Action::ScrollEvologUp(10)),
                 _ => None,
             };
+        } else if mode == super::state::AppMode::OperationLog {
+            return match event.code {
+                KeyCode::Esc | KeyCode::Char('q') => Some(Action::CloseOperationLog),
+                KeyCode::Char('j') | KeyCode::Down => Some(Action::ScrollOperationLogDown(1)),
+                KeyCode::Char('k') | KeyCode::Up => Some(Action::ScrollOperationLogUp(1)),
+                KeyCode::PageDown => Some(Action::ScrollOperationLogDown(10)),
+                KeyCode::PageUp => Some(Action::ScrollOperationLogUp(10)),
+                _ => None,
+            };
         }
         self.global.get(&event).cloned()
     }
@@ -286,6 +295,7 @@ fn parse_action(s: &str) -> Option<Action> {
         "evolog" => Some(Action::EvologRevision(crate::domain::models::CommitId(
             String::new(),
         ))),
+        "oplog" | "operationlog" => Some(Action::OperationLog),
         _ => None,
     }
 }

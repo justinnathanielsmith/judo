@@ -66,6 +66,11 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::EvologRevision(crate::domain::models::CommitId(String::new())),
         },
         CommandDefinition {
+            name: "Operation Log",
+            description: "Show the jujutsu operation log",
+            action: Action::OperationLog,
+        },
+        CommandDefinition {
             name: "Set Bookmark",
             description: "Set a bookmark on the selected revision",
             action: Action::SetBookmarkIntent,

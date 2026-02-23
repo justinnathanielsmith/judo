@@ -24,4 +24,5 @@ pub enum Command {
     ResolveConflict(String),
     InitRepo,
     Evolog(CommitId),
+    OperationLog,
 }

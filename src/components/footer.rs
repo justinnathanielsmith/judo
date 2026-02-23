@@ -327,6 +327,21 @@ impl Footer<'_> {
                     },
                 ],
             }],
+            AppMode::OperationLog => vec![FooterGroup {
+                name: "OP LOG",
+                items: vec![
+                    FooterItem {
+                        key: "j/k",
+                        desc: "scroll",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "q/Esc",
+                        desc: "close",
+                        highlighted: false,
+                    },
+                ],
+            }],
             AppMode::NoRepo => vec![
                 FooterGroup {
                     name: "INIT",

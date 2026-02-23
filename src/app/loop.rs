@@ -1030,6 +1030,23 @@ pub(crate) fn handle_command(
                 }
             });
         }
+        Command::OperationLog => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted("Fetching operation log...".to_string()))
+                    .await;
+                match adapter.operation_log().await {
+                    Ok(content) => {
+                        let _ = tx.send(Action::OpenOperationLog(content)).await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
     }
     Ok(())
 }
@@ -1139,6 +1156,8 @@ mod tests {
         // Setup mock to return some data to avoid crashes in UI
         mock.expect_workspace_root()
             .returning(|| std::path::PathBuf::from("/tmp"));
+        mock.expect_operation_log()
+            .returning(|| Ok("op log content".to_string()));
         mock.expect_get_operation_log().returning(|_, _, _| {
             Ok(crate::domain::models::RepoStatus {
                 repo_name: "test-repo".to_string(),
@@ -1183,6 +1202,7 @@ mod tests {
         mock.expect_fetch().returning(|| Ok(()));
         mock.expect_push().returning(|_| Ok(()));
         mock.expect_describe_revision().returning(|_, _| Ok(()));
+        mock.expect_evolog().returning(|_| Ok("evolog".to_string()));
 
         let adapter = Arc::new(mock);
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();

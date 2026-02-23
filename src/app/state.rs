@@ -33,6 +33,7 @@ pub enum AppMode {
     ThemeSelection, // Choosing a UI theme
     RebaseInput,    // Inputting rebase destination
     Evolog,         // Viewing commit evolution log
+    OperationLog,   // Viewing operation log
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -111,6 +112,12 @@ impl Default for ThemeSelectionState {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct EvologState {
+    pub content: Vec<String>,
+    pub scroll: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct OperationLogState {
     pub content: Vec<String>,
     pub scroll: u16,
 }
@@ -268,6 +275,9 @@ pub struct AppState<'a> {
 
     // --- Evolog ---
     pub evolog_state: Option<EvologState>,
+
+    // --- Operation Log ---
+    pub operation_log_state: Option<OperationLogState>,
 }
 
 impl AppState<'_> {
@@ -347,6 +357,7 @@ impl Default for AppState<'_> {
             selected_filter_index: None,
             is_selecting_presets: false,
             evolog_state: None,
+            operation_log_state: None,
         }
     }
 }

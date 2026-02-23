@@ -421,6 +421,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.selected_filter_index = None;
                 state.is_selecting_presets = false;
                 state.evolog_state = None;
+                state.operation_log_state = None;
             } else {
                 state.log.selected_ids.clear();
             }
@@ -434,6 +435,17 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             if let Some(ev) = &mut state.evolog_state {
                 let max_scroll = ev.content.len().saturating_sub(1) as u16;
                 ev.scroll = ev.scroll.saturating_add(amount).min(max_scroll);
+            }
+        }
+        Action::ScrollOperationLogUp(amount) => {
+            if let Some(op) = &mut state.operation_log_state {
+                op.scroll = op.scroll.saturating_sub(amount);
+            }
+        }
+        Action::ScrollOperationLogDown(amount) => {
+            if let Some(op) = &mut state.operation_log_state {
+                let max_scroll = op.content.len().saturating_sub(1) as u16;
+                op.scroll = op.scroll.saturating_add(amount).min(max_scroll);
             }
         }
         Action::CommandPaletteNext => {
@@ -723,6 +735,22 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::CloseEvolog => {
             state.mode = AppMode::Normal;
             state.evolog_state = None;
+        }
+
+        // --- Operation Log ---
+        Action::OperationLog => {
+            return Some(Command::OperationLog);
+        }
+        Action::OpenOperationLog(content) => {
+            state.mode = AppMode::OperationLog;
+            state.operation_log_state = Some(super::state::OperationLogState {
+                content: content.lines().map(|s| s.to_string()).collect(),
+                scroll: 0,
+            });
+        }
+        Action::CloseOperationLog => {
+            state.mode = AppMode::Normal;
+            state.operation_log_state = None;
         }
 
         // --- Context Menu ---

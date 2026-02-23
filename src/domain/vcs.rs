@@ -34,6 +34,8 @@ pub trait VcsFacade: Send + Sync {
 
     async fn evolog(&self, commit_id: &CommitId) -> Result<String>;
 
+    async fn operation_log(&self) -> Result<String>;
+
     async fn undo(&self) -> Result<()>;
     async fn redo(&self) -> Result<()>;
 
