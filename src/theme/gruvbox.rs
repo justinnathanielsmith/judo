@@ -1,0 +1,31 @@
+use super::palette::Palette;
+use ratatui::style::Color;
+
+pub const GRUVBOX: Palette = Palette {
+    base: Color::Rgb(40, 40, 40),
+    mantle: Color::Rgb(29, 32, 33),
+    crust: Color::Rgb(20, 20, 20),
+    text: Color::Rgb(235, 219, 178),
+    subtext0: Color::Rgb(189, 174, 147),
+    subtext1: Color::Rgb(168, 153, 132),
+    surface0: Color::Rgb(60, 56, 54),
+    surface1: Color::Rgb(80, 73, 69),
+    surface2: Color::Rgb(102, 92, 84),
+    overlay0: Color::Rgb(146, 131, 116),
+    overlay1: Color::Rgb(168, 153, 132),
+    overlay2: Color::Rgb(189, 174, 147),
+    blue: Color::Rgb(131, 165, 152),
+    lavender: Color::Rgb(177, 98, 134),
+    sapphire: Color::Rgb(104, 157, 106),
+    sky: Color::Rgb(142, 192, 124),
+    teal: Color::Rgb(142, 192, 124),
+    green: Color::Rgb(184, 187, 38),
+    yellow: Color::Rgb(250, 189, 47),
+    peach: Color::Rgb(254, 128, 25),
+    maroon: Color::Rgb(251, 73, 52),
+    red: Color::Rgb(204, 36, 29),
+    mauve: Color::Rgb(211, 134, 155),
+    pink: Color::Rgb(211, 134, 155),
+    flamingo: Color::Rgb(214, 93, 14),
+    rosewater: Color::Rgb(168, 153, 132),
+};

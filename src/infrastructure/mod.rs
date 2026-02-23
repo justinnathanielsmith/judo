@@ -1,2 +1,3 @@
 pub mod defaults;
-pub mod jj_adapter;
+pub mod jj;
+pub use jj::JjAdapter;

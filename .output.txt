@@ -1,0 +1,358 @@
+diff --git a/src/app/loop.rs b/src/app/loop.rs
+index 0a77112..22598af 100644
+--- a/src/app/loop.rs
++++ b/src/app/loop.rs
+@@ -1,10 +1,17 @@
+ use crate::app::{
+-    action::Action,
+-    command::Command,
+-    input::map_event_to_action,
+-    reducer,
+-    state::AppState,
+-    ui,
++<<<<<<< conflict 1 of 1
++%%%%%%% diff from: omtvnrzw 056a8324 "refactor: decompose loop" (rebased revision)
++\\\\\\\        to: omtvnrzw a33927c5 "refactor: decompose loop" (rebase destination)
++     action::Action,
++     command::Command,
++-    input::{map_event_to_action, resolve_clicked_row},
+++    input::map_event_to_action,
++     reducer,
++     state::AppState,
++     ui,
+++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
++    action::Action, command::Command, input::map_event_to_action, reducer, state::AppState, ui,
++>>>>>>> conflict 1 of 1 ends
+ };
+ use crate::domain::vcs::VcsFacade;
+
+diff --git a/src/app/loop_tests.rs b/src/app/loop_tests.rs
+index 69a7cb6..fe8a9f2 100644
+--- a/src/app/loop_tests.rs
++++ b/src/app/loop_tests.rs
+@@ -1,4 +1,3 @@
+-
+ use super::*;
+ use crate::app::action::Action;
+ use crate::app::command::Command;
+diff --git a/src/infrastructure/jj/diff.rs b/src/infrastructure/jj/diff.rs
+index 2f16549..701ff10 100644
+--- a/src/infrastructure/jj/diff.rs
++++ b/src/infrastructure/jj/diff.rs
+@@ -89,7 +89,7 @@ impl JjAdapter {
+                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
+                     let mut reader = repo
+                         .store()
+-                        .read_file(&repo_path, &id)
++                        .read_file(&repo_path, id)
+                         .await?
+                         .take(MAX_DIFF_SIZE);
+                     let mut chunk = vec![0u8; 1024];
+@@ -110,7 +110,7 @@ impl JjAdapter {
+                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
+                     let mut reader = repo
+                         .store()
+-                        .read_file(&repo_path, &id)
++                        .read_file(&repo_path, id)
+                         .await?
+                         .take(MAX_DIFF_SIZE);
+                     let mut chunk = vec![0u8; 1024];
+diff --git a/src/infrastructure/jj/log.rs b/src/infrastructure/jj/log.rs
+index 7ddc873..9bf9f24 100644
+--- a/src/infrastructure/jj/log.rs
++++ b/src/infrastructure/jj/log.rs
+@@ -101,7 +101,7 @@ impl JjAdapter {
+                 visited.insert(id.clone());
+
+                 if let Ok(info) = super::repo::build_commit_info(&repo_arc, &id, &ws_id_clone) {
+-                    for parent_id in info.0.parent_ids() {
++                    for parent_id in info.commit.parent_ids() {
+                         queue.push_back(parent_id.clone());
+                     }
+                     results.push(info);
+@@ -112,77 +112,144 @@ impl JjAdapter {
+         .await??;
+
+         let graph_rows = futures::stream::iter(commit_infos)
+-            .map(
+-                |(
+-                    commit,
+-                    _tree,
+-                    parent_tree,
+-                    parent_ids,
+-                    is_working_copy,
+-                    is_immutable,
+-                    has_conflict,
+-                    bookmarks,
+-                )| async move {
+-                    let description = commit.description().to_string();
+-                    let change_id = commit.change_id().hex();
+-                    let author = commit.author().email.clone();
+-                    let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
+-                    let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)
+-                        .unwrap_or_default()
+-                        .with_timezone(&chrono::Local);
+-                    let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
+-                    let commit_id_str = commit.id().hex();
+-                    let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
+-                    let commit_id = CommitId(commit_id_str);
+-
+-                    let mut changed_files = Vec::new();
+-                    if let Some(p_tree) = parent_tree {
+-                        let commit_tree = commit.tree();
+-                        let mut stream = p_tree.diff_stream(&commit_tree, &EverythingMatcher);
+-                        while let Some(entry) = stream.next().await {
+-                            let status = if let Ok(values) = entry.values {
+-                                if !values.after.is_resolved() {
+-                                    FileStatus::Conflicted
+-                                } else if values.before.is_absent() {
+-                                    FileStatus::Added
+-                                } else if values.after.is_absent() {
+-                                    FileStatus::Deleted
+-                                } else {
+-                                    FileStatus::Modified
+-                                }
++            .map(|info| async move {
++                let commit = info.commit;
++                let parent_tree = info.parent_tree;
++                let parent_ids = info.parent_ids;
++                let is_working_copy = info.is_working_copy;
++                let is_immutable = info.is_immutable;
++                let bookmarks = info.bookmarks;
++
++                let description = commit.description().to_string();
++                let change_id = commit.change_id().hex();
++                let author = commit.author().email.clone();
++                let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
++                let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)
++                    .unwrap_or_default()
++                    .with_timezone(&chrono::Local);
++                let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
++                let commit_id_str = commit.id().hex();
++                let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
++                let commit_id = CommitId(commit_id_str);
++
++                let mut changed_files = Vec::new();
++                if let Some(p_tree) = parent_tree {
++                    let mut stream = p_tree.diff_stream(&commit.tree(), &EverythingMatcher);
++                    while let Some(entry) = stream.next().await {
++                        let status = if let Ok(values) = entry.values {
++                            if !values.after.is_resolved() {
++                                FileStatus::Conflicted
++                            } else if values.before.is_absent() {
++                                FileStatus::Added
++                            } else if values.after.is_absent() {
++                                FileStatus::Deleted
+                             } else {
+                                 FileStatus::Modified
+-                            };
+-
+-                            let path = entry.path.as_internal_file_string().to_string();
+-                            if path.contains("..") {
+-                                continue;
+                             }
+-                            changed_files.push(FileChange { path, status });
++                        } else {
++                            FileStatus::Modified
++                        };
++
++                        let path = entry.path.as_internal_file_string().to_string();
++                        if path.contains("..") {
++                            continue;
+                         }
++                        changed_files.push(FileChange { path, status });
+                     }
++                }
+
+-                    let change_id_short = change_id[..8.min(change_id.len())].to_string();
+-
+-                    GraphRow {
+-                        commit_id,
+-                        commit_id_short,
+-                        change_id,
+-                        change_id_short,
+-                        description,
+-                        author,
+-                        timestamp,
+-                        timestamp_secs,
+-                        is_working_copy,
+-                        is_immutable,
+-                        has_conflict,
+-                        parents: parent_ids,
+-                        bookmarks,
+-                        changed_files,
+-                        visual: crate::domain::models::GraphRowVisual::default(),
+-                    }
+-                },
+-            )
++                let change_id_short = change_id[..8.min(change_id.len())].to_string();
++
++                GraphRow {
++                    commit_id,
++                    commit_id_short,
++                    change_id,
++                    change_id_short,
++                    description,
++                    author,
++                    timestamp,
++                    timestamp_secs,
++                    is_working_copy,
++                    is_immutable,
++<<<<<<< conflict 1 of 2
++%%%%%%% diff from: omtvnrzw a7826186 "refactor: decompose loop" (parents of rebased revision)
++\\\\\\\        to: omtvnrzw 410dc399 "refactor: decompose loop" (rebase destination)
+++                    has_conflict,
+++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
++                    parents: parent_ids,
++>>>>>>> conflict 1 of 2 ends
++                    bookmarks,
++<<<<<<< conflict 2 of 2
++%%%%%%% diff from: omtvnrzw a7826186 "refactor: decompose loop" (parents of rebased revision)
++\\\\\\\        to: omtvnrzw 410dc399 "refactor: decompose loop" (rebase destination)
++                 )| async move {
++                     let description = commit.description().to_string();
++                     let change_id = commit.change_id().hex();
++                     let author = commit.author().email.clone();
++                     let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
++                     let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)
++                         .unwrap_or_default()
++                         .with_timezone(&chrono::Local);
++                     let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
++                     let commit_id_str = commit.id().hex();
++                     let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
++                     let commit_id = CommitId(commit_id_str);
++
++                     let mut changed_files = Vec::new();
++                     if let Some(p_tree) = parent_tree {
++-                        let mut stream = p_tree.diff_stream(&commit.tree(), &EverythingMatcher);
+++                        let commit_tree = commit.tree();
+++                        let mut stream = p_tree.diff_stream(&commit_tree, &EverythingMatcher);
++                         while let Some(entry) = stream.next().await {
++                             let status = if let Ok(values) = entry.values {
++                                 if !values.after.is_resolved() {
++                                     FileStatus::Conflicted
++                                 } else if values.before.is_absent() {
++                                     FileStatus::Added
++                                 } else if values.after.is_absent() {
++                                     FileStatus::Deleted
++                                 } else {
++                                     FileStatus::Modified
++                                 }
++                             } else {
++                                 FileStatus::Modified
++                             };
++
++                             let path = entry.path.as_internal_file_string().to_string();
++                             if path.contains("..") {
++                                 continue;
++                             }
++                             changed_files.push(FileChange { path, status });
++                         }
++                     }
++
++                     let change_id_short = change_id[..8.min(change_id.len())].to_string();
++
++                     GraphRow {
++                         commit_id,
++                         commit_id_short,
++                         change_id,
++                         change_id_short,
++                         description,
++                         author,
++                         timestamp,
++                         timestamp_secs,
++                         is_working_copy,
++                         is_immutable,
+++                        has_conflict,
++                         parents: parent_ids,
++                         bookmarks,
++                         changed_files,
++                         visual: crate::domain::models::GraphRowVisual::default(),
++                     }
++                 },
++             )
+++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
++                    changed_files,
++                    visual: crate::domain::models::GraphRowVisual::default(),
++                }
++            })
++>>>>>>> conflict 2 of 2 ends
+             .buffered(50)
+             .collect::<Vec<_>>()
+             .await;
+diff --git a/src/infrastructure/jj/repo.rs b/src/infrastructure/jj/repo.rs
+index b7c95ab..55e3497 100644
+--- a/src/infrastructure/jj/repo.rs
++++ b/src/infrastructure/jj/repo.rs
+@@ -39,20 +39,35 @@ impl JjAdapter {
+     }
+ }
+
++pub(crate) struct CommitInfo {
++    pub commit: jj_lib::commit::Commit,
++    pub parent_tree: Option<jj_lib::merged_tree::MergedTree>,
++    pub parent_ids: Vec<CommitId>,
++    pub is_working_copy: bool,
++    pub is_immutable: bool,
++    pub bookmarks: Vec<String>,
++}
++
+ pub(crate) fn build_commit_info(
+     repo: &ReadonlyRepo,
+     id: &JjCommitId,
+     ws_id: &WorkspaceName,
+-) -> Result<(
+-    jj_lib::commit::Commit,
+-    jj_lib::merged_tree::MergedTree,
+-    Option<jj_lib::merged_tree::MergedTree>,
+-    Vec<CommitId>,
+-    bool,
+-    bool,
+-    bool,
+-    Vec<String>,
+-)> {
++<<<<<<< conflict 1 of 1
++%%%%%%% diff from: omtvnrzw 36b6b56c "refactor: decompose loop" (parents of rebased revision)
++\\\\\\\        to: omtvnrzw a7826186 "refactor: decompose loop" (rebase destination)
++ ) -> Result<(
++     jj_lib::commit::Commit,
++     jj_lib::merged_tree::MergedTree,
++     Option<jj_lib::merged_tree::MergedTree>,
++     Vec<CommitId>,
++     bool,
++     bool,
+++    bool,
++     Vec<String>,
++ )> {
+++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
++) -> Result<CommitInfo> {
++>>>>>>> conflict 1 of 1 ends
+     let commit = repo.store().get_commit(id)?;
+     let mut parent_ids_domain = Vec::new();
+     for parent_id in commit.parent_ids() {
+@@ -61,7 +76,6 @@ pub(crate) fn build_commit_info(
+
+     let first_parent: Option<jj_lib::commit::Commit> =
+         commit.parents().next().transpose().unwrap_or_default();
+-    let tree = commit.tree();
+     let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
+     let is_working_copy = Some(id) == repo.view().get_wc_commit_id(ws_id);
+     // Heuristic: root commit is immutable.
+@@ -75,14 +89,13 @@ pub(crate) fn build_commit_info(
+         .map(|(name, _)| name.as_str().to_string())
+         .collect::<Vec<_>>();
+
+-    Ok((
++    Ok(CommitInfo {
+         commit,
+-        tree,
+         parent_tree,
+-        parent_ids_domain,
++        parent_ids: parent_ids_domain,
+         is_working_copy,
+         is_immutable,
+         has_conflict,
+         bookmarks,
+-    ))
++    })
+ }

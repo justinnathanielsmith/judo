@@ -47,6 +47,7 @@ pub struct GraphRow {
     pub timestamp_secs: i64,
     pub is_working_copy: bool,
     pub is_immutable: bool,
+    pub has_conflict: bool,
     pub parents: Vec<CommitId>,
     pub bookmarks: Vec<String>,
     pub changed_files: Vec<FileChange>,

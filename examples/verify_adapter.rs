@@ -1,6 +1,6 @@
 use anyhow::Result;
 use judo::domain::vcs::VcsFacade;
-use judo::infrastructure::jj_adapter::JjAdapter;
+use judo::infrastructure::JjAdapter;
 
 #[tokio::main]
 async fn main() -> Result<()> {

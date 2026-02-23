@@ -103,8 +103,10 @@ impl StatefulWidget for RevisionGraph<'_> {
             for lane_idx in 0..max_lanes {
                 let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
                 if lane_idx == row.visual.column {
-                    let (symbol, style) = if row.is_working_copy {
-                        ("◉", self.theme.graph_node_wc)
+                    let (symbol, style) = if row.has_conflict {
+                        ("×", self.theme.graph_node_conflict)
+                    } else if row.is_working_copy {
+                        ("@", self.theme.graph_node_wc)
                     } else if row.is_immutable {
                         ("◆", self.theme.graph_node_immutable)
                     } else {
@@ -124,9 +126,10 @@ impl StatefulWidget for RevisionGraph<'_> {
                 } else {
                     line_1_graph.push(Span::raw(" "));
                 }
+                line_1_graph.push(Span::raw(" "));
             }
             // Add spacing after graph for the "flow" look
-            line_1_graph.push(Span::raw("  "));
+            line_1_graph.push(Span::raw(" "));
             graph_lines.push(Line::from(line_1_graph));
 
             // Subsequent Graph Lines: Connector pipes and branching/merging
@@ -218,8 +221,16 @@ impl StatefulWidget for RevisionGraph<'_> {
                         dim_style
                     };
                     connector_line.push(Span::styled(symbol, style));
+
+                    // Add space or horizontal line between lanes
+                    let next_symbol = if h == 1 && lane_idx >= range_min && lane_idx < range_max {
+                        "─"
+                    } else {
+                        " "
+                    };
+                    connector_line.push(Span::styled(next_symbol, style));
                 }
-                connector_line.push(Span::raw("  "));
+                connector_line.push(Span::raw(" "));
                 graph_lines.push(Line::from(connector_line));
             }
 
@@ -228,7 +239,9 @@ impl StatefulWidget for RevisionGraph<'_> {
 
             // Line 1: ChangeId Author Timestamp CommitId
 
-            let change_id_style = if row.is_working_copy {
+            let change_id_style = if row.has_conflict {
+                self.theme.graph_node_conflict
+            } else if row.is_working_copy {
                 self.theme.change_id_wc
             } else if row.is_immutable {
                 self.theme.change_id_immutable
@@ -236,16 +249,8 @@ impl StatefulWidget for RevisionGraph<'_> {
                 self.theme.change_id_mutable
             };
 
-            // Working copy shows branch icon, all commits show commit icon
-            let type_glyph = if row.is_working_copy {
-                glyphs::BRANCH
-            } else {
-                glyphs::COMMIT
-            };
 
             let mut line_1_details = vec![
-                Span::styled(type_glyph, change_id_style),
-                Span::styled(" ", change_id_style),
                 Span::styled(&row.change_id_short, change_id_style),
                 Span::raw(" "),
                 Span::styled(&row.author, self.theme.author),
@@ -261,6 +266,12 @@ impl StatefulWidget for RevisionGraph<'_> {
             }
 
             line_1_details.push(Span::styled(&row.commit_id_short, self.theme.commit_id_dim));
+
+            if row.has_conflict {
+                line_1_details.push(Span::raw(" "));
+                line_1_details.push(Span::styled("(conflict)", self.theme.graph_node_conflict));
+            }
+
             detail_lines.push(Line::from(line_1_details));
 
             // Line 2: Description

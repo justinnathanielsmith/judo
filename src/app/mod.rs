@@ -1,6 +1,9 @@
 pub mod action;
 pub mod command;
 pub mod command_palette;
+pub mod external;
+pub mod features;
+pub mod input;
 pub mod keymap;
 pub mod r#loop;
 pub mod persistence;

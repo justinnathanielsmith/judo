@@ -27,8 +27,8 @@ async fn main() -> Result<()> {
     // Initialize adapter to verify repo context
     // This happens BEFORE terminal setup so if it fails (e.g. corrupt config),
     // we don't leave the terminal in raw mode.
-    infrastructure::jj_adapter::JjAdapter::check_version().await?;
-    let adapter = std::sync::Arc::new(infrastructure::jj_adapter::JjAdapter::new()?);
+    infrastructure::JjAdapter::check_version().await?;
+    let adapter = std::sync::Arc::new(infrastructure::JjAdapter::new()?);
     let key_config = judo::app::keymap::KeyConfig::load();
     let mut app_state = AppState::new(key_config);
 

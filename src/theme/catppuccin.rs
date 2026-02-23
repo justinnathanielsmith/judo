@@ -1,0 +1,31 @@
+use super::palette::Palette;
+use ratatui::style::Color;
+
+pub const CATPPUCCIN_MOCHA: Palette = Palette {
+    base: Color::Rgb(30, 30, 46),
+    mantle: Color::Rgb(24, 24, 37),
+    crust: Color::Rgb(17, 17, 27),
+    text: Color::Rgb(205, 214, 244),
+    subtext0: Color::Rgb(166, 173, 200),
+    subtext1: Color::Rgb(186, 194, 222),
+    surface0: Color::Rgb(49, 50, 68),
+    surface1: Color::Rgb(69, 71, 90),
+    surface2: Color::Rgb(88, 91, 112),
+    overlay0: Color::Rgb(108, 112, 134),
+    overlay1: Color::Rgb(127, 132, 156),
+    overlay2: Color::Rgb(147, 153, 178),
+    blue: Color::Rgb(137, 180, 250),
+    lavender: Color::Rgb(180, 190, 254),
+    sapphire: Color::Rgb(116, 199, 236),
+    sky: Color::Rgb(137, 220, 235),
+    teal: Color::Rgb(148, 226, 213),
+    green: Color::Rgb(166, 227, 161),
+    yellow: Color::Rgb(249, 226, 175),
+    peach: Color::Rgb(250, 179, 135),
+    maroon: Color::Rgb(235, 160, 172),
+    red: Color::Rgb(243, 139, 168),
+    mauve: Color::Rgb(203, 166, 247),
+    pink: Color::Rgb(245, 194, 231),
+    flamingo: Color::Rgb(242, 205, 205),
+    rosewater: Color::Rgb(245, 224, 220),
+};

@@ -143,8 +143,8 @@ impl KeyMap {
         } else if mode == super::state::AppMode::ThemeSelection {
             return match event.code {
                 KeyCode::Esc => Some(Action::CancelMode),
-                KeyCode::Char('j') | KeyCode::Down => Some(Action::SelectNext),
-                KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectPrev),
+                KeyCode::Char('j') | KeyCode::Down => Some(Action::SelectThemeNext),
+                KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectThemePrev),
                 KeyCode::Enter => Some(Action::CommandPaletteSelect),
                 _ => None,
             };

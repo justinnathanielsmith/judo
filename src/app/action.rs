@@ -1,4 +1,11 @@
 use crate::domain::models::{CommitId, RepoStatus};
+use crate::app::command::Command;
+
+#[derive(Debug, Clone)]
+pub enum UpdateResult {
+    Handled(Option<Command>),
+    NotHandled,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -85,6 +92,8 @@ pub enum Action {
     CancelMode,                                    // ESC key (close modal/mode)
     ToggleHelp,                                    // Toggle the help overlay (?)
     EnterThemeSelection,                           // Open theme selection modal (T)
+    SelectThemeNext,                               // Next theme in selection
+    SelectThemePrev,                               // Previous theme in selection
     SwitchTheme(crate::theme::PaletteType),        // Apply a new theme
     TextAreaInput(crossterm::event::KeyEvent),     // Handle text area input
     OpenContextMenu(Option<CommitId>, (u16, u16)), // Open menu at position

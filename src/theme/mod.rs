@@ -1,145 +1,13 @@
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
+use serde::{Deserialize, Serialize};
 
-/// Scale an `Rgb` color's channels by `factor` (0.0 = black, 1.0 = unchanged).
-/// Used to derive subtle background tints from palette foreground colors.
-/// Non-Rgb `Color` variants are returned as-is (they don't appear in these palettes).
-fn dim_color(c: Color, factor: f32) -> Color {
-    if let Color::Rgb(r, g, b) = c {
-        Color::Rgb(
-            (f32::from(r) * factor) as u8,
-            (f32::from(g) * factor) as u8,
-            (f32::from(b) * factor) as u8,
-        )
-    } else {
-        c
-    }
-}
+pub mod catppuccin;
+pub mod glyphs;
+pub mod gruvbox;
+pub mod nord;
+pub mod palette;
 
-pub struct Palette {
-    pub base: Color,
-    pub mantle: Color,
-    pub crust: Color,
-    pub text: Color,
-    pub subtext0: Color,
-    pub subtext1: Color,
-    pub surface0: Color,
-    pub surface1: Color,
-    pub surface2: Color,
-    pub overlay0: Color,
-    pub overlay1: Color,
-    pub overlay2: Color,
-    pub blue: Color,
-    pub lavender: Color,
-    pub sapphire: Color,
-    pub sky: Color,
-    pub teal: Color,
-    pub green: Color,
-    pub yellow: Color,
-    pub peach: Color,
-    pub maroon: Color,
-    pub red: Color,
-    pub mauve: Color,
-    pub pink: Color,
-    pub flamingo: Color,
-    pub rosewater: Color,
-}
-
-pub mod glyphs {
-    pub const REPO: &str = "󰏗";
-    pub const BRANCH: &str = "";
-    pub const COMMIT: &str = "󰊄";
-    pub const DIFF: &str = "";
-    pub const FOCUS: &str = "▌";
-    pub const SEP_RIGHT: &str = "";
-    pub const SEP_LEFT: &str = "";
-}
-
-pub const CATPPUCCIN_MOCHA: Palette = Palette {
-    base: Color::Rgb(30, 30, 46),
-    mantle: Color::Rgb(24, 24, 37),
-    crust: Color::Rgb(17, 17, 27),
-    text: Color::Rgb(205, 214, 244),
-    subtext0: Color::Rgb(166, 173, 200),
-    subtext1: Color::Rgb(186, 194, 222),
-    surface0: Color::Rgb(49, 50, 68),
-    surface1: Color::Rgb(69, 71, 90),
-    surface2: Color::Rgb(88, 91, 112),
-    overlay0: Color::Rgb(108, 112, 134),
-    overlay1: Color::Rgb(127, 132, 156),
-    overlay2: Color::Rgb(147, 153, 178),
-    blue: Color::Rgb(137, 180, 250),
-    lavender: Color::Rgb(180, 190, 254),
-    sapphire: Color::Rgb(116, 199, 236),
-    sky: Color::Rgb(137, 220, 235),
-    teal: Color::Rgb(148, 226, 213),
-    green: Color::Rgb(166, 227, 161),
-    yellow: Color::Rgb(249, 226, 175),
-    peach: Color::Rgb(250, 179, 135),
-    maroon: Color::Rgb(235, 160, 172),
-    red: Color::Rgb(243, 139, 168),
-    mauve: Color::Rgb(203, 166, 247),
-    pink: Color::Rgb(245, 194, 231),
-    flamingo: Color::Rgb(242, 205, 205),
-    rosewater: Color::Rgb(245, 224, 220),
-};
-
-pub const NORD: Palette = Palette {
-    base: Color::Rgb(46, 52, 64),
-    mantle: Color::Rgb(59, 66, 82),
-    crust: Color::Rgb(43, 48, 59),
-    text: Color::Rgb(236, 239, 244),
-    subtext0: Color::Rgb(216, 222, 233),
-    subtext1: Color::Rgb(229, 233, 240),
-    surface0: Color::Rgb(76, 86, 106),
-    surface1: Color::Rgb(59, 66, 82),
-    surface2: Color::Rgb(67, 76, 94),
-    overlay0: Color::Rgb(129, 161, 193),
-    overlay1: Color::Rgb(136, 192, 208),
-    overlay2: Color::Rgb(143, 188, 187),
-    blue: Color::Rgb(129, 161, 193),
-    lavender: Color::Rgb(180, 190, 254), // Approximation
-    sapphire: Color::Rgb(136, 192, 208),
-    sky: Color::Rgb(143, 188, 187),
-    teal: Color::Rgb(143, 188, 187),
-    green: Color::Rgb(163, 190, 140),
-    yellow: Color::Rgb(235, 203, 139),
-    peach: Color::Rgb(208, 135, 112),
-    maroon: Color::Rgb(191, 97, 106),
-    red: Color::Rgb(191, 97, 106),
-    mauve: Color::Rgb(180, 142, 173),
-    pink: Color::Rgb(180, 142, 173),      // Approximation
-    flamingo: Color::Rgb(216, 222, 233),  // Approximation
-    rosewater: Color::Rgb(216, 222, 233), // Approximation
-};
-
-pub const GRUVBOX: Palette = Palette {
-    base: Color::Rgb(40, 40, 40),
-    mantle: Color::Rgb(29, 32, 33),
-    crust: Color::Rgb(20, 20, 20),
-    text: Color::Rgb(235, 219, 178),
-    subtext0: Color::Rgb(189, 174, 147),
-    subtext1: Color::Rgb(168, 153, 132),
-    surface0: Color::Rgb(60, 56, 54),
-    surface1: Color::Rgb(80, 73, 69),
-    surface2: Color::Rgb(102, 92, 84),
-    overlay0: Color::Rgb(146, 131, 116),
-    overlay1: Color::Rgb(168, 153, 132),
-    overlay2: Color::Rgb(189, 174, 147),
-    blue: Color::Rgb(131, 165, 152),
-    lavender: Color::Rgb(177, 98, 134),
-    sapphire: Color::Rgb(104, 157, 106),
-    sky: Color::Rgb(142, 192, 124),
-    teal: Color::Rgb(142, 192, 124),
-    green: Color::Rgb(184, 187, 38),
-    yellow: Color::Rgb(250, 189, 47),
-    peach: Color::Rgb(254, 128, 25),
-    maroon: Color::Rgb(251, 73, 52),
-    red: Color::Rgb(204, 36, 29),
-    mauve: Color::Rgb(211, 134, 155),
-    pink: Color::Rgb(211, 134, 155),
-    flamingo: Color::Rgb(214, 93, 14),
-    rosewater: Color::Rgb(168, 153, 132),
-};
+pub use palette::{dim_color, Palette};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Theme {
@@ -149,6 +17,7 @@ pub struct Theme {
     pub graph_node_wc: Style,
     pub graph_node_mutable: Style,
     pub graph_node_immutable: Style,
+    pub graph_node_conflict: Style,
     pub graph_line: Style,
     pub graph_lanes: Vec<Style>,
 
@@ -196,7 +65,7 @@ pub struct Theme {
     pub dimmed: Style,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaletteType {
     CatppuccinMocha,
@@ -228,9 +97,9 @@ impl Theme {
     #[must_use]
     pub fn from_palette_type(t: PaletteType) -> Self {
         match t {
-            PaletteType::CatppuccinMocha => Self::from_palette(&CATPPUCCIN_MOCHA),
-            PaletteType::Nord => Self::from_palette(&NORD),
-            PaletteType::Gruvbox => Self::from_palette(&GRUVBOX),
+            PaletteType::CatppuccinMocha => Self::from_palette(&catppuccin::CATPPUCCIN_MOCHA),
+            PaletteType::Nord => Self::from_palette(&nord::NORD),
+            PaletteType::Gruvbox => Self::from_palette(&gruvbox::GRUVBOX),
         }
     }
 
@@ -243,6 +112,7 @@ impl Theme {
             graph_node_wc: Style::default().fg(p.blue).add_modifier(Modifier::BOLD),
             graph_node_mutable: Style::default().fg(p.mauve).add_modifier(Modifier::BOLD),
             graph_node_immutable: Style::default().fg(p.overlay1).add_modifier(Modifier::BOLD),
+            graph_node_conflict: Style::default().fg(p.red).add_modifier(Modifier::BOLD),
             graph_line: Style::default().fg(p.overlay0),
             graph_lanes: vec![
                 Style::default().fg(p.red),
