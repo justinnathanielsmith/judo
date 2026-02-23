@@ -33,6 +33,7 @@ pub enum AppMode {
     CommandPalette, // Fuzzy finder for commands
     ThemeSelection, // Choosing a UI theme
     RebaseInput,    // Inputting rebase destination
+    RebaseSelect,   // Selecting rebase destination
     Evolog,         // Viewing commit evolution log
     OperationLog,   // Viewing operation log
 }
@@ -279,6 +280,9 @@ pub struct AppState<'a> {
 
     // --- Operation Log ---
     pub operation_log_state: Option<OperationLogState>,
+
+    // --- Rebase State ---
+    pub rebase_sources: Vec<CommitId>,
 }
 
 impl AppState<'_> {
@@ -359,6 +363,7 @@ impl Default for AppState<'_> {
             is_selecting_presets: false,
             evolog_state: None,
             operation_log_state: None,
+            rebase_sources: Vec::new(),
         }
     }
 }

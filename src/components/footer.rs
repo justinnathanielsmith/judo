@@ -256,6 +256,26 @@ impl Footer<'_> {
                     },
                 ],
             }],
+            AppMode::RebaseSelect => vec![FooterGroup {
+                name: "REBASE",
+                items: vec![
+                    FooterItem {
+                        key: "j/k",
+                        desc: "select target",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "ENTER",
+                        desc: "confirm",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "Esc",
+                        desc: "cancel",
+                        highlighted: false,
+                    },
+                ],
+            }],
             AppMode::CommandPalette => vec![FooterGroup {
                 name: "COMMAND",
                 items: vec![

@@ -646,6 +646,8 @@ impl Widget for ModalManager<'_> {
                 if let Some(input) = &self.app_state.input {
                     let title = if self.app_state.mode == AppMode::BookmarkInput {
                         " SET BOOKMARK "
+                    } else if self.app_state.mode == AppMode::RebaseInput {
+                        " REBASE DESTINATION "
                     } else {
                         " DESCRIBE REVISION "
                     };
@@ -657,6 +659,28 @@ impl Widget for ModalManager<'_> {
                     }
                     .render(area, buf);
                 }
+            }
+            AppMode::RebaseSelect => {
+                let modal_area = centered_rect_fixed_height(80, 5, area);
+                draw_drop_shadow(buf, modal_area, area);
+                Clear.render(modal_area, buf);
+                let block = Block::default()
+                    .title(Line::from(vec![
+                        Span::raw(" "),
+                        Span::styled(" SELECT REBASE DESTINATION ", self.theme.header_active),
+                        Span::raw(" "),
+                    ]))
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(self.theme.border_focus);
+                let text = vec![
+                    Line::from("Select the destination revision in the log and press Enter."),
+                    Line::from("Or press Esc to cancel."),
+                ];
+                Paragraph::new(text)
+                    .alignment(ratatui::layout::Alignment::Center)
+                    .block(block)
+                    .render(modal_area, buf);
             }
             AppMode::FilterInput => {
                 if let Some(input) = &self.app_state.input {

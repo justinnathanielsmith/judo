@@ -422,6 +422,7 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.is_selecting_presets = false;
                 state.evolog_state = None;
                 state.operation_log_state = None;
+                state.rebase_sources.clear();
             } else {
                 state.log.selected_ids.clear();
             }
@@ -593,15 +594,18 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return Some(Command::Parallelize(ids));
         }
         Action::RebaseRevisionIntent => {
-            state.mode = AppMode::RebaseInput;
-            state.input = Some(super::state::InputState {
-                text_area: AppTextArea::default(),
-            });
+            let ids = state.get_selected_commit_ids();
+            if !ids.is_empty() {
+                state.rebase_sources = ids;
+                state.mode = AppMode::RebaseSelect;
+                state.log.selected_ids.clear();
+            }
         }
         Action::RebaseRevision(commit_ids, destination) => {
             state.mode = AppMode::Normal;
             state.input = None;
             state.log.selected_ids.clear();
+            state.rebase_sources.clear();
             return Some(Command::Rebase(commit_ids, destination));
         }
         Action::AbandonRevision(_commit_id) => {
@@ -798,6 +802,12 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
         Action::OpenContextMenu(commit_id, pos) => {
             let mut actions = vec![
                 ("Describe".to_string(), Action::DescribeRevisionIntent),
+                ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
+                (
+                    "New child".to_string(),
+                    Action::NewRevision(commit_id.clone()),
+                ),
+                ("Rebase...".to_string(), Action::RebaseRevisionIntent),
                 (
                     "Duplicate".to_string(),
                     Action::DuplicateRevision(commit_id.clone()),

@@ -829,6 +829,30 @@ pub(crate) fn handle_command(
                 }
             });
         }
+        Command::Rebase(commit_ids, destination) => {
+            tokio::spawn(async move {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Rebasing {} onto {}...", commit_ids[0], destination)
+                } else {
+                    format!("Rebasing {} revisions onto {}...", commit_ids.len(), destination)
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.rebase(&commit_ids, &destination).await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Rebase successful".to_string()
+                            )))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
         Command::Parallelize(commit_ids) => {
             tokio::spawn(async move {
                 let msg = if commit_ids.len() == 1 {
@@ -901,30 +925,7 @@ pub(crate) fn handle_command(
                 }
             });
         }
-        Command::Rebase(commit_ids, destination) => {
-            tokio::spawn(async move {
-                let msg = if commit_ids.len() == 1 {
-                    format!("Rebasing {} onto {}...", commit_ids[0], destination)
-                } else {
-                    format!("Rebasing {} revisions onto {}...", commit_ids.len(), destination)
-                };
-                let _ = tx.send(Action::OperationStarted(msg)).await;
-                match adapter.rebase(&commit_ids, &destination).await {
-                    Ok(()) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Ok(
-                                "Rebase successful".to_string(),
-                            )))
-                            .await;
-                    }
-                    Err(e) => {
-                        let _ = tx
-                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
-                            .await;
-                    }
-                }
-            });
-        }
+
         Command::Split(_commit_id) => {
             // Handled directly in run_loop because it requires suspending TUI
         }

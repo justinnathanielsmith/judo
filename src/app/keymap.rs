@@ -202,6 +202,23 @@ impl KeyMap {
                 }
                 _ => Some(Action::TextAreaInput(event)),
             };
+        } else if mode == super::state::AppMode::RebaseSelect {
+            return match event.code {
+                KeyCode::Esc => Some(Action::CancelMode),
+                KeyCode::Enter => {
+                    let text = if let Some(input) = &state.input {
+                        input.text_area.lines().join("\n")
+                    } else {
+                        String::new()
+                    };
+                    if text.trim().is_empty() {
+                        return Some(Action::CancelMode);
+                    }
+                    let ids = state.rebase_sources.clone();
+                    Some(Action::RebaseRevision(ids, text))
+                }
+                _ => Some(Action::TextAreaInput(event)),
+            };
         } else if mode == super::state::AppMode::Evolog {
             return match event.code {
                 KeyCode::Esc | KeyCode::Char('q') => Some(Action::CloseEvolog),
