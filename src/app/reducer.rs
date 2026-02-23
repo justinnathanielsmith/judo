@@ -301,6 +301,14 @@ fn update_repository_derived_state(state: &mut AppState) {
             state.header_state.branch_text = row.bookmarks.join(", ");
         }
 
+        // Add the operation ID
+        let op_display = if repo.operation_id.len() >= 8 {
+            &repo.operation_id[..8]
+        } else {
+            &repo.operation_id
+        };
+        state.header_state.op_text = format!(" OP: {} ", op_display);
+
         state.header_state.stats_text = format!(
             " {} revs | {} selected ",
             repo.graph.len(),
