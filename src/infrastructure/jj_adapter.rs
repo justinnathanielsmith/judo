@@ -735,6 +735,30 @@ impl VcsFacade for JjAdapter {
         }
     }
 
+    async fn revert(&self, commit_ids: &[CommitId]) -> Result<()> {
+        let ws_root = {
+            let ws_opt = self.workspace.lock().await;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
+            ws.workspace_root().to_path_buf()
+        };
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("revert");
+        for id in commit_ids {
+            self.validate_commit(id).await?;
+            cmd.arg("-r").arg(&id.0);
+        }
+        let output = cmd.current_dir(ws_root).output().await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj revert failed: {}", stderr.trim()))
+        }
+    }
+
     async fn absorb(&self) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;
@@ -776,6 +800,30 @@ impl VcsFacade for JjAdapter {
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(anyhow!("jj duplicate failed: {}", stderr.trim()))
+        }
+    }
+
+    async fn parallelize(&self, commit_ids: &[CommitId]) -> Result<()> {
+        let ws_root = {
+            let ws_opt = self.workspace.lock().await;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
+            ws.workspace_root().to_path_buf()
+        };
+        let mut cmd = tokio::process::Command::new("jj");
+        cmd.arg("parallelize");
+        for id in commit_ids {
+            self.validate_commit(id).await?;
+            cmd.arg("-r").arg(&id.0);
+        }
+        let output = cmd.current_dir(ws_root).output().await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj parallelize failed: {}", stderr.trim()))
         }
     }
 

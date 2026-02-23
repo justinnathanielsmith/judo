@@ -35,8 +35,10 @@ pub enum Action {
     CommitWorkingCopyIntent,               // Start committing the working copy
     CommitWorkingCopy(String),             // `jj commit -m "msg"`
     AbandonRevision(CommitId),             // `jj abandon <rev>`
+    RevertRevision(Vec<CommitId>),         // `jj revert -r <revs>`
     Absorb,                                // `jj absorb`
     DuplicateRevision(CommitId),           // `jj duplicate -r <rev>`
+    ParallelizeRevision(CommitId),         // `jj parallelize -r <rev>`
     RebaseRevisionIntent,                  // Start rebase (open destination input)
     RebaseRevision(Vec<CommitId>, String), // `jj rebase -r <revs> -d <dest>`
     SetBookmarkIntent,                     // Start setting a bookmark

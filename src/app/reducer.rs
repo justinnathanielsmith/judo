@@ -579,6 +579,19 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             state.log.selected_ids.clear();
             return Some(Command::Duplicate(ids));
         }
+        Action::ParallelizeRevision(_commit_id) => {
+            let ids = state.get_selected_commit_ids();
+            if ids.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::Parallelize(vec![row.commit_id.clone()]));
+                    }
+                }
+                return None;
+            }
+            state.log.selected_ids.clear();
+            return Some(Command::Parallelize(ids));
+        }
         Action::RebaseRevisionIntent => {
             state.mode = AppMode::RebaseInput;
             state.input = Some(super::state::InputState {
@@ -603,6 +616,19 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
             state.log.selected_ids.clear();
             return Some(Command::Abandon(ids));
+        }
+        Action::RevertRevision(_commit_id) => {
+            let ids = state.get_selected_commit_ids();
+            if ids.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::Revert(vec![row.commit_id.clone()]));
+                    }
+                }
+                return None;
+            }
+            state.log.selected_ids.clear();
+            return Some(Command::Revert(ids));
         }
         Action::Undo => {
             return Some(Command::Undo);
@@ -773,16 +799,29 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             let mut actions = vec![
                 ("Describe".to_string(), Action::DescribeRevisionIntent),
                 (
+                    "Duplicate".to_string(),
+                    Action::DuplicateRevision(commit_id.clone()),
+                ),
+                (
+                    "Parallelize".to_string(),
+                    Action::ParallelizeRevision(commit_id.clone()),
+                ),
+                (
+                    "Abandon".to_string(),
+                    Action::AbandonRevision(commit_id.clone()),
+                ),
+                (
+                    "New Child".to_string(),
+                    Action::NewRevision(commit_id.clone()),
+                ),
+                ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
+                (
                     "Split Revision".to_string(),
                     Action::SplitRevision(commit_id.clone()),
                 ),
                 (
                     "Squash into Parent".to_string(),
                     Action::SquashRevision(commit_id.clone()),
-                ),
-                (
-                    "New Child".to_string(),
-                    Action::NewRevision(commit_id.clone()),
                 ),
                 ("Edit".to_string(), Action::EditRevision(commit_id.clone())),
                 (
@@ -793,6 +832,10 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 (
                     "Abandon".to_string(),
                     Action::AbandonRevision(commit_id.clone()),
+                ),
+                (
+                    "Revert".to_string(),
+                    Action::RevertRevision(vec![commit_id.clone()]),
                 ),
                 ("Set Bookmark".to_string(), Action::SetBookmarkIntent),
                 ("Toggle Diffs".to_string(), Action::ToggleDiffs),

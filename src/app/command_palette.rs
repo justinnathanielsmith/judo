@@ -61,6 +61,11 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::DuplicateRevision(crate::domain::models::CommitId(String::new())),
         },
         CommandDefinition {
+            name: "Parallelize",
+            description: "Parallelize revisions by making them siblings",
+            action: Action::ParallelizeRevision(crate::domain::models::CommitId(String::new())),
+        },
+        CommandDefinition {
             name: "Rebase",
             description: "Rebase revision(s) onto a new destination",
             action: Action::RebaseRevisionIntent,

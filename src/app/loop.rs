@@ -829,6 +829,30 @@ pub(crate) fn handle_command(
                 }
             });
         }
+        Command::Parallelize(commit_ids) => {
+            tokio::spawn(async move {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Parallelizing {}...", commit_ids[0])
+                } else {
+                    format!("Parallelizing {} revisions...", commit_ids.len())
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.parallelize(&commit_ids).await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Revision(s) parallelized".to_string()
+                            )))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
         Command::Abandon(commit_ids) => {
             tokio::spawn(async move {
                 let msg = if commit_ids.len() == 1 {
@@ -842,6 +866,30 @@ pub(crate) fn handle_command(
                         let _ = tx
                             .send(Action::OperationCompleted(Ok(
                                 "Revision(s) abandoned".to_string()
+                            )))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Revert(commit_ids) => {
+            tokio::spawn(async move {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Reverting {}...", commit_ids[0])
+                } else {
+                    format!("Reverting {} revisions...", commit_ids.len())
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.revert(&commit_ids).await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Revision(s) reverted".to_string()
                             )))
                             .await;
                     }
