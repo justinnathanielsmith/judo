@@ -104,6 +104,10 @@ impl KeyMap {
         global.insert(key_char('?'), Action::ToggleHelp);
         global.insert(key_char('T'), Action::EnterThemeSelection);
         global.insert(key_char('r'), Action::RebaseRevisionIntent);
+        global.insert(
+            key_char('v'),
+            Action::EvologRevision(crate::domain::models::CommitId(String::new())),
+        );
         global.insert(key_code(KeyCode::PageDown), Action::ScrollDiffDown(10));
         global.insert(key_code(KeyCode::PageUp), Action::ScrollDiffUp(10));
         global.insert(key_char('['), Action::PrevHunk);
@@ -198,6 +202,15 @@ impl KeyMap {
                 }
                 _ => Some(Action::TextAreaInput(event)),
             };
+        } else if mode == super::state::AppMode::Evolog {
+            return match event.code {
+                KeyCode::Esc | KeyCode::Char('q') => Some(Action::CloseEvolog),
+                KeyCode::Char('j') | KeyCode::Down => Some(Action::ScrollEvologDown(1)),
+                KeyCode::Char('k') | KeyCode::Up => Some(Action::ScrollEvologUp(1)),
+                KeyCode::PageDown => Some(Action::ScrollEvologDown(10)),
+                KeyCode::PageUp => Some(Action::ScrollEvologUp(10)),
+                _ => None,
+            };
         }
         self.global.get(&event).cloned()
     }
@@ -266,7 +279,13 @@ fn parse_action(s: &str) -> Option<Action> {
         "filterremotebookmarks" => Some(Action::FilterRemoteBookmarks),
         "filterworking" => Some(Action::FilterWorking),
         "clearfilter" => Some(Action::ClearFilter),
+        "split" => Some(Action::SplitRevision(crate::domain::models::CommitId(
+            String::new(),
+        ))),
         "rebase" => Some(Action::RebaseRevisionIntent),
+        "evolog" => Some(Action::EvologRevision(crate::domain::models::CommitId(
+            String::new(),
+        ))),
         _ => None,
     }
 }

@@ -41,6 +41,11 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             action: Action::SquashRevision(crate::domain::models::CommitId(String::new())),
         },
         CommandDefinition {
+            name: "Split",
+            description: "Split the revision into two",
+            action: Action::SplitRevision(crate::domain::models::CommitId(String::new())),
+        },
+        CommandDefinition {
             name: "Absorb",
             description: "Absorb changes into matching parents",
             action: Action::Absorb,
@@ -54,6 +59,11 @@ pub fn get_commands() -> Vec<CommandDefinition> {
             name: "Rebase",
             description: "Rebase revision(s) onto a new destination",
             action: Action::RebaseRevisionIntent,
+        },
+        CommandDefinition {
+            name: "Evolution Log",
+            description: "Show the evolution log of the selected revision",
+            action: Action::EvologRevision(crate::domain::models::CommitId(String::new())),
         },
         CommandDefinition {
             name: "Set Bookmark",

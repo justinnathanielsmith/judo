@@ -830,6 +830,34 @@ impl VcsFacade for JjAdapter {
         }
     }
 
+    async fn evolog(&self, commit_id: &CommitId) -> Result<String> {
+        let ws_root = {
+            let ws_opt = self.workspace.lock().await;
+            let ws = ws_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("No repository found"))?;
+            ws.workspace_root().to_path_buf()
+        };
+
+        let output = tokio::process::Command::new("jj")
+            .arg("evolog")
+            .arg("--color")
+            .arg("never")
+            .arg("--no-pager")
+            .arg("-r")
+            .arg(&commit_id.0)
+            .current_dir(ws_root)
+            .output()
+            .await?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(anyhow!("jj evolog failed: {}", stderr.trim()))
+        }
+    }
+
     async fn undo(&self) -> Result<()> {
         let ws_root = {
             let ws_opt = self.workspace.lock().await;

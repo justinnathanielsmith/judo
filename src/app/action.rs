@@ -41,6 +41,7 @@ pub enum Action {
     SetBookmark(CommitId, String),         // `jj bookmark set <name> -r <rev>`
     DeleteBookmarkIntent,                  // Start deleting a bookmark (may prompt)
     DeleteBookmark(String),                // `jj bookmark delete <name>`
+    SplitRevision(CommitId),               // `jj split -r <rev>`
     Undo,                                  // `jj undo`
     Redo,                                  // `jj redo`
     Fetch,                                 // `jj git fetch`
@@ -99,4 +100,11 @@ pub enum Action {
     OperationCompleted(Result<String, String>), // Success/Failure message
     ErrorOccurred(String),                   // General error reporting
     ExternalChangeDetected,                  // External change to the repo (jj op heads)
+
+    // --- Evolog ---
+    EvologRevision(CommitId), // Trigger `jj evolog -r <rev>`
+    OpenEvolog(String),       // Open evolog modal with content
+    CloseEvolog,              // Close evolog modal
+    ScrollEvologUp(u16),      // Scroll evolog up
+    ScrollEvologDown(u16),    // Scroll evolog down
 }

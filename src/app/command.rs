@@ -16,10 +16,12 @@ pub enum Command {
     Rebase(Vec<CommitId>, String),
     SetBookmark(CommitId, String),
     DeleteBookmark(String),
+    Split(CommitId),
     Undo,
     Redo,
     Fetch,
     Push(Option<String>),
     ResolveConflict(String),
     InitRepo,
+    Evolog(CommitId),
 }

@@ -129,19 +129,43 @@ pub async fn run_loop_with_events<B: Backend>(
             }
 
             if let Some(cmd) = command {
-                if let Command::ResolveConflict(path) = cmd {
-                    // 1. Suspend TUI
-                    crossterm::terminal::disable_raw_mode()?;
-                    crossterm::execute!(
-                        std::io::stdout(),
-                        crossterm::terminal::LeaveAlternateScreen,
-                        crossterm::cursor::Show
-                    )?;
+                match cmd {
+                    Command::ResolveConflict(path) => {
+                        // 1. Suspend TUI
+                        crossterm::terminal::disable_raw_mode()?;
+                        crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::terminal::LeaveAlternateScreen,
+                            crossterm::cursor::Show
+                        )?;
 
-                    // 2. Run external tool
-                    // We'll use 'jj resolve' which uses the configured tool
-                    // SECURITY: Validate path to prevent path traversal
-                    if path.contains("..") {
+                        // 2. Run external tool
+                        // We'll use 'jj resolve' which uses the configured tool
+                        // SECURITY: Validate path to prevent path traversal
+                        if path.contains("..") {
+                            crossterm::terminal::enable_raw_mode()?;
+                            crossterm::execute!(
+                                std::io::stdout(),
+                                crossterm::terminal::EnterAlternateScreen,
+                                crossterm::cursor::Hide
+                            )?;
+                            terminal.clear()?;
+                            let _ = action_tx
+                                .send(Action::OperationCompleted(Err(format!(
+                                    "Invalid path: {path}"
+                                ))))
+                                .await;
+                            continue;
+                        }
+
+                        let mut child = std::process::Command::new("jj")
+                            .arg("resolve")
+                            .arg(&path)
+                            .spawn()?;
+
+                        let status = child.wait()?;
+
+                        // 3. Resume TUI
                         crossterm::terminal::enable_raw_mode()?;
                         crossterm::execute!(
                             std::io::stdout(),
@@ -149,40 +173,54 @@ pub async fn run_loop_with_events<B: Backend>(
                             crossterm::cursor::Hide
                         )?;
                         terminal.clear()?;
+
+                        // 4. Trigger refresh
                         let _ = action_tx
-                            .send(Action::OperationCompleted(Err(format!(
-                                "Invalid path: {path}"
-                            ))))
+                            .send(Action::OperationCompleted(if status.success() {
+                                Ok(format!("Resolved {path}"))
+                            } else {
+                                Err(format!("Resolve failed for {path}"))
+                            }))
                             .await;
-                        continue;
                     }
+                    Command::Split(commit_id) => {
+                        // 1. Suspend TUI
+                        crossterm::terminal::disable_raw_mode()?;
+                        crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::terminal::LeaveAlternateScreen,
+                            crossterm::cursor::Show
+                        )?;
 
-                    let mut child = std::process::Command::new("jj")
-                        .arg("resolve")
-                        .arg(&path)
-                        .spawn()?;
+                        let mut child = std::process::Command::new("jj")
+                            .arg("split")
+                            .arg("-r")
+                            .arg(&commit_id.0)
+                            .spawn()?;
 
-                    let status = child.wait()?;
+                        let status = child.wait()?;
 
-                    // 3. Resume TUI
-                    crossterm::terminal::enable_raw_mode()?;
-                    crossterm::execute!(
-                        std::io::stdout(),
-                        crossterm::terminal::EnterAlternateScreen,
-                        crossterm::cursor::Hide
-                    )?;
-                    terminal.clear()?;
+                        // 3. Resume TUI
+                        crossterm::terminal::enable_raw_mode()?;
+                        crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::terminal::EnterAlternateScreen,
+                            crossterm::cursor::Hide
+                        )?;
+                        terminal.clear()?;
 
-                    // 4. Trigger refresh
-                    let _ = action_tx
-                        .send(Action::OperationCompleted(if status.success() {
-                            Ok(format!("Resolved {path}"))
-                        } else {
-                            Err(format!("Resolve failed for {path}"))
-                        }))
-                        .await;
-                } else {
-                    handle_command(cmd, adapter.clone(), action_tx.clone())?;
+                        // 4. Trigger refresh
+                        let _ = action_tx
+                            .send(Action::OperationCompleted(if status.success() {
+                                Ok(format!("Split revision {}", commit_id.0))
+                            } else {
+                                Err(format!("Split failed for revision {}", commit_id.0))
+                            }))
+                            .await;
+                    }
+                    other_cmd => {
+                        handle_command(other_cmd, adapter.clone(), action_tx.clone())?;
+                    }
                 }
             }
         }
@@ -785,6 +823,33 @@ pub(crate) fn handle_command(
                 }
             });
         }
+        Command::Rebase(commit_ids, destination) => {
+            tokio::spawn(async move {
+                let msg = if commit_ids.len() == 1 {
+                    format!("Rebasing {} onto {}...", commit_ids[0], destination)
+                } else {
+                    format!("Rebasing {} revisions onto {}...", commit_ids.len(), destination)
+                };
+                let _ = tx.send(Action::OperationStarted(msg)).await;
+                match adapter.rebase(&commit_ids, &destination).await {
+                    Ok(()) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Ok(
+                                "Rebase successful".to_string(),
+                            )))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Split(_commit_id) => {
+            // Handled directly in run_loop because it requires suspending TUI
+        }
         Command::SetBookmark(commit_id, name) => {
             tokio::spawn(async move {
                 let _ = tx
@@ -936,6 +1001,26 @@ pub(crate) fn handle_command(
                                 "Repository initialized".to_string()
                             )))
                             .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Action::OperationCompleted(Err(format!("Error: {e}"))))
+                            .await;
+                    }
+                }
+            });
+        }
+        Command::Evolog(commit_id) => {
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Action::OperationStarted(format!(
+                        "Fetching evolog for {}...",
+                        commit_id.0
+                    )))
+                    .await;
+                match adapter.evolog(&commit_id).await {
+                    Ok(content) => {
+                        let _ = tx.send(Action::OpenEvolog(content)).await;
                     }
                     Err(e) => {
                         let _ = tx

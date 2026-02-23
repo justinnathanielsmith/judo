@@ -197,7 +197,10 @@ impl Footer<'_> {
                     }],
                 },
             ],
-            AppMode::Input | AppMode::BookmarkInput | AppMode::FilterInput => vec![FooterGroup {
+            AppMode::Input
+            | AppMode::BookmarkInput
+            | AppMode::FilterInput
+            | AppMode::RebaseInput => vec![FooterGroup {
                 name: "INPUT",
                 items: vec![
                     FooterItem {
@@ -305,6 +308,21 @@ impl Footer<'_> {
                     FooterItem {
                         key: "Esc",
                         desc: "cancel",
+                        highlighted: false,
+                    },
+                ],
+            }],
+            AppMode::Evolog => vec![FooterGroup {
+                name: "EVOLOG",
+                items: vec![
+                    FooterItem {
+                        key: "j/k",
+                        desc: "scroll",
+                        highlighted: false,
+                    },
+                    FooterItem {
+                        key: "q/Esc",
+                        desc: "close",
                         highlighted: false,
                     },
                 ],

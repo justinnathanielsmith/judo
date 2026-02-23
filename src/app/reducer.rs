@@ -420,8 +420,20 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
                 state.theme_selection = None;
                 state.selected_filter_index = None;
                 state.is_selecting_presets = false;
+                state.evolog_state = None;
             } else {
                 state.log.selected_ids.clear();
+            }
+        }
+        Action::ScrollEvologUp(amount) => {
+            if let Some(ev) = &mut state.evolog_state {
+                ev.scroll = ev.scroll.saturating_sub(amount);
+            }
+        }
+        Action::ScrollEvologDown(amount) => {
+            if let Some(ev) = &mut state.evolog_state {
+                let max_scroll = ev.content.len().saturating_sub(1) as u16;
+                ev.scroll = ev.scroll.saturating_add(amount).min(max_scroll);
             }
         }
         Action::CommandPaletteNext => {
@@ -516,6 +528,17 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             }
             state.log.selected_ids.clear();
             return Some(Command::Squash(ids));
+        }
+        Action::SplitRevision(commit_id) => {
+            if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                    if let Some(row) = repo.graph.get(idx) {
+                        return Some(Command::Split(row.commit_id.clone()));
+                    }
+                }
+                return None;
+            }
+            return Some(Command::Split(commit_id));
         }
         Action::NewRevision(commit_id) => {
             if commit_id.0.is_empty() {
@@ -673,10 +696,43 @@ pub fn update(state: &mut AppState, action: Action) -> Option<Command> {
             return Some(Command::DeleteBookmark(name));
         }
 
+        // --- Evolog ---
+        Action::EvologRevision(commit_id) => {
+            let id = if commit_id.0.is_empty() {
+                if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                    repo.graph.get(idx).map(|r| r.commit_id.clone())
+                } else {
+                    None
+                }
+            } else {
+                Some(commit_id)
+            };
+
+            if let Some(id) = id {
+                return Some(Command::Evolog(id));
+            }
+            return None;
+        }
+        Action::OpenEvolog(content) => {
+            state.mode = AppMode::Evolog;
+            state.evolog_state = Some(super::state::EvologState {
+                content: content.lines().map(|s| s.to_string()).collect(),
+                scroll: 0,
+            });
+        }
+        Action::CloseEvolog => {
+            state.mode = AppMode::Normal;
+            state.evolog_state = None;
+        }
+
         // --- Context Menu ---
         Action::OpenContextMenu(commit_id, pos) => {
             let mut actions = vec![
                 ("Describe".to_string(), Action::DescribeRevisionIntent),
+                (
+                    "Split Revision".to_string(),
+                    Action::SplitRevision(commit_id.clone()),
+                ),
                 (
                     "Squash into Parent".to_string(),
                     Action::SquashRevision(commit_id.clone()),

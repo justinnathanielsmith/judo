@@ -32,6 +32,7 @@ pub enum AppMode {
     CommandPalette, // Fuzzy finder for commands
     ThemeSelection, // Choosing a UI theme
     RebaseInput,    // Inputting rebase destination
+    Evolog,         // Viewing commit evolution log
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -106,6 +107,12 @@ impl Default for ThemeSelectionState {
             themes: crate::theme::PaletteType::all().to_vec(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct EvologState {
+    pub content: Vec<String>,
+    pub scroll: u16,
 }
 
 #[derive(Default)]
@@ -258,6 +265,9 @@ pub struct AppState<'a> {
     pub preset_filters: Vec<String>,
     pub selected_filter_index: Option<usize>,
     pub is_selecting_presets: bool,
+
+    // --- Evolog ---
+    pub evolog_state: Option<EvologState>,
 }
 
 impl AppState<'_> {
@@ -336,6 +346,7 @@ impl Default for AppState<'_> {
             preset_filters: default_preset_filters(),
             selected_filter_index: None,
             is_selecting_presets: false,
+            evolog_state: None,
         }
     }
 }
