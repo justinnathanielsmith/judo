@@ -122,7 +122,7 @@ impl JjAdapter {
                 let bookmarks = info.bookmarks;
 
                 let description = commit.description().to_string();
-                let change_id = commit.change_id().hex();
+                let change_id = super::format_change_id(commit.change_id());
                 let author = commit.author().email.clone();
                 let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
                 let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)

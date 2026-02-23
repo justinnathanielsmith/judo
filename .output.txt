@@ -1,123 +1,3709 @@
-diff --git a/src/app/loop.rs b/src/app/loop.rs
-index 0a77112..22598af 100644
---- a/src/app/loop.rs
-+++ b/src/app/loop.rs
-@@ -1,10 +1,17 @@
- use crate::app::{
--    action::Action,
--    command::Command,
--    input::map_event_to_action,
--    reducer,
--    state::AppState,
--    ui,
-+<<<<<<< conflict 1 of 1
-+%%%%%%% diff from: omtvnrzw 056a8324 "refactor: decompose loop" (rebased revision)
-+\\\\\\\        to: omtvnrzw a33927c5 "refactor: decompose loop" (rebase destination)
-+     action::Action,
-+     command::Command,
-+-    input::{map_event_to_action, resolve_clicked_row},
-++    input::map_event_to_action,
-+     reducer,
-+     state::AppState,
-+     ui,
-++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
-+    action::Action, command::Command, input::map_event_to_action, reducer, state::AppState, ui,
-+>>>>>>> conflict 1 of 1 ends
- };
- use crate::domain::vcs::VcsFacade;
-
-diff --git a/src/app/loop_tests.rs b/src/app/loop_tests.rs
-index 69a7cb6..fe8a9f2 100644
---- a/src/app/loop_tests.rs
-+++ b/src/app/loop_tests.rs
-@@ -1,4 +1,3 @@
+-                        },
+-                        FooterItem {
+-                            key: "PgUp/Dn",
+-                            desc: "scroll",
+-                            highlighted: false,
+-                        },
+-                        FooterItem {
+-                            key: "m/ENTER",
+-                            desc: "merge",
+-                            highlighted: is_conflict,
+-                        },
+-                    ],
+-                },
+-                FooterGroup {
+-                    name: "APP",
+-                    items: vec![FooterItem {
+-                        key: "q",
+-                        desc: "quit",
+-                        highlighted: false,
+-                    }],
+-                },
+-            ],
+-            AppMode::Input
+-            | AppMode::BookmarkInput
+-            | AppMode::CommitInput
+-            | AppMode::FilterInput
+-            | AppMode::RebaseInput => vec![FooterGroup {
+-                name: "INPUT",
+-                items: vec![
+-                    FooterItem {
+-                        key: "ENTER",
+-                        desc: "submit",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "Esc",
+-                        desc: "cancel",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::ContextMenu => vec![FooterGroup {
+-                name: "MENU",
+-                items: vec![
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "move",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "ENTER",
+-                        desc: "select",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "Esc",
+-                        desc: "close",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::SquashSelect => vec![FooterGroup {
+-                name: "SQUASH",
+-                items: vec![
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "select",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "ENTER",
+-                        desc: "confirm",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "Esc",
+-                        desc: "cancel",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::RebaseSelect => vec![FooterGroup {
+-                name: "REBASE",
+-                items: vec![
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "select target",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "ENTER",
+-                        desc: "confirm",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "Esc",
+-                        desc: "cancel",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::CommandPalette => vec![FooterGroup {
+-                name: "COMMAND",
+-                items: vec![
+-                    FooterItem {
+-                        key: "ENTER",
+-                        desc: "run",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "Esc",
+-                        desc: "cancel",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "move",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "ctrl+n/p",
+-                        desc: "move",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::Loading => vec![FooterGroup {
+-                name: "LOADING",
+-                items: vec![],
+-            }],
+-            AppMode::Help => vec![FooterGroup {
+-                name: "HELP",
+-                items: vec![FooterItem {
+-                    key: "q/Esc/?",
+-                    desc: "close",
+-                    highlighted: false,
+-                }],
+-            }],
+-            AppMode::ThemeSelection => vec![FooterGroup {
+-                name: "THEME",
+-                items: vec![
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "select",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "ENTER",
+-                        desc: "apply",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "Esc",
+-                        desc: "cancel",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::Evolog => vec![FooterGroup {
+-                name: "EVOLOG",
+-                items: vec![
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "scroll",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "q/Esc",
+-                        desc: "close",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::OperationLog => vec![FooterGroup {
+-                name: "OP LOG",
+-                items: vec![
+-                    FooterItem {
+-                        key: "j/k",
+-                        desc: "scroll",
+-                        highlighted: false,
+-                    },
+-                    FooterItem {
+-                        key: "q/Esc",
+-                        desc: "close",
+-                        highlighted: false,
+-                    },
+-                ],
+-            }],
+-            AppMode::NoRepo => vec![
+-                FooterGroup {
+-                    name: "INIT",
+-                    items: vec![FooterItem {
+-                        key: "i/ENTER",
+-                        desc: "initialize",
+-                        highlighted: false,
+-                    }],
+-                },
+-                FooterGroup {
+-                    name: "APP",
+-                    items: vec![FooterItem {
+-                        key: "q/Esc",
+-                        desc: "quit",
+-                        highlighted: false,
+-                    }],
+-                },
+-            ],
+-        }
+-    }
+-}
 -
- use super::*;
- use crate::app::action::Action;
- use crate::app::command::Command;
+-impl Widget for Footer<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let theme = self.theme;
+-        let state = self.state;
+-
+-        // Active filter indicator
+-        let filter_span = if let Some(revset) = &state.revset {
+-            Span::styled(format!("  FILTER: {revset}  "), theme.header_warn)
+-        } else {
+-            Span::raw("")
+-        };
+-
+-        // Status segment
+-        let status_span = if let Some(err) = &state.last_error {
+-            Span::styled(format!("  ERROR: {}  ", err.message), theme.status_error)
+-        } else if let Some(msg) = &state.status_message {
+-            Span::styled(format!("  {msg}  "), theme.status_info)
+-        } else {
+-            Span::styled("  READY  ", theme.status_ready)
+-        };
+-
+-        let mut spans = vec![status_span, Span::raw(" ")];
+-
+-        // Show active filter badge
+-        if !filter_span.content.is_empty() {
+-            spans.push(filter_span);
+-            spans.push(Span::raw(" "));
+-        }
+-
+-        // Repo context (Workspace, WC & Operation)
+-        if !state.workspace_id.is_empty() {
+-            spans.push(Span::styled(
+-                format!(" {} ", state.workspace_id),
+-                theme.header_item,
+-            ));
+-            spans.push(Span::raw(" "));
+-        }
+-        spans.push(Span::styled(&state.header_state.wc_text, theme.header_item));
+-        spans.push(Span::raw(" "));
+-        spans.push(Span::styled(&state.header_state.op_text, theme.header_item));
+-        spans.push(Span::raw(" "));
+-
+-        // Background tasks
+-        if state.active_tasks.is_empty() {
+-            spans.push(Span::raw("  "));
+-        } else {
+-            let tasks_text = format!(
+-                " {} tasks: {} ",
+-                state.spinner,
+-                state.active_tasks.join(", ")
+-            );
+-            spans.push(Span::styled(tasks_text, theme.status_info));
+-            spans.push(Span::raw("  "));
+-        }
+-
+-        let groups = self.get_groups();
+-
+-        let available_width = area.width.saturating_sub(4); // Margin
+-        let mut current_width = spans
+-            .iter()
+-            .map(ratatui::prelude::Span::width)
+-            .sum::<usize>();
+-
+-        for group in groups {
+-            if group.items.is_empty() {
+-                continue;
+-            }
+-
+-            // Check if we can fit at least the first item of the group
+-            let first_item = &group.items[0];
+-            let first_item_width = first_item.key.len() + first_item.desc.len() + 4;
+-
+-            if current_width + first_item_width > available_width as usize {
+-                break;
+-            }
+-
+-            // Add group name as a subtle label if there's plenty of space
+-            if area.width > 100 {
+-                let group_label =
+-                    Span::styled(format!("{}: ", group.name), theme.footer_group_name);
+-                if current_width + group_label.width() + first_item_width < available_width as usize
+-                {
+-                    spans.push(group_label);
+-                    current_width += group.name.len() + 2;
+-                }
+-            }
+-
+-            for item in group.items {
+-                let key_str = format!(" {} ", item.key);
+-                let desc_str = format!(" {} ", item.desc);
+-
+-                let item_width = key_str.len() + desc_str.len();
+-                if current_width + item_width + 1 > available_width as usize {
+-                    break;
+-                }
+-
+-                let key_style = if item.highlighted {
+-                    theme.header_active
+-                } else {
+-                    theme.footer_segment_key
+-                };
+-
+-                let val_style = if item.highlighted {
+-                    theme
+-                        .header_active
+-                        .add_modifier(ratatui::style::Modifier::DIM)
+-                } else {
+-                    theme.footer_segment_val
+-                };
+-
+-                spans.push(Span::styled(key_str, key_style));
+-                spans.push(Span::styled(desc_str, val_style));
+-                spans.push(Span::raw(" "));
+-                current_width += item_width + 1;
+-            }
+-            spans.push(Span::raw("  "));
+-            current_width += 2;
+-        }
+-
+-        Paragraph::new(Line::from(spans))
+-            .style(theme.footer)
+-            .render(area, buf);
+-    }
+-}
+diff --git a/src/components/footer/groups.rs b/src/components/footer/groups.rs
+new file mode 100644
+index 0000000..c489bca
+--- /dev/null
++++ b/src/components/footer/groups.rs
+@@ -0,0 +1,362 @@
++use super::types::{FooterGroup, FooterItem};
++use crate::app::state::{AppMode, AppState};
++
++pub fn get_groups(state: &AppState) -> Vec<FooterGroup> {
++    if state.last_error.is_some() {
++        return vec![FooterGroup {
++            name: "ERROR",
++            items: vec![FooterItem {
++                key: "Esc",
++                desc: "dismiss",
++                highlighted: false,
++            }],
++        }];
++    }
++
++    let is_conflict = state.is_selected_file_conflicted();
++
++    match state.mode {
++        AppMode::Normal => {
++            let mut groups = Vec::new();
++            groups.push(FooterGroup {
++                name: "NAV",
++                items: vec![
++                    FooterItem {
++                        key: "j/k",
++                        desc: "move",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "/",
++                        desc: "filt",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "m/t/c",
++                        desc: "mine/trnk/conf",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "C",
++                        desc: "clear",
++                        highlighted: state.revset.is_some(),
++                    },
++                ],
++            });
++
++            if state.show_diffs {
++                groups[0].items.push(FooterItem {
++                    key: "Tab",
++                    desc: "focus",
++                    highlighted: false,
++                });
++                groups.push(FooterGroup {
++                    name: "DIFF",
++                    items: vec![
++                        FooterItem {
++                            key: "PgUp/Dn",
++                            desc: "scroll",
++                            highlighted: false,
++                        },
++                        FooterItem {
++                            key: "[/]",
++                            desc: "hunk",
++                            highlighted: false,
++                        },
++                    ],
++                });
++            }
++
++            groups.push(FooterGroup {
++                name: "EDIT",
++                items: vec![
++                    FooterItem {
++                        key: "ENTER",
++                        desc: "select",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "d",
++                        desc: "desc",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "n",
++                        desc: "new",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "e",
++                        desc: "edit",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "a",
++                        desc: "abdn",
++                        highlighted: false,
++                    },
++                ],
++            });
++
++            groups.push(FooterGroup {
++                name: "VCS",
++                items: vec![
++                    FooterItem {
++                        key: "s/S",
++                        desc: "snap/sqsh",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "f",
++                        desc: "fetch",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "p",
++                        desc: "push",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "b/B",
++                        desc: "bkmk",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "u/U",
++                        desc: "undo",
++                        highlighted: false,
++                    },
++                ],
++            });
++
++            groups.push(FooterGroup {
++                name: "APP",
++                items: vec![FooterItem {
++                    key: "q",
++                    desc: "quit",
++                    highlighted: false,
++                }],
++            });
++            groups
++        }
++        AppMode::Diff => vec![
++            FooterGroup {
++                name: "NAV",
++                items: vec![
++                    FooterItem {
++                        key: "j/k",
++                        desc: "file",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "h/Tab",
++                        desc: "back",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "PgUp/Dn",
++                        desc: "scroll",
++                        highlighted: false,
++                    },
++                    FooterItem {
++                        key: "m/ENTER",
++                        desc: "merge",
++                        highlighted: is_conflict,
++                    },
++                ],
++            },
++            FooterGroup {
++                name: "APP",
++                items: vec![FooterItem {
++                    key: "q",
++                    desc: "quit",
++                    highlighted: false,
++                }],
++            },
++        ],
++        AppMode::Input
++        | AppMode::BookmarkInput
++        | AppMode::CommitInput
++        | AppMode::FilterInput
++        | AppMode::RebaseInput => vec![FooterGroup {
++            name: "INPUT",
++            items: vec![
++                FooterItem {
++                    key: "ENTER",
++                    desc: "submit",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "Esc",
++                    desc: "cancel",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::ContextMenu => vec![FooterGroup {
++            name: "MENU",
++            items: vec![
++                FooterItem {
++                    key: "j/k",
++                    desc: "move",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "ENTER",
++                    desc: "select",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "Esc",
++                    desc: "close",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::SquashSelect => vec![FooterGroup {
++            name: "SQUASH",
++            items: vec![
++                FooterItem {
++                    key: "j/k",
++                    desc: "select",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "ENTER",
++                    desc: "confirm",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "Esc",
++                    desc: "cancel",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::RebaseSelect => vec![FooterGroup {
++            name: "REBASE",
++            items: vec![
++                FooterItem {
++                    key: "j/k",
++                    desc: "select target",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "ENTER",
++                    desc: "confirm",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "Esc",
++                    desc: "cancel",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::CommandPalette => vec![FooterGroup {
++            name: "COMMAND",
++            items: vec![
++                FooterItem {
++                    key: "ENTER",
++                    desc: "run",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "Esc",
++                    desc: "cancel",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "j/k",
++                    desc: "move",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "ctrl+n/p",
++                    desc: "move",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::Loading => vec![FooterGroup {
++            name: "LOADING",
++            items: vec![],
++        }],
++        AppMode::Help => vec![FooterGroup {
++            name: "HELP",
++            items: vec![FooterItem {
++                key: "q/Esc/?",
++                desc: "close",
++                highlighted: false,
++            }],
++        }],
++        AppMode::ThemeSelection => vec![FooterGroup {
++            name: "THEME",
++            items: vec![
++                FooterItem {
++                    key: "j/k",
++                    desc: "select",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "ENTER",
++                    desc: "apply",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "Esc",
++                    desc: "cancel",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::Evolog => vec![FooterGroup {
++            name: "EVOLOG",
++            items: vec![
++                FooterItem {
++                    key: "j/k",
++                    desc: "scroll",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "q/Esc",
++                    desc: "close",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::OperationLog => vec![FooterGroup {
++            name: "OP LOG",
++            items: vec![
++                FooterItem {
++                    key: "j/k",
++                    desc: "scroll",
++                    highlighted: false,
++                },
++                FooterItem {
++                    key: "q/Esc",
++                    desc: "close",
++                    highlighted: false,
++                },
++            ],
++        }],
++        AppMode::NoRepo => vec![
++            FooterGroup {
++                name: "INIT",
++                items: vec![FooterItem {
++                    key: "i/ENTER",
++                    desc: "initialize",
++                    highlighted: false,
++                }],
++            },
++            FooterGroup {
++                name: "APP",
++                items: vec![FooterItem {
++                    key: "q/Esc",
++                    desc: "quit",
++                    highlighted: false,
++                }],
++            },
++        ],
++    }
++}
+diff --git a/src/components/footer/mod.rs b/src/components/footer/mod.rs
+new file mode 100644
+index 0000000..ff653bd
+--- /dev/null
++++ b/src/components/footer/mod.rs
+@@ -0,0 +1,143 @@
++mod groups;
++mod types;
++
++use crate::app::state::AppState;
++use crate::theme::Theme;
++pub use types::{FooterGroup, FooterItem};
++
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    text::{Line, Span},
++    widgets::{Paragraph, Widget},
++};
++
++pub struct Footer<'a> {
++    pub state: &'a AppState<'a>,
++    pub theme: &'a Theme,
++}
++
++impl Widget for Footer<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let theme = self.theme;
++        let state = self.state;
++
++        // Active filter indicator
++        let filter_span = if let Some(revset) = &state.revset {
++            Span::styled(format!("  FILTER: {revset}  "), theme.header_warn)
++        } else {
++            Span::raw("")
++        };
++
++        // Status segment
++        let status_span = if let Some(err) = &state.last_error {
++            Span::styled(format!("  ERROR: {}  ", err.message), theme.status_error)
++        } else if let Some(msg) = &state.status_message {
++            Span::styled(format!("  {msg}  "), theme.status_info)
++        } else {
++            Span::styled("  READY  ", theme.status_ready)
++        };
++
++        let mut spans = vec![status_span, Span::raw(" ")];
++
++        // Show active filter badge
++        if !filter_span.content.is_empty() {
++            spans.push(filter_span);
++            spans.push(Span::raw(" "));
++        }
++
++        // Repo context (Workspace, WC & Operation)
++        if !state.workspace_id.is_empty() {
++            spans.push(Span::styled(
++                format!(" {} ", state.workspace_id),
++                theme.header_item,
++            ));
++            spans.push(Span::raw(" "));
++        }
++        spans.push(Span::styled(&state.header_state.wc_text, theme.header_item));
++        spans.push(Span::raw(" "));
++        spans.push(Span::styled(&state.header_state.op_text, theme.header_item));
++        spans.push(Span::raw(" "));
++
++        // Background tasks
++        if state.active_tasks.is_empty() {
++            spans.push(Span::raw("  "));
++        } else {
++            let tasks_text = format!(
++                " {} tasks: {} ",
++                state.spinner,
++                state.active_tasks.join(", ")
++            );
++            spans.push(Span::styled(tasks_text, theme.status_info));
++            spans.push(Span::raw("  "));
++        }
++
++        let groups = groups::get_groups(state);
++
++        let available_width = area.width.saturating_sub(4); // Margin
++        let mut current_width = spans
++            .iter()
++            .map(ratatui::prelude::Span::width)
++            .sum::<usize>();
++
++        for group in groups {
++            if group.items.is_empty() {
++                continue;
++            }
++
++            // Check if we can fit at least the first item of the group
++            let first_item = &group.items[0];
++            let first_item_width = first_item.key.len() + first_item.desc.len() + 4;
++
++            if current_width + first_item_width > available_width as usize {
++                break;
++            }
++
++            // Add group name as a subtle label if there's plenty of space
++            if area.width > 100 {
++                let group_label =
++                    Span::styled(format!("{}: ", group.name), theme.footer_group_name);
++                if current_width + group_label.width() + first_item_width < available_width as usize
++                {
++                    spans.push(group_label);
++                    current_width += group.name.len() + 2;
++                }
++            }
++
++            for item in group.items {
++                let key_str = format!(" {} ", item.key);
++                let desc_str = format!(" {} ", item.desc);
++
++                let item_width = key_str.len() + desc_str.len();
++                if current_width + item_width + 1 > available_width as usize {
++                    break;
++                }
++
++                let key_style = if item.highlighted {
++                    theme.header_active
++                } else {
++                    theme.footer_segment_key
++                };
++
++                let val_style = if item.highlighted {
++                    theme
++                        .header_active
++                        .add_modifier(ratatui::style::Modifier::DIM)
++                } else {
++                    theme.footer_segment_val
++                };
++
++                spans.push(Span::styled(key_str, key_style));
++                spans.push(Span::styled(desc_str, val_style));
++                spans.push(Span::raw(" "));
++                current_width += item_width + 1;
++            }
++            spans.push(Span::raw("  "));
++            current_width += 2;
++        }
++
++        Paragraph::new(Line::from(spans))
++            .style(theme.footer)
++            .render(area, buf);
++    }
++}
+diff --git a/src/components/footer/types.rs b/src/components/footer/types.rs
+new file mode 100644
+index 0000000..488933a
+--- /dev/null
++++ b/src/components/footer/types.rs
+@@ -0,0 +1,10 @@
++pub struct FooterItem {
++    pub key: &'static str,
++    pub desc: &'static str,
++    pub highlighted: bool,
++}
++
++pub struct FooterGroup {
++    pub name: &'static str,
++    pub items: Vec<FooterItem>,
++}
+diff --git a/src/components/modals.rs b/src/components/modals.rs
+deleted file mode 100644
+index b8fe542..0000000
+--- a/src/components/modals.rs
++++ /dev/null
+@@ -1,1034 +0,0 @@
+-use crate::app::state::{AppTextArea, ContextMenuState, ErrorSeverity, ErrorState};
+-use crate::theme::Theme;
+-use ratatui::{
+-    buffer::Buffer,
+-    layout::{Constraint, Direction, Layout, Rect},
+-    style::Color,
+-    text::{Line, Span},
+-    widgets::{
+-        Block, BorderType, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table, Widget,
+-    },
+-};
+-
+-pub struct HelpModal<'a> {
+-    pub theme: &'a Theme,
+-}
+-
+-impl Widget for HelpModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let help_area = centered_rect(70, 80, area);
+-        if help_area.width == 0 || help_area.height == 0 {
+-            return;
+-        }
+-        draw_drop_shadow(buf, help_area, area);
+-        Clear.render(help_area, buf);
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(" HELP - KEYBINDINGS ", self.theme.header_active),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Rounded)
+-            .border_style(self.theme.border_focus);
+-
+-        let key_style = self.theme.footer_segment_key;
+-        let desc_style = self.theme.list_item;
+-        let category_style = self.theme.header_item;
+-
+-        let rows = vec![
+-            // Navigation
+-            Row::new(vec![
+-                Cell::from(Span::styled("Navigation", category_style)),
+-                Cell::from(""),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" j / ↓", key_style)),
+-                Cell::from(Span::styled("Select next revision", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" k / ↑", key_style)),
+-                Cell::from(Span::styled("Select previous revision", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" Enter", key_style)),
+-                Cell::from(Span::styled("Toggle diff panel", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" Tab / l", key_style)),
+-                Cell::from(Span::styled("Focus diff panel", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" h", key_style)),
+-                Cell::from(Span::styled("Focus revision graph", desc_style)),
+-            ]),
+-            Row::new(vec![Cell::from(""), Cell::from("")]),
+-            // Operations
+-            Row::new(vec![
+-                Cell::from(Span::styled("Operations", category_style)),
+-                Cell::from(""),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" s", key_style)),
+-                Cell::from(Span::styled("Snapshot working copy", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" e", key_style)),
+-                Cell::from(Span::styled("Edit selected revision", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" n", key_style)),
+-                Cell::from(Span::styled("Create new child revision", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" d", key_style)),
+-                Cell::from(Span::styled("Describe revision", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" a", key_style)),
+-                Cell::from(Span::styled("Abandon revision", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" S", key_style)),
+-                Cell::from(Span::styled("Squash into parent", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" b", key_style)),
+-                Cell::from(Span::styled("Set bookmark", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" B", key_style)),
+-                Cell::from(Span::styled("Delete bookmark", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" u / U", key_style)),
+-                Cell::from(Span::styled("Undo / Redo", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" f / p", key_style)),
+-                Cell::from(Span::styled("Fetch / Push", desc_style)),
+-            ]),
+-            Row::new(vec![Cell::from(""), Cell::from("")]),
+-            // Filtering
+-            Row::new(vec![
+-                Cell::from(Span::styled("Filtering", category_style)),
+-                Cell::from(""),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" /", key_style)),
+-                Cell::from(Span::styled("Custom revset filter", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" m", key_style)),
+-                Cell::from(Span::styled("Filter: mine()", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" t", key_style)),
+-                Cell::from(Span::styled("Filter: trunk()", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" c", key_style)),
+-                Cell::from(Span::styled("Filter: conflicts()", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" C", key_style)),
+-                Cell::from(Span::styled("Clear active filter", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" Tab", key_style)),
+-                Cell::from(Span::styled(
+-                    "Toggle Recent/Presets (in / modal)",
+-                    desc_style,
+-                )),
+-            ]),
+-            Row::new(vec![Cell::from(""), Cell::from("")]),
+-            // General
+-            Row::new(vec![
+-                Cell::from(Span::styled("General", category_style)),
+-                Cell::from(""),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" ?", key_style)),
+-                Cell::from(Span::styled("Show this help", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" Esc", key_style)),
+-                Cell::from(Span::styled("Close modal / Clear errors", desc_style)),
+-            ]),
+-            Row::new(vec![
+-                Cell::from(Span::styled(" q", key_style)),
+-                Cell::from(Span::styled("Quit", desc_style)),
+-            ]),
+-        ];
+-
+-        let table = Table::new(
+-            rows,
+-            [Constraint::Percentage(30), Constraint::Percentage(70)],
+-        )
+-        .block(block);
+-
+-        table.render(help_area, buf);
+-    }
+-}
+-
+-pub struct TextInputModal<'a> {
+-    pub theme: &'a Theme,
+-    pub title: &'a str,
+-    pub text_area: &'a AppTextArea<'a>,
+-    pub height_percent: u16,
+-}
+-
+-impl Widget for TextInputModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let modal_area = if self.height_percent == 0 {
+-            centered_rect_fixed_height(60, 3, area)
+-        } else {
+-            centered_rect(60, self.height_percent, area)
+-        };
+-
+-        if modal_area.width == 0 || modal_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, modal_area, area);
+-        Clear.render(modal_area, buf);
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(self.title, self.theme.header_active),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Rounded)
+-            .border_style(self.theme.border_focus);
+-
+-        let inner_area = block.inner(modal_area);
+-        block.render(modal_area, buf);
+-
+-        let padded_area = if self.height_percent > 0 {
+-            Rect {
+-                x: inner_area.x + 1,
+-                y: inner_area.y + 1,
+-                width: inner_area.width.saturating_sub(2),
+-                height: inner_area.height.saturating_sub(2),
+-            }
+-        } else {
+-            inner_area
+-        };
+-
+-        if padded_area.width > 0 && padded_area.height > 0 {
+-            Widget::render(self.text_area, padded_area, buf);
+-        }
+-    }
+-}
+-
+-pub struct ContextMenuModal<'a> {
+-    pub theme: &'a Theme,
+-    pub state: &'a ContextMenuState,
+-}
+-
+-impl Widget for ContextMenuModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let menu_area = self.state.calculate_rect(area);
+-        if menu_area.width == 0 || menu_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, menu_area, area);
+-        Clear.render(menu_area, buf);
+-
+-        let items: Vec<ListItem> = self
+-            .state
+-            .actions
+-            .iter()
+-            .enumerate()
+-            .map(|(i, (name, _))| {
+-                if i == self.state.selected_index {
+-                    ListItem::new(format!("> {name}")).style(self.theme.list_selected)
+-                } else {
+-                    ListItem::new(format!("  {name}")).style(self.theme.list_item)
+-                }
+-            })
+-            .collect();
+-
+-        let list = List::new(items).block(
+-            Block::default()
+-                .borders(Borders::ALL)
+-                .border_type(BorderType::Rounded)
+-                .border_style(self.theme.border_focus),
+-        );
+-        list.render(menu_area, buf);
+-    }
+-}
+-
+-pub struct CommandPaletteModal<'a> {
+-    pub theme: &'a Theme,
+-    pub state: &'a crate::app::state::CommandPaletteState,
+-}
+-
+-impl Widget for CommandPaletteModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let modal_area = centered_rect(60, 40, area);
+-        if modal_area.width == 0 || modal_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, modal_area, area);
+-        Clear.render(modal_area, buf);
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(" COMMAND PALETTE ", self.theme.header_active),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Rounded)
+-            .border_style(self.theme.border_focus);
+-
+-        let inner_area = block.inner(modal_area);
+-        block.render(modal_area, buf);
+-
+-        let layout = Layout::default()
+-            .direction(Direction::Vertical)
+-            .constraints([
+-                Constraint::Length(1), // Query input
+-                Constraint::Length(1), // Separator
+-                Constraint::Min(0),    // Results
+-            ])
+-            .split(inner_area);
+-
+-        // Render Query
+-        let query_line = Line::from(vec![
+-            Span::styled(" > ", self.theme.footer_segment_key),
+-            Span::styled(&self.state.query, self.theme.footer_segment_val),
+-            Span::styled(
+-                "_",
+-                self.theme
+-                    .footer_segment_val
+-                    .add_modifier(ratatui::style::Modifier::SLOW_BLINK),
+-            ),
+-        ]);
+-        buf.set_line(layout[0].x, layout[0].y, &query_line, layout[0].width);
+-
+-        // Render Separator
+-        let separator = "─".repeat(layout[1].width as usize);
+-        buf.set_string(layout[1].x, layout[1].y, separator, self.theme.border_focus);
+-
+-        // Render Results
+-        let commands = crate::app::command_palette::get_commands();
+-        let items: Vec<ListItem> = self
+-            .state
+-            .matches
+-            .iter()
+-            .enumerate()
+-            .map(|(i, &cmd_idx)| {
+-                let cmd = &commands[cmd_idx];
+-                let style = if i == self.state.selected_index {
+-                    self.theme.list_selected
+-                } else {
+-                    self.theme.list_item
+-                };
+-
+-                let prefix = if i == self.state.selected_index {
+-                    "> "
+-                } else {
+-                    "  "
+-                };
+-
+-                ListItem::new(Line::from(vec![
+-                    Span::styled(prefix, style),
+-                    Span::styled(format!("{:<15}", cmd.name), style),
+-                    Span::styled(
+-                        format!(" - {}", cmd.description),
+-                        self.theme
+-                            .list_item
+-                            .add_modifier(ratatui::style::Modifier::DIM),
+-                    ),
+-                ]))
+-            })
+-            .collect();
+-
+-        if items.is_empty() {
+-            let no_results = Line::from(vec![Span::styled(
+-                "  No commands found.",
+-                self.theme
+-                    .list_item
+-                    .add_modifier(ratatui::style::Modifier::DIM),
+-            )]);
+-            buf.set_line(layout[2].x, layout[2].y + 1, &no_results, layout[2].width);
+-        } else {
+-            let list = List::new(items);
+-            list.render(layout[2], buf);
+-        }
+-    }
+-}
+-
+-pub struct ThemeSelectionModal<'a> {
+-    pub theme: &'a Theme,
+-    pub state: &'a crate::app::state::ThemeSelectionState,
+-}
+-
+-impl Widget for ThemeSelectionModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let modal_area = centered_rect(40, 30, area);
+-        if modal_area.width == 0 || modal_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, modal_area, area);
+-        Clear.render(modal_area, buf);
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(" SELECT THEME ", self.theme.header_active),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Rounded)
+-            .border_style(self.theme.border_focus);
+-
+-        let items: Vec<ListItem> = self
+-            .state
+-            .themes
+-            .iter()
+-            .enumerate()
+-            .map(|(i, palette)| {
+-                let style = if i == self.state.selected_index {
+-                    self.theme.list_selected
+-                } else {
+-                    self.theme.list_item
+-                };
+-
+-                let prefix = if i == self.state.selected_index {
+-                    "> "
+-                } else {
+-                    "  "
+-                };
+-
+-                ListItem::new(Line::from(vec![
+-                    Span::styled(prefix, style),
+-                    Span::styled(palette.label(), style),
+-                ]))
+-            })
+-            .collect();
+-
+-        let list = List::new(items).block(block);
+-        list.render(modal_area, buf);
+-    }
+-}
+-
+-pub struct EvologModal<'a> {
+-    pub theme: &'a Theme,
+-    pub state: &'a crate::app::state::EvologState,
+-}
+-
+-impl Widget for EvologModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let modal_area = centered_rect(80, 80, area);
+-        if modal_area.width == 0 || modal_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, modal_area, area);
+-        Clear.render(modal_area, buf);
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(" EVOLUTION LOG ", self.theme.header_active),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Rounded)
+-            .border_style(self.theme.border_focus);
+-
+-        let inner_area = block.inner(modal_area);
+-        block.render(modal_area, buf);
+-
+-        let lines: Vec<ListItem> = self
+-            .state
+-            .content
+-            .iter()
+-            .map(|l: &String| ListItem::new(l.as_str()).style(self.theme.list_item))
+-            .collect();
+-
+-        let mut list_state = ratatui::widgets::ListState::default();
+-        list_state.select(Some(self.state.scroll as usize));
+-
+-        let list = List::new(lines);
+-        ratatui::widgets::StatefulWidget::render(list, inner_area, buf, &mut list_state);
+-
+-        // Render scroll hint/footer
+-        let hint_area = Rect::new(
+-            modal_area.x,
+-            modal_area.y + modal_area.height - 1,
+-            modal_area.width,
+-            1,
+-        );
+-        let hint = Line::from(vec![
+-            Span::raw(" Press "),
+-            Span::styled("Esc", self.theme.footer_segment_key),
+-            Span::raw(" to close | "),
+-            Span::styled("j/k", self.theme.footer_segment_key),
+-            Span::raw(" to scroll "),
+-        ]);
+-        let hint_paragraph = Paragraph::new(hint).alignment(ratatui::layout::Alignment::Center);
+-        hint_paragraph.render(hint_area, buf);
+-    }
+-}
+-
+-pub struct OperationLogModal<'a> {
+-    pub theme: &'a Theme,
+-    pub state: &'a crate::app::state::OperationLogState,
+-}
+-
+-impl Widget for OperationLogModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let modal_area = centered_rect(80, 80, area);
+-        if modal_area.width == 0 || modal_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, modal_area, area);
+-        Clear.render(modal_area, buf);
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(" OPERATION LOG ", self.theme.header_active),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Rounded)
+-            .border_style(self.theme.border_focus);
+-
+-        let inner_area = block.inner(modal_area);
+-        block.render(modal_area, buf);
+-
+-        let lines: Vec<ListItem> = self
+-            .state
+-            .content
+-            .iter()
+-            .map(|l: &String| ListItem::new(l.as_str()).style(self.theme.list_item))
+-            .collect();
+-
+-        let mut list_state = ratatui::widgets::ListState::default();
+-        list_state.select(Some(self.state.scroll as usize));
+-
+-        let list = List::new(lines);
+-        ratatui::widgets::StatefulWidget::render(list, inner_area, buf, &mut list_state);
+-
+-        // Render scroll hint/footer
+-        let hint_area = Rect::new(
+-            modal_area.x,
+-            modal_area.y + modal_area.height - 1,
+-            modal_area.width,
+-            1,
+-        );
+-        let hint = Line::from(vec![
+-            Span::raw(" Press "),
+-            Span::styled("Esc", self.theme.footer_segment_key),
+-            Span::raw(" to close | "),
+-            Span::styled("j/k", self.theme.footer_segment_key),
+-            Span::raw(" to scroll "),
+-        ]);
+-        let hint_paragraph = Paragraph::new(hint).alignment(ratatui::layout::Alignment::Center);
+-        hint_paragraph.render(hint_area, buf);
+-    }
+-}
+-
+-pub struct ErrorModal<'a> {
+-    pub theme: &'a Theme,
+-    pub error: &'a ErrorState,
+-}
+-
+-impl Widget for ErrorModal<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        let modal_area = centered_rect(60, 20, area);
+-        if modal_area.width == 0 || modal_area.height == 0 {
+-            return;
+-        }
+-
+-        draw_drop_shadow(buf, modal_area, area);
+-        Clear.render(modal_area, buf);
+-
+-        let (title_text, title_style, icon) = match self.error.severity {
+-            ErrorSeverity::Info => (" INFO ", self.theme.header_item, "󰋼"),
+-            ErrorSeverity::Warning => (" WARNING ", self.theme.header_warn, "󱈸"),
+-            ErrorSeverity::Error => (" ERROR ", self.theme.status_error, "󰅚"),
+-            ErrorSeverity::Critical => (" CRITICAL ", self.theme.status_error, "󰀦"),
+-        };
+-
+-        let block = Block::default()
+-            .title(Line::from(vec![
+-                Span::raw(" "),
+-                Span::styled(title_text, title_style),
+-                Span::raw(" "),
+-            ]))
+-            .borders(Borders::ALL)
+-            .border_type(BorderType::Double)
+-            .border_style(title_style);
+-
+-        let timestamp = self.error.timestamp.format("%H:%M:%S").to_string();
+-
+-        let mut text_lines = vec![
+-            Line::from(""),
+-            Line::from(vec![
+-                Span::styled(format!("{icon} "), title_style),
+-                Span::styled(&self.error.message, self.theme.footer_segment_val),
+-            ]),
+-            Line::from(vec![Span::styled(
+-                format!("Occurred at: {timestamp}"),
+-                self.theme.list_item,
+-            )]),
+-            Line::from(""),
+-        ];
+-
+-        if !self.error.suggestions.is_empty() {
+-            text_lines.push(Line::from(Span::styled(
+-                "Suggestions:",
+-                self.theme.header_item,
+-            )));
+-            for suggestion in &self.error.suggestions {
+-                text_lines.push(Line::from(vec![
+-                    Span::styled("  • ", self.theme.header_item),
+-                    Span::styled(suggestion, self.theme.footer_segment_key),
+-                ]));
+-            }
+-            text_lines.push(Line::from(""));
+-        }
+-
+-        text_lines.push(Line::from(vec![
+-            Span::raw(" Press "),
+-            Span::styled("Esc", self.theme.footer_segment_key),
+-            Span::raw(" to acknowledge "),
+-        ]));
+-
+-        let paragraph = Paragraph::new(text_lines)
+-            .alignment(ratatui::layout::Alignment::Center)
+-            .block(block);
+-
+-        paragraph.render(modal_area, buf);
+-    }
+-}
+-
+-pub struct ModalManager<'a> {
+-    pub theme: &'a Theme,
+-    pub app_state: &'a crate::app::state::AppState<'a>,
+-}
+-
+-impl Widget for ModalManager<'_> {
+-    fn render(self, area: Rect, buf: &mut Buffer) {
+-        use crate::app::state::AppMode;
+-
+-        // --- Visual Dimming ---
+-        let is_modal_active = !matches!(
+-            self.app_state.mode,
+-            AppMode::Normal | AppMode::Diff | AppMode::NoRepo | AppMode::Loading
+-        ) || self.app_state.last_error.is_some();
+-
+-        if is_modal_active {
+-            dim_area(buf, area);
+-        }
+-
+-        // --- Modals ---
+-        if self.app_state.mode == AppMode::Help {
+-            HelpModal { theme: self.theme }.render(area, buf);
+-        }
+-
+-        // --- Input Modals (Describe, Bookmark, Filter) ---
+-        match self.app_state.mode {
+-            AppMode::Input | AppMode::BookmarkInput => {
+-                if let Some(input) = &self.app_state.input {
+-                    let title = if self.app_state.mode == AppMode::BookmarkInput {
+-                        " SET BOOKMARK "
+-                    } else if self.app_state.mode == AppMode::RebaseInput {
+-                        " REBASE DESTINATION "
+-                    } else {
+-                        " DESCRIBE REVISION "
+-                    };
+-                    TextInputModal {
+-                        theme: self.theme,
+-                        title,
+-                        text_area: &input.text_area,
+-                        height_percent: 20,
+-                    }
+-                    .render(area, buf);
+-                }
+-            }
+-            AppMode::RebaseSelect => {
+-                let modal_area = centered_rect_fixed_height(80, 5, area);
+-                draw_drop_shadow(buf, modal_area, area);
+-                Clear.render(modal_area, buf);
+-                let block = Block::default()
+-                    .title(Line::from(vec![
+-                        Span::raw(" "),
+-                        Span::styled(" SELECT REBASE DESTINATION ", self.theme.header_active),
+-                        Span::raw(" "),
+-                    ]))
+-                    .borders(Borders::ALL)
+-                    .border_type(BorderType::Rounded)
+-                    .border_style(self.theme.border_focus);
+-                let text = vec![
+-                    Line::from("Select the destination revision in the log and press Enter."),
+-                    Line::from("Or press Esc to cancel."),
+-                ];
+-                Paragraph::new(text)
+-                    .alignment(ratatui::layout::Alignment::Center)
+-                    .block(block)
+-                    .render(modal_area, buf);
+-            }
+-            AppMode::FilterInput => {
+-                if let Some(input) = &self.app_state.input {
+-                    let modal_area = centered_rect(80, 80, area);
+-                    draw_drop_shadow(buf, modal_area, area);
+-                    Clear.render(modal_area, buf);
+-
+-                    // Title with active filter indicator
+-                    let title_spans = if let Some(active) = &self.app_state.revset {
+-                        vec![
+-                            Span::raw(" "),
+-                            Span::styled(" FILTER (REVSET) ", self.theme.header_active),
+-                            Span::raw(" "),
+-                            Span::styled(format!(" Active: {active} "), self.theme.header_warn),
+-                            Span::raw(" "),
+-                        ]
+-                    } else {
+-                        vec![
+-                            Span::raw(" "),
+-                            Span::styled(" FILTER (REVSET) ", self.theme.header_active),
+-                            Span::raw(" "),
+-                        ]
+-                    };
+-
+-                    let block = Block::default()
+-                        .title(Line::from(title_spans))
+-                        .borders(Borders::ALL)
+-                        .border_type(BorderType::Rounded)
+-                        .border_style(self.theme.border_focus);
+-
+-                    let inner_area = block.inner(modal_area);
+-                    block.render(modal_area, buf);
+-
+-                    // Layout: Input | Separator | Lists side-by-side | Separator | Reference | Hints
+-                    let main_layout = Layout::default()
+-                        .direction(Direction::Vertical)
+-                        .constraints([
+-                            Constraint::Length(1), // Input
+-                            Constraint::Length(1), // Separator
+-                            Constraint::Length(8), // Recent + Preset lists
+-                            Constraint::Length(1), // Separator
+-                            Constraint::Min(0),    // Reference
+-                            Constraint::Length(1), // Hint bar
+-                        ])
+-                        .split(inner_area);
+-
+-                    // Render Input
+-                    Widget::render(&input.text_area, main_layout[0], buf);
+-
+-                    // Separator
+-                    let separator = "─".repeat(main_layout[1].width as usize);
+-                    buf.set_string(
+-                        main_layout[1].x,
+-                        main_layout[1].y,
+-                        separator,
+-                        self.theme.border_focus,
+-                    );
+-
+-                    // Side-by-side: Recent Filters | Preset Filters
+-                    let list_layout = Layout::default()
+-                        .direction(Direction::Horizontal)
+-                        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+-                        .split(main_layout[2]);
+-
+-                    let recent_style = if !self.app_state.is_selecting_presets {
+-                        self.theme.header_active
+-                    } else {
+-                        self.theme.header_item
+-                    };
+-
+-                    let recent_items: Vec<ListItem> = self
+-                        .app_state
+-                        .recent_filters
+-                        .iter()
+-                        .enumerate()
+-                        .map(|(i, f)| {
+-                            let is_selected = Some(i) == self.app_state.selected_filter_index
+-                                && !self.app_state.is_selecting_presets;
+-                            let style = if is_selected {
+-                                self.theme.list_selected
+-                            } else {
+-                                self.theme.list_item
+-                            };
+-                            let prefix = if is_selected { "▸ " } else { "  " };
+-                            ListItem::new(format!("{prefix}{f}")).style(style)
+-                        })
+-                        .collect();
+-
+-                    let recent_list = List::new(recent_items).block(
+-                        Block::default()
+-                            .title(Span::styled(" Recent ◂Tab▸ ", recent_style))
+-                            .borders(Borders::RIGHT),
+-                    );
+-                    recent_list.render(list_layout[0], buf);
+-
+-                    let preset_style = if self.app_state.is_selecting_presets {
+-                        self.theme.header_active
+-                    } else {
+-                        self.theme.header_item
+-                    };
+-
+-                    let preset_items: Vec<ListItem> = self
+-                        .app_state
+-                        .preset_filters
+-                        .iter()
+-                        .enumerate()
+-                        .map(|(i, f)| {
+-                            let is_selected = Some(i) == self.app_state.selected_filter_index
+-                                && self.app_state.is_selecting_presets;
+-                            let style = if is_selected {
+-                                self.theme.list_selected
+-                            } else {
+-                                self.theme.list_item
+-                            };
+-                            let prefix = if is_selected { "▸ " } else { "  " };
+-                            ListItem::new(format!("{prefix}{f}")).style(style)
+-                        })
+-                        .collect();
+-
+-                    let preset_list = List::new(preset_items).block(
+-                        Block::default()
+-                            .title(Span::styled(" Presets ◂Tab▸ ", preset_style))
+-                            .borders(Borders::NONE),
+-                    );
+-                    preset_list.render(list_layout[1], buf);
+-
+-                    // Separator
+-                    let separator = "─".repeat(main_layout[3].width as usize);
+-                    buf.set_string(
+-                        main_layout[3].x,
+-                        main_layout[3].y,
+-                        separator,
+-                        self.theme.border_focus,
+-                    );
+-
+-                    // Render Categorized Revset Reference
+-                    let reference = crate::app::state::get_revset_reference();
+-                    let ref_area = main_layout[4];
+-
+-                    // Split reference into columns for better use of horizontal space
+-                    let ref_cols = Layout::default()
+-                        .direction(Direction::Horizontal)
+-                        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+-                        .split(ref_area);
+-
+-                    let half = reference.len().div_ceil(2);
+-                    let left_cats = &reference[..half.min(reference.len())];
+-                    let right_cats = if half < reference.len() {
+-                        &reference[half..]
+-                    } else {
+-                        &[]
+-                    };
+-
+-                    render_revset_categories(buf, ref_cols[0], left_cats, self.theme);
+-                    render_revset_categories(buf, ref_cols[1], right_cats, self.theme);
+-
+-                    // Hint bar
+-                    let hints = Line::from(vec![
+-                        Span::styled(" Tab", self.theme.footer_segment_key),
+-                        Span::styled(" Toggle  ", self.theme.list_item),
+-                        Span::styled("↑↓", self.theme.footer_segment_key),
+-                        Span::styled(" Navigate  ", self.theme.list_item),
+-                        Span::styled("Enter", self.theme.footer_segment_key),
+-                        Span::styled(" Apply  ", self.theme.list_item),
+-                        Span::styled("Esc", self.theme.footer_segment_key),
+-                        Span::styled(" Cancel", self.theme.list_item),
+-                    ]);
+-                    buf.set_line(
+-                        main_layout[5].x,
+-                        main_layout[5].y,
+-                        &hints,
+-                        main_layout[5].width,
+-                    );
+-                }
+-            }
+-            _ => {}
+-        }
+-
+-        // --- Context Menu Popup ---
+-        if let (AppMode::ContextMenu, Some(menu)) =
+-            (self.app_state.mode, &self.app_state.context_menu)
+-        {
+-            ContextMenuModal {
+-                theme: self.theme,
+-                state: menu,
+-            }
+-            .render(area, buf);
+-        }
+-
+-        // --- Command Palette ---
+-        if let (AppMode::CommandPalette, Some(cp)) =
+-            (self.app_state.mode, &self.app_state.command_palette)
+-        {
+-            CommandPaletteModal {
+-                theme: self.theme,
+-                state: cp,
+-            }
+-            .render(area, buf);
+-        }
+-
+-        // --- Theme Selection ---
+-        if let (AppMode::ThemeSelection, Some(ts)) =
+-            (self.app_state.mode, &self.app_state.theme_selection)
+-        {
+-            ThemeSelectionModal {
+-                theme: self.theme,
+-                state: ts,
+-            }
+-            .render(area, buf);
+-        }
+-
+-        // --- Evolog ---
+-        if let (AppMode::Evolog, Some(ev)) = (self.app_state.mode, &self.app_state.evolog_state) {
+-            EvologModal {
+-                theme: self.theme,
+-                state: ev,
+-            }
+-            .render(area, buf);
+-        }
+-
+-        // --- Operation Log ---
+-        if let (AppMode::OperationLog, Some(op)) =
+-            (self.app_state.mode, &self.app_state.operation_log_state)
+-        {
+-            OperationLogModal {
+-                theme: self.theme,
+-                state: op,
+-            }
+-            .render(area, buf);
+-        }
+-
+-        // --- Error Modal ---
+-        if let Some(err) = &self.app_state.last_error {
+-            ErrorModal {
+-                theme: self.theme,
+-                error: err,
+-            }
+-            .render(area, buf);
+-        }
+-    }
+-}
+-
+-pub fn dim_area(buf: &mut Buffer, area: Rect) {
+-    for y in area.top()..area.bottom() {
+-        for x in area.left()..area.right() {
+-            let cell = &mut buf[(x, y)];
+-            cell.set_style(cell.style().add_modifier(ratatui::style::Modifier::DIM));
+-        }
+-    }
+-}
+-
+-// Helper functions extracted from ui.rs
+-
+-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+-    let popup_layout = Layout::default()
+-        .direction(Direction::Vertical)
+-        .constraints([
+-            Constraint::Percentage(100u16.saturating_sub(percent_y) / 2),
+-            Constraint::Percentage(percent_y.min(100)),
+-            Constraint::Percentage(100u16.saturating_sub(percent_y) / 2),
+-        ])
+-        .split(r);
+-
+-    Layout::default()
+-        .direction(Direction::Horizontal)
+-        .constraints([
+-            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
+-            Constraint::Percentage(percent_x.min(100)),
+-            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
+-        ])
+-        .split(popup_layout[1])[1]
+-}
+-
+-fn centered_rect_fixed_height(percent_x: u16, height: u16, r: Rect) -> Rect {
+-    let popup_layout = Layout::default()
+-        .direction(Direction::Vertical)
+-        .constraints([
+-            Constraint::Length(r.height.saturating_sub(height) / 2),
+-            Constraint::Length(height.min(r.height)),
+-            Constraint::Min(0),
+-        ])
+-        .split(r);
+-
+-    Layout::default()
+-        .direction(Direction::Horizontal)
+-        .constraints([
+-            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
+-            Constraint::Percentage(percent_x.min(100)),
+-            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
+-        ])
+-        .split(popup_layout[1])[1]
+-}
+-
+-fn draw_drop_shadow(buf: &mut Buffer, area: Rect, terminal_area: Rect) {
+-    let shadow_area = Rect {
+-        x: area.x + 1,
+-        y: area.y + 1,
+-        width: area.width,
+-        height: area.height,
+-    };
+-
+-    let shadow_area = shadow_area.intersection(terminal_area);
+-
+-    for y in shadow_area.top()..shadow_area.bottom() {
+-        for x in shadow_area.left()..shadow_area.right() {
+-            let cell = &mut buf[(x, y)];
+-            cell.set_style(ratatui::style::Style::default().bg(Color::Black));
+-            cell.set_symbol(" ");
+-        }
+-    }
+-}
+-
+-fn render_revset_categories(
+-    buf: &mut Buffer,
+-    area: Rect,
+-    categories: &[crate::app::state::RevsetCategory],
+-    theme: &Theme,
+-) {
+-    let mut y = area.y;
+-    let max_y = area.y + area.height;
+-
+-    for cat in categories {
+-        if y >= max_y {
+-            break;
+-        }
+-
+-        // Category header
+-        let header = Line::from(Span::styled(format!(" {} ", cat.name), theme.header_item));
+-        buf.set_line(area.x, y, &header, area.width);
+-        y += 1;
+-
+-        // Entries
+-        for entry in &cat.entries {
+-            if y >= max_y {
+-                break;
+-            }
+-            let line = Line::from(vec![
+-                Span::styled(format!("  {:<22}", entry.name), theme.footer_segment_key),
+-                Span::styled(
+-                    entry.description,
+-                    theme.list_item.add_modifier(ratatui::style::Modifier::DIM),
+-                ),
+-            ]);
+-            buf.set_line(area.x, y, &line, area.width);
+-            y += 1;
+-        }
+-
+-        // Spacing between categories
+-        y += 1;
+-    }
+-}
+diff --git a/src/components/modals/command_palette.rs b/src/components/modals/command_palette.rs
+new file mode 100644
+index 0000000..78397de
+--- /dev/null
++++ b/src/components/modals/command_palette.rs
+@@ -0,0 +1,112 @@
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::{Constraint, Direction, Layout, Rect},
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Widget},
++};
++
++use super::helpers::{centered_rect, draw_drop_shadow};
++
++pub struct CommandPaletteModal<'a> {
++    pub theme: &'a Theme,
++    pub state: &'a crate::app::state::CommandPaletteState,
++}
++
++impl Widget for CommandPaletteModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let modal_area = centered_rect(60, 40, area);
++        if modal_area.width == 0 || modal_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, modal_area, area);
++        Clear.render(modal_area, buf);
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(" COMMAND PALETTE ", self.theme.header_active),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Rounded)
++            .border_style(self.theme.border_focus);
++
++        let inner_area = block.inner(modal_area);
++        block.render(modal_area, buf);
++
++        let layout = Layout::default()
++            .direction(Direction::Vertical)
++            .constraints([
++                Constraint::Length(1), // Query input
++                Constraint::Length(1), // Separator
++                Constraint::Min(0),    // Results
++            ])
++            .split(inner_area);
++
++        // Render Query
++        let query_line = Line::from(vec![
++            Span::styled(" > ", self.theme.footer_segment_key),
++            Span::styled(&self.state.query, self.theme.footer_segment_val),
++            Span::styled(
++                "_",
++                self.theme
++                    .footer_segment_val
++                    .add_modifier(ratatui::style::Modifier::SLOW_BLINK),
++            ),
++        ]);
++        buf.set_line(layout[0].x, layout[0].y, &query_line, layout[0].width);
++
++        // Render Separator
++        let separator = "─".repeat(layout[1].width as usize);
++        buf.set_string(layout[1].x, layout[1].y, separator, self.theme.border_focus);
++
++        // Render Results
++        let commands = crate::app::command_palette::get_commands();
++        let items: Vec<ListItem> = self
++            .state
++            .matches
++            .iter()
++            .enumerate()
++            .map(|(i, &cmd_idx)| {
++                let cmd = &commands[cmd_idx];
++                let style = if i == self.state.selected_index {
++                    self.theme.list_selected
++                } else {
++                    self.theme.list_item
++                };
++
++                let prefix = if i == self.state.selected_index {
++                    "> "
++                } else {
++                    "  "
++                };
++
++                ListItem::new(Line::from(vec![
++                    Span::styled(prefix, style),
++                    Span::styled(format!("{:<15}", cmd.name), style),
++                    Span::styled(
++                        format!(" - {}", cmd.description),
++                        self.theme
++                            .list_item
++                            .add_modifier(ratatui::style::Modifier::DIM),
++                    ),
++                ]))
++            })
++            .collect();
++
++        if items.is_empty() {
++            let no_results = Line::from(vec![Span::styled(
++                "  No commands found.",
++                self.theme
++                    .list_item
++                    .add_modifier(ratatui::style::Modifier::DIM),
++            )]);
++            buf.set_line(layout[2].x, layout[2].y + 1, &no_results, layout[2].width);
++        } else {
++            let list = List::new(items);
++            list.render(layout[2], buf);
++        }
++    }
++}
+diff --git a/src/components/modals/context_menu.rs b/src/components/modals/context_menu.rs
+new file mode 100644
+index 0000000..e6dddbd
+--- /dev/null
++++ b/src/components/modals/context_menu.rs
+@@ -0,0 +1,48 @@
++use crate::app::state::ContextMenuState;
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Widget},
++};
++
++use super::helpers::draw_drop_shadow;
++
++pub struct ContextMenuModal<'a> {
++    pub theme: &'a Theme,
++    pub state: &'a ContextMenuState,
++}
++
++impl Widget for ContextMenuModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let menu_area = self.state.calculate_rect(area);
++        if menu_area.width == 0 || menu_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, menu_area, area);
++        Clear.render(menu_area, buf);
++
++        let items: Vec<ListItem> = self
++            .state
++            .actions
++            .iter()
++            .enumerate()
++            .map(|(i, (name, _))| {
++                if i == self.state.selected_index {
++                    ListItem::new(format!("> {name}")).style(self.theme.list_selected)
++                } else {
++                    ListItem::new(format!("  {name}")).style(self.theme.list_item)
++                }
++            })
++            .collect();
++
++        let list = List::new(items).block(
++            Block::default()
++                .borders(Borders::ALL)
++                .border_type(BorderType::Rounded)
++                .border_style(self.theme.border_focus),
++        );
++        list.render(menu_area, buf);
++    }
++}
+diff --git a/src/components/modals/error.rs b/src/components/modals/error.rs
+new file mode 100644
+index 0000000..2bb996d
+--- /dev/null
++++ b/src/components/modals/error.rs
+@@ -0,0 +1,85 @@
++use crate::app::state::{ErrorSeverity, ErrorState};
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, Paragraph, Widget},
++};
++
++use super::helpers::{centered_rect, draw_drop_shadow};
++
++pub struct ErrorModal<'a> {
++    pub theme: &'a Theme,
++    pub error: &'a ErrorState,
++}
++
++impl Widget for ErrorModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let modal_area = centered_rect(60, 20, area);
++        if modal_area.width == 0 || modal_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, modal_area, area);
++        Clear.render(modal_area, buf);
++
++        let (title_text, title_style, icon) = match self.error.severity {
++            ErrorSeverity::Info => (" INFO ", self.theme.header_item, "󰋼"),
++            ErrorSeverity::Warning => (" WARNING ", self.theme.header_warn, "󱈸"),
++            ErrorSeverity::Error => (" ERROR ", self.theme.status_error, "󰅚"),
++            ErrorSeverity::Critical => (" CRITICAL ", self.theme.status_error, "󰀦"),
++        };
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(title_text, title_style),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Double)
++            .border_style(title_style);
++
++        let timestamp = self.error.timestamp.format("%H:%M:%S").to_string();
++
++        let mut text_lines = vec![
++            Line::from(""),
++            Line::from(vec![
++                Span::styled(format!("{icon} "), title_style),
++                Span::styled(&self.error.message, self.theme.footer_segment_val),
++            ]),
++            Line::from(vec![Span::styled(
++                format!("Occurred at: {timestamp}"),
++                self.theme.list_item,
++            )]),
++            Line::from(""),
++        ];
++
++        if !self.error.suggestions.is_empty() {
++            text_lines.push(Line::from(Span::styled(
++                "Suggestions:",
++                self.theme.header_item,
++            )));
++            for suggestion in &self.error.suggestions {
++                text_lines.push(Line::from(vec![
++                    Span::styled("  • ", self.theme.header_item),
++                    Span::styled(suggestion, self.theme.footer_segment_key),
++                ]));
++            }
++            text_lines.push(Line::from(""));
++        }
++
++        text_lines.push(Line::from(vec![
++            Span::raw(" Press "),
++            Span::styled("Esc", self.theme.footer_segment_key),
++            Span::raw(" to acknowledge "),
++        ]));
++
++        let paragraph = Paragraph::new(text_lines)
++            .alignment(ratatui::layout::Alignment::Center)
++            .block(block);
++
++        paragraph.render(modal_area, buf);
++    }
++}
+diff --git a/src/components/modals/evolog.rs b/src/components/modals/evolog.rs
+new file mode 100644
+index 0000000..d4ead9f
+--- /dev/null
++++ b/src/components/modals/evolog.rs
+@@ -0,0 +1,69 @@
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Widget},
++};
++
++use super::helpers::{centered_rect, draw_drop_shadow};
++
++pub struct EvologModal<'a> {
++    pub theme: &'a Theme,
++    pub state: &'a crate::app::state::EvologState,
++}
++
++impl Widget for EvologModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let modal_area = centered_rect(80, 80, area);
++        if modal_area.width == 0 || modal_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, modal_area, area);
++        Clear.render(modal_area, buf);
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(" EVOLUTION LOG ", self.theme.header_active),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Rounded)
++            .border_style(self.theme.border_focus);
++
++        let inner_area = block.inner(modal_area);
++        block.render(modal_area, buf);
++
++        let lines: Vec<ListItem> = self
++            .state
++            .content
++            .iter()
++            .map(|l: &String| ListItem::new(l.as_str()).style(self.theme.list_item))
++            .collect();
++
++        let mut list_state = ratatui::widgets::ListState::default();
++        list_state.select(Some(self.state.scroll as usize));
++
++        let list = List::new(lines);
++        ratatui::widgets::StatefulWidget::render(list, inner_area, buf, &mut list_state);
++
++        // Render scroll hint/footer
++        let hint_area = Rect::new(
++            modal_area.x,
++            modal_area.y + modal_area.height - 1,
++            modal_area.width,
++            1,
++        );
++        let hint = Line::from(vec![
++            Span::raw(" Press "),
++            Span::styled("Esc", self.theme.footer_segment_key),
++            Span::raw(" to close | "),
++            Span::styled("j/k", self.theme.footer_segment_key),
++            Span::raw(" to scroll "),
++        ]);
++        let hint_paragraph = Paragraph::new(hint).alignment(ratatui::layout::Alignment::Center);
++        hint_paragraph.render(hint_area, buf);
++    }
++}
+diff --git a/src/components/modals/help.rs b/src/components/modals/help.rs
+new file mode 100644
+index 0000000..c05b830
+--- /dev/null
++++ b/src/components/modals/help.rs
+@@ -0,0 +1,171 @@
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::{Constraint, Rect},
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Cell, Clear, Row, Table, Widget},
++};
++
++use super::helpers::{centered_rect, draw_drop_shadow};
++
++pub struct HelpModal<'a> {
++    pub theme: &'a Theme,
++}
++
++impl Widget for HelpModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let help_area = centered_rect(70, 80, area);
++        if help_area.width == 0 || help_area.height == 0 {
++            return;
++        }
++        draw_drop_shadow(buf, help_area, area);
++        Clear.render(help_area, buf);
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(" HELP - KEYBINDINGS ", self.theme.header_active),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Rounded)
++            .border_style(self.theme.border_focus);
++
++        let key_style = self.theme.footer_segment_key;
++        let desc_style = self.theme.list_item;
++        let category_style = self.theme.header_item;
++
++        let rows = vec![
++            // Navigation
++            Row::new(vec![
++                Cell::from(Span::styled("Navigation", category_style)),
++                Cell::from(""),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" j / \u{2193}", key_style)),
++                Cell::from(Span::styled("Select next revision", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" k / \u{2191}", key_style)),
++                Cell::from(Span::styled("Select previous revision", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" Enter", key_style)),
++                Cell::from(Span::styled("Toggle diff panel", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" Tab / l", key_style)),
++                Cell::from(Span::styled("Focus diff panel", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" h", key_style)),
++                Cell::from(Span::styled("Focus revision graph", desc_style)),
++            ]),
++            Row::new(vec![Cell::from(""), Cell::from("")]),
++            // Operations
++            Row::new(vec![
++                Cell::from(Span::styled("Operations", category_style)),
++                Cell::from(""),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" s", key_style)),
++                Cell::from(Span::styled("Snapshot working copy", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" e", key_style)),
++                Cell::from(Span::styled("Edit selected revision", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" n", key_style)),
++                Cell::from(Span::styled("Create new child revision", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" d", key_style)),
++                Cell::from(Span::styled("Describe revision", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" a", key_style)),
++                Cell::from(Span::styled("Abandon revision", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" S", key_style)),
++                Cell::from(Span::styled("Squash into parent", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" b", key_style)),
++                Cell::from(Span::styled("Set bookmark", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" B", key_style)),
++                Cell::from(Span::styled("Delete bookmark", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" u / U", key_style)),
++                Cell::from(Span::styled("Undo / Redo", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" f / p", key_style)),
++                Cell::from(Span::styled("Fetch / Push", desc_style)),
++            ]),
++            Row::new(vec![Cell::from(""), Cell::from("")]),
++            // Filtering
++            Row::new(vec![
++                Cell::from(Span::styled("Filtering", category_style)),
++                Cell::from(""),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" /", key_style)),
++                Cell::from(Span::styled("Custom revset filter", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" m", key_style)),
++                Cell::from(Span::styled("Filter: mine()", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" t", key_style)),
++                Cell::from(Span::styled("Filter: trunk()", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" c", key_style)),
++                Cell::from(Span::styled("Filter: conflicts()", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" C", key_style)),
++                Cell::from(Span::styled("Clear active filter", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" Tab", key_style)),
++                Cell::from(Span::styled(
++                    "Toggle Recent/Presets (in / modal)",
++                    desc_style,
++                )),
++            ]),
++            Row::new(vec![Cell::from(""), Cell::from("")]),
++            // General
++            Row::new(vec![
++                Cell::from(Span::styled("General", category_style)),
++                Cell::from(""),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" ?", key_style)),
++                Cell::from(Span::styled("Show this help", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" Esc", key_style)),
++                Cell::from(Span::styled("Close modal / Clear errors", desc_style)),
++            ]),
++            Row::new(vec![
++                Cell::from(Span::styled(" q", key_style)),
++                Cell::from(Span::styled("Quit", desc_style)),
++            ]),
++        ];
++
++        let table = Table::new(
++            rows,
++            [Constraint::Percentage(30), Constraint::Percentage(70)],
++        )
++        .block(block);
++
++        table.render(help_area, buf);
++    }
++}
+diff --git a/src/components/modals/helpers.rs b/src/components/modals/helpers.rs
+new file mode 100644
+index 0000000..7f0ee0a
+--- /dev/null
++++ b/src/components/modals/helpers.rs
+@@ -0,0 +1,115 @@
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::{Constraint, Direction, Layout, Rect},
++    style::Color,
++    text::{Line, Span},
++};
++
++pub fn dim_area(buf: &mut Buffer, area: Rect) {
++    for y in area.top()..area.bottom() {
++        for x in area.left()..area.right() {
++            let cell = &mut buf[(x, y)];
++            cell.set_style(cell.style().add_modifier(ratatui::style::Modifier::DIM));
++        }
++    }
++}
++
++pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
++    let popup_layout = Layout::default()
++        .direction(Direction::Vertical)
++        .constraints([
++            Constraint::Percentage(100u16.saturating_sub(percent_y) / 2),
++            Constraint::Percentage(percent_y.min(100)),
++            Constraint::Percentage(100u16.saturating_sub(percent_y) / 2),
++        ])
++        .split(r);
++
++    Layout::default()
++        .direction(Direction::Horizontal)
++        .constraints([
++            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
++            Constraint::Percentage(percent_x.min(100)),
++            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
++        ])
++        .split(popup_layout[1])[1]
++}
++
++pub fn centered_rect_fixed_height(percent_x: u16, height: u16, r: Rect) -> Rect {
++    let popup_layout = Layout::default()
++        .direction(Direction::Vertical)
++        .constraints([
++            Constraint::Length(r.height.saturating_sub(height) / 2),
++            Constraint::Length(height.min(r.height)),
++            Constraint::Min(0),
++        ])
++        .split(r);
++
++    Layout::default()
++        .direction(Direction::Horizontal)
++        .constraints([
++            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
++            Constraint::Percentage(percent_x.min(100)),
++            Constraint::Percentage(100u16.saturating_sub(percent_x) / 2),
++        ])
++        .split(popup_layout[1])[1]
++}
++
++pub fn draw_drop_shadow(buf: &mut Buffer, area: Rect, terminal_area: Rect) {
++    let shadow_area = Rect {
++        x: area.x + 1,
++        y: area.y + 1,
++        width: area.width,
++        height: area.height,
++    };
++
++    let shadow_area = shadow_area.intersection(terminal_area);
++
++    for y in shadow_area.top()..shadow_area.bottom() {
++        for x in shadow_area.left()..shadow_area.right() {
++            let cell = &mut buf[(x, y)];
++            cell.set_style(ratatui::style::Style::default().bg(Color::Black));
++            cell.set_symbol(" ");
++        }
++    }
++}
++
++pub fn render_revset_categories(
++    buf: &mut Buffer,
++    area: Rect,
++    categories: &[crate::app::state::RevsetCategory],
++    theme: &Theme,
++) {
++    let mut y = area.y;
++    let max_y = area.y + area.height;
++
++    for cat in categories {
++        if y >= max_y {
++            break;
++        }
++
++        // Category header
++        let header = Line::from(Span::styled(format!(" {} ", cat.name), theme.header_item));
++        buf.set_line(area.x, y, &header, area.width);
++        y += 1;
++
++        // Entries
++        for entry in &cat.entries {
++            if y >= max_y {
++                break;
++            }
++            let line = Line::from(vec![
++                Span::styled(format!("  {:<22}", entry.name), theme.footer_segment_key),
++                Span::styled(
++                    entry.description,
++                    theme.list_item.add_modifier(ratatui::style::Modifier::DIM),
++                ),
++            ]);
++            buf.set_line(area.x, y, &line, area.width);
++            y += 1;
++        }
++
++        // Spacing between categories
++        y += 1;
++    }
++}
+diff --git a/src/components/modals/manager.rs b/src/components/modals/manager.rs
+new file mode 100644
+index 0000000..fb882ea
+--- /dev/null
++++ b/src/components/modals/manager.rs
+@@ -0,0 +1,323 @@
++use crate::app::state::{AppMode, AppState};
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::{Constraint, Direction, Layout, Rect},
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, Paragraph, Widget},
++};
++
++use super::command_palette::CommandPaletteModal;
++use super::context_menu::ContextMenuModal;
++use super::error::ErrorModal;
++use super::evolog::EvologModal;
++use super::help::HelpModal;
++use super::helpers::{dim_area, draw_drop_shadow, render_revset_categories};
++use super::operation_log::OperationLogModal;
++use super::text_input::TextInputModal;
++use super::theme_selection::ThemeSelectionModal;
++
++pub struct ModalManager<'a> {
++    pub theme: &'a Theme,
++    pub app_state: &'a AppState<'a>,
++}
++
++impl Widget for ModalManager<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        // --- Visual Dimming ---
++        let is_modal_active = !matches!(
++            self.app_state.mode,
++            AppMode::Normal | AppMode::Diff | AppMode::NoRepo | AppMode::Loading
++        ) || self.app_state.last_error.is_some();
++
++        if is_modal_active {
++            dim_area(buf, area);
++        }
++
++        // --- Modals ---
++        if self.app_state.mode == AppMode::Help {
++            HelpModal { theme: self.theme }.render(area, buf);
++        }
++
++        // --- Input Modals (Describe, Bookmark, Filter) ---
++        match self.app_state.mode {
++            AppMode::Input | AppMode::BookmarkInput => {
++                if let Some(input) = &self.app_state.input {
++                    let title = if self.app_state.mode == AppMode::BookmarkInput {
++                        " SET BOOKMARK "
++                    } else if self.app_state.mode == AppMode::RebaseInput {
++                        " REBASE DESTINATION "
++                    } else {
++                        " DESCRIBE REVISION "
++                    };
++                    TextInputModal {
++                        theme: self.theme,
++                        title,
++                        text_area: &input.text_area,
++                        height_percent: 20,
++                    }
++                    .render(area, buf);
++                }
++            }
++            AppMode::RebaseSelect => {
++                let modal_area = super::helpers::centered_rect_fixed_height(80, 5, area);
++                draw_drop_shadow(buf, modal_area, area);
++                Clear.render(modal_area, buf);
++                let block = Block::default()
++                    .title(Line::from(vec![
++                        Span::raw(" "),
++                        Span::styled(" SELECT REBASE DESTINATION ", self.theme.header_active),
++                        Span::raw(" "),
++                    ]))
++                    .borders(Borders::ALL)
++                    .border_type(BorderType::Rounded)
++                    .border_style(self.theme.border_focus);
++                let text = vec![
++                    Line::from("Select the destination revision in the log and press Enter."),
++                    Line::from("Or press Esc to cancel."),
++                ];
++                Paragraph::new(text)
++                    .alignment(ratatui::layout::Alignment::Center)
++                    .block(block)
++                    .render(modal_area, buf);
++            }
++            AppMode::FilterInput => {
++                if let Some(input) = &self.app_state.input {
++                    let modal_area = super::helpers::centered_rect(80, 80, area);
++                    draw_drop_shadow(buf, modal_area, area);
++                    Clear.render(modal_area, buf);
++
++                    // Title with active filter indicator
++                    let title_spans = if let Some(active) = &self.app_state.revset {
++                        vec![
++                            Span::raw(" "),
++                            Span::styled(" FILTER (REVSET) ", self.theme.header_active),
++                            Span::raw(" "),
++                            Span::styled(format!(" Active: {active} "), self.theme.header_warn),
++                            Span::raw(" "),
++                        ]
++                    } else {
++                        vec![
++                            Span::raw(" "),
++                            Span::styled(" FILTER (REVSET) ", self.theme.header_active),
++                            Span::raw(" "),
++                        ]
++                    };
++
++                    let block = Block::default()
++                        .title(Line::from(title_spans))
++                        .borders(Borders::ALL)
++                        .border_type(BorderType::Rounded)
++                        .border_style(self.theme.border_focus);
++
++                    let inner_area = block.inner(modal_area);
++                    block.render(modal_area, buf);
++
++                    // Layout: Input | Separator | Lists side-by-side | Separator | Reference | Hints
++                    let main_layout = Layout::default()
++                        .direction(Direction::Vertical)
++                        .constraints([
++                            Constraint::Length(1), // Input
++                            Constraint::Length(1), // Separator
++                            Constraint::Length(8), // Recent + Preset lists
++                            Constraint::Length(1), // Separator
++                            Constraint::Min(0),    // Reference
++                            Constraint::Length(1), // Hint bar
++                        ])
++                        .split(inner_area);
++
++                    // Render Input
++                    Widget::render(&input.text_area, main_layout[0], buf);
++
++                    // Separator
++                    let separator = "─".repeat(main_layout[1].width as usize);
++                    buf.set_string(
++                        main_layout[1].x,
++                        main_layout[1].y,
++                        separator,
++                        self.theme.border_focus,
++                    );
++
++                    // Side-by-side: Recent Filters | Preset Filters
++                    let list_layout = Layout::default()
++                        .direction(Direction::Horizontal)
++                        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
++                        .split(main_layout[2]);
++
++                    let recent_style = if !self.app_state.is_selecting_presets {
++                        self.theme.header_active
++                    } else {
++                        self.theme.header_item
++                    };
++
++                    let recent_items: Vec<ratatui::widgets::ListItem> = self
++                        .app_state
++                        .recent_filters
++                        .iter()
++                        .enumerate()
++                        .map(|(i, f)| {
++                            let is_selected = Some(i) == self.app_state.selected_filter_index
++                                && !self.app_state.is_selecting_presets;
++                            let style = if is_selected {
++                                self.theme.list_selected
++                            } else {
++                                self.theme.list_item
++                            };
++                            let prefix = if is_selected { "▸ " } else { "  " };
++                            ratatui::widgets::ListItem::new(format!("{prefix}{f}")).style(style)
++                        })
++                        .collect();
++
++                    let recent_list = ratatui::widgets::List::new(recent_items).block(
++                        Block::default()
++                            .title(Span::styled(" Recent ◂Tab▸ ", recent_style))
++                            .borders(Borders::RIGHT),
++                    );
++                    recent_list.render(list_layout[0], buf);
++
++                    let preset_style = if self.app_state.is_selecting_presets {
++                        self.theme.header_active
++                    } else {
++                        self.theme.header_item
++                    };
++
++                    let preset_items: Vec<ratatui::widgets::ListItem> = self
++                        .app_state
++                        .preset_filters
++                        .iter()
++                        .enumerate()
++                        .map(|(i, f)| {
++                            let is_selected = Some(i) == self.app_state.selected_filter_index
++                                && self.app_state.is_selecting_presets;
++                            let style = if is_selected {
++                                self.theme.list_selected
++                            } else {
++                                self.theme.list_item
++                            };
++                            let prefix = if is_selected { "▸ " } else { "  " };
++                            ratatui::widgets::ListItem::new(format!("{prefix}{f}")).style(style)
++                        })
++                        .collect();
++
++                    let preset_list = ratatui::widgets::List::new(preset_items).block(
++                        Block::default()
++                            .title(Span::styled(" Presets ◂Tab▸ ", preset_style))
++                            .borders(Borders::NONE),
++                    );
++                    preset_list.render(list_layout[1], buf);
++
++                    // Separator
++                    let separator = "─".repeat(main_layout[3].width as usize);
++                    buf.set_string(
++                        main_layout[3].x,
++                        main_layout[3].y,
++                        separator,
++                        self.theme.border_focus,
++                    );
++
++                    // Render Categorized Revset Reference
++                    let reference = crate::app::state::get_revset_reference();
++                    let ref_area = main_layout[4];
++
++                    // Split reference into columns for better use of horizontal space
++                    let ref_cols = Layout::default()
++                        .direction(Direction::Horizontal)
++                        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
++                        .split(ref_area);
++
++                    let half = reference.len().div_ceil(2);
++                    let left_cats = &reference[..half.min(reference.len())];
++                    let right_cats = if half < reference.len() {
++                        &reference[half..]
++                    } else {
++                        &[]
++                    };
++
++                    render_revset_categories(buf, ref_cols[0], left_cats, self.theme);
++                    render_revset_categories(buf, ref_cols[1], right_cats, self.theme);
++
++                    // Hint bar
++                    let hints = Line::from(vec![
++                        Span::styled(" Tab", self.theme.footer_segment_key),
++                        Span::styled(" Toggle  ", self.theme.list_item),
++                        Span::styled("↑↓", self.theme.footer_segment_key),
++                        Span::styled(" Navigate  ", self.theme.list_item),
++                        Span::styled("Enter", self.theme.footer_segment_key),
++                        Span::styled(" Apply  ", self.theme.list_item),
++                        Span::styled("Esc", self.theme.footer_segment_key),
++                        Span::styled(" Cancel", self.theme.list_item),
++                    ]);
++                    buf.set_line(
++                        main_layout[5].x,
++                        main_layout[5].y,
++                        &hints,
++                        main_layout[5].width,
++                    );
++                }
++            }
++            _ => {}
++        }
++
++        // --- Context Menu Popup ---
++        if let (AppMode::ContextMenu, Some(menu)) =
++            (self.app_state.mode, &self.app_state.context_menu)
++        {
++            ContextMenuModal {
++                theme: self.theme,
++                state: menu,
++            }
++            .render(area, buf);
++        }
++
++        // --- Command Palette ---
++        if let (AppMode::CommandPalette, Some(cp)) =
++            (self.app_state.mode, &self.app_state.command_palette)
++        {
++            CommandPaletteModal {
++                theme: self.theme,
++                state: cp,
++            }
++            .render(area, buf);
++        }
++
++        // --- Theme Selection ---
++        if let (AppMode::ThemeSelection, Some(ts)) =
++            (self.app_state.mode, &self.app_state.theme_selection)
++        {
++            ThemeSelectionModal {
++                theme: self.theme,
++                state: ts,
++            }
++            .render(area, buf);
++        }
++
++        // --- Evolog ---
++        if let (AppMode::Evolog, Some(ev)) = (self.app_state.mode, &self.app_state.evolog_state) {
++            EvologModal {
++                theme: self.theme,
++                state: ev,
++            }
++            .render(area, buf);
++        }
++
++        // --- Operation Log ---
++        if let (AppMode::OperationLog, Some(op)) =
++            (self.app_state.mode, &self.app_state.operation_log_state)
++        {
++            OperationLogModal {
++                theme: self.theme,
++                state: op,
++            }
++            .render(area, buf);
++        }
++
++        // --- Error Modal ---
++        if let Some(err) = &self.app_state.last_error {
++            ErrorModal {
++                theme: self.theme,
++                error: err,
++            }
++            .render(area, buf);
++        }
++    }
++}
+diff --git a/src/components/modals/mod.rs b/src/components/modals/mod.rs
+new file mode 100644
+index 0000000..10cd8e6
+--- /dev/null
++++ b/src/components/modals/mod.rs
+@@ -0,0 +1,20 @@
++pub mod command_palette;
++pub mod context_menu;
++pub mod error;
++pub mod evolog;
++pub mod help;
++pub mod helpers;
++pub mod manager;
++pub mod operation_log;
++pub mod text_input;
++pub mod theme_selection;
++
++pub use command_palette::CommandPaletteModal;
++pub use context_menu::ContextMenuModal;
++pub use error::ErrorModal;
++pub use evolog::EvologModal;
++pub use help::HelpModal;
++pub use manager::ModalManager;
++pub use operation_log::OperationLogModal;
++pub use text_input::TextInputModal;
++pub use theme_selection::ThemeSelectionModal;
+diff --git a/src/components/modals/operation_log.rs b/src/components/modals/operation_log.rs
+new file mode 100644
+index 0000000..4e0730d
+--- /dev/null
++++ b/src/components/modals/operation_log.rs
+@@ -0,0 +1,69 @@
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Widget},
++};
++
++use super::helpers::{centered_rect, draw_drop_shadow};
++
++pub struct OperationLogModal<'a> {
++    pub theme: &'a Theme,
++    pub state: &'a crate::app::state::OperationLogState,
++}
++
++impl Widget for OperationLogModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let modal_area = centered_rect(80, 80, area);
++        if modal_area.width == 0 || modal_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, modal_area, area);
++        Clear.render(modal_area, buf);
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(" OPERATION LOG ", self.theme.header_active),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Rounded)
++            .border_style(self.theme.border_focus);
++
++        let inner_area = block.inner(modal_area);
++        block.render(modal_area, buf);
++
++        let lines: Vec<ListItem> = self
++            .state
++            .content
++            .iter()
++            .map(|l: &String| ListItem::new(l.as_str()).style(self.theme.list_item))
++            .collect();
++
++        let mut list_state = ratatui::widgets::ListState::default();
++        list_state.select(Some(self.state.scroll as usize));
++
++        let list = List::new(lines);
++        ratatui::widgets::StatefulWidget::render(list, inner_area, buf, &mut list_state);
++
++        // Render scroll hint/footer
++        let hint_area = Rect::new(
++            modal_area.x,
++            modal_area.y + modal_area.height - 1,
++            modal_area.width,
++            1,
++        );
++        let hint = Line::from(vec![
++            Span::raw(" Press "),
++            Span::styled("Esc", self.theme.footer_segment_key),
++            Span::raw(" to close | "),
++            Span::styled("j/k", self.theme.footer_segment_key),
++            Span::raw(" to scroll "),
++        ]);
++        let hint_paragraph = Paragraph::new(hint).alignment(ratatui::layout::Alignment::Center);
++        hint_paragraph.render(hint_area, buf);
++    }
++}
+diff --git a/src/components/modals/text_input.rs b/src/components/modals/text_input.rs
+new file mode 100644
+index 0000000..f7dfd57
+--- /dev/null
++++ b/src/components/modals/text_input.rs
+@@ -0,0 +1,62 @@
++use crate::app::state::AppTextArea;
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, Widget},
++};
++
++use super::helpers::{centered_rect, centered_rect_fixed_height, draw_drop_shadow};
++
++pub struct TextInputModal<'a> {
++    pub theme: &'a Theme,
++    pub title: &'a str,
++    pub text_area: &'a AppTextArea<'a>,
++    pub height_percent: u16,
++}
++
++impl Widget for TextInputModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let modal_area = if self.height_percent == 0 {
++            centered_rect_fixed_height(60, 3, area)
++        } else {
++            centered_rect(60, self.height_percent, area)
++        };
++
++        if modal_area.width == 0 || modal_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, modal_area, area);
++        Clear.render(modal_area, buf);
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(self.title, self.theme.header_active),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Rounded)
++            .border_style(self.theme.border_focus);
++
++        let inner_area = block.inner(modal_area);
++        block.render(modal_area, buf);
++
++        let padded_area = if self.height_percent > 0 {
++            Rect {
++                x: inner_area.x + 1,
++                y: inner_area.y + 1,
++                width: inner_area.width.saturating_sub(2),
++                height: inner_area.height.saturating_sub(2),
++            }
++        } else {
++            inner_area
++        };
++
++        if padded_area.width > 0 && padded_area.height > 0 {
++            Widget::render(self.text_area, padded_area, buf);
++        }
++    }
++}
+diff --git a/src/components/modals/theme_selection.rs b/src/components/modals/theme_selection.rs
+new file mode 100644
+index 0000000..fd334f9
+--- /dev/null
++++ b/src/components/modals/theme_selection.rs
+@@ -0,0 +1,64 @@
++use crate::theme::Theme;
++use ratatui::{
++    buffer::Buffer,
++    layout::Rect,
++    text::{Line, Span},
++    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Widget},
++};
++
++use super::helpers::{centered_rect, draw_drop_shadow};
++
++pub struct ThemeSelectionModal<'a> {
++    pub theme: &'a Theme,
++    pub state: &'a crate::app::state::ThemeSelectionState,
++}
++
++impl Widget for ThemeSelectionModal<'_> {
++    fn render(self, area: Rect, buf: &mut Buffer) {
++        let modal_area = centered_rect(40, 30, area);
++        if modal_area.width == 0 || modal_area.height == 0 {
++            return;
++        }
++
++        draw_drop_shadow(buf, modal_area, area);
++        Clear.render(modal_area, buf);
++
++        let block = Block::default()
++            .title(Line::from(vec![
++                Span::raw(" "),
++                Span::styled(" SELECT THEME ", self.theme.header_active),
++                Span::raw(" "),
++            ]))
++            .borders(Borders::ALL)
++            .border_type(BorderType::Rounded)
++            .border_style(self.theme.border_focus);
++
++        let items: Vec<ListItem> = self
++            .state
++            .themes
++            .iter()
++            .enumerate()
++            .map(|(i, palette)| {
++                let style = if i == self.state.selected_index {
++                    self.theme.list_selected
++                } else {
++                    self.theme.list_item
++                };
++
++                let prefix = if i == self.state.selected_index {
++                    "> "
++                } else {
++                    "  "
++                };
++
++                ListItem::new(Line::from(vec![
++                    Span::styled(prefix, style),
++                    Span::styled(palette.label(), style),
++                ]))
++            })
++            .collect();
++
++        let list = List::new(items).block(block);
++        list.render(modal_area, buf);
++    }
++}
+diff --git a/src/components/revision_graph.rs b/src/components/revision_graph.rs
+index 9c605c9..337512e 100644
+--- a/src/components/revision_graph.rs
++++ b/src/components/revision_graph.rs
+@@ -103,8 +103,10 @@ impl StatefulWidget for RevisionGraph<'_> {
+             for lane_idx in 0..max_lanes {
+                 let lane_style = self.theme.graph_lanes[lane_idx % self.theme.graph_lanes.len()];
+                 if lane_idx == row.visual.column {
+-                    let (symbol, style) = if row.is_working_copy {
+-                        ("◉", self.theme.graph_node_wc)
++                    let (symbol, style) = if row.has_conflict {
++                        ("×", self.theme.graph_node_conflict)
++                    } else if row.is_working_copy {
++                        ("@", self.theme.graph_node_wc)
+                     } else if row.is_immutable {
+                         ("◆", self.theme.graph_node_immutable)
+                     } else {
+@@ -124,9 +126,10 @@ impl StatefulWidget for RevisionGraph<'_> {
+                 } else {
+                     line_1_graph.push(Span::raw(" "));
+                 }
++                line_1_graph.push(Span::raw(" "));
+             }
+             // Add spacing after graph for the "flow" look
+-            line_1_graph.push(Span::raw("  "));
++            line_1_graph.push(Span::raw(" "));
+             graph_lines.push(Line::from(line_1_graph));
+
+             // Subsequent Graph Lines: Connector pipes and branching/merging
+@@ -218,8 +221,16 @@ impl StatefulWidget for RevisionGraph<'_> {
+                         dim_style
+                     };
+                     connector_line.push(Span::styled(symbol, style));
++
++                    // Add space or horizontal line between lanes
++                    let next_symbol = if h == 1 && lane_idx >= range_min && lane_idx < range_max {
++                        "─"
++                    } else {
++                        " "
++                    };
++                    connector_line.push(Span::styled(next_symbol, style));
+                 }
+-                connector_line.push(Span::raw("  "));
++                connector_line.push(Span::raw(" "));
+                 graph_lines.push(Line::from(connector_line));
+             }
+
+@@ -228,7 +239,9 @@ impl StatefulWidget for RevisionGraph<'_> {
+
+             // Line 1: ChangeId Author Timestamp CommitId
+
+-            let change_id_style = if row.is_working_copy {
++            let change_id_style = if row.has_conflict {
++                self.theme.graph_node_conflict
++            } else if row.is_working_copy {
+                 self.theme.change_id_wc
+             } else if row.is_immutable {
+                 self.theme.change_id_immutable
+@@ -236,16 +249,8 @@ impl StatefulWidget for RevisionGraph<'_> {
+                 self.theme.change_id_mutable
+             };
+
+-            // Working copy shows branch icon, all commits show commit icon
+-            let type_glyph = if row.is_working_copy {
+-                glyphs::BRANCH
+-            } else {
+-                glyphs::COMMIT
+-            };
+
+             let mut line_1_details = vec![
+-                Span::styled(type_glyph, change_id_style),
+-                Span::styled(" ", change_id_style),
+                 Span::styled(&row.change_id_short, change_id_style),
+                 Span::raw(" "),
+                 Span::styled(&row.author, self.theme.author),
+@@ -261,6 +266,12 @@ impl StatefulWidget for RevisionGraph<'_> {
+             }
+
+             line_1_details.push(Span::styled(&row.commit_id_short, self.theme.commit_id_dim));
++
++            if row.has_conflict {
++                line_1_details.push(Span::raw(" "));
++                line_1_details.push(Span::styled("(conflict)", self.theme.graph_node_conflict));
++            }
++
+             detail_lines.push(Line::from(line_1_details));
+
+             // Line 2: Description
+diff --git a/src/domain/graph_layout.rs b/src/domain/graph_layout.rs
+new file mode 100644
+index 0000000..529027f
+--- /dev/null
++++ b/src/domain/graph_layout.rs
+@@ -0,0 +1,157 @@
++use crate::domain::models::{CommitId, GraphRow};
++use std::collections::HashMap;
++
++pub fn calculate_graph_layout(rows: &mut [GraphRow]) {
++    if rows.is_empty() {
++        return;
++    }
++
++    let mut active_lanes: Vec<Option<CommitId>> = Vec::new();
++    let mut commit_to_lane: HashMap<CommitId, usize> = HashMap::new();
++
++    // Pass 1: Simple column assignment and active/connector lane tracking
++    for row in rows.iter_mut() {
++        let commit_id = row.commit_id.clone();
++
++        // 1. Assign/Find lane for this commit
++        let lane_idx = if let Some(&idx) = commit_to_lane.get(&commit_id) {
++            idx
++        } else {
++            // New head (youngest commit of a new branch)
++            // Find first empty slot or push
++            let idx = if let Some(empty_idx) = active_lanes.iter().position(|l| l.is_none()) {
++                active_lanes[empty_idx] = Some(commit_id.clone());
++                empty_idx
++            } else {
++                active_lanes.push(Some(commit_id.clone()));
++                active_lanes.len() - 1
++            };
++            commit_to_lane.insert(commit_id.clone(), idx);
++            idx
++        };
++
++        row.visual.column = lane_idx;
++        row.visual.active_lanes = active_lanes.iter().map(|l| l.is_some()).collect();
++
++        // 2. Prepare for parents
++        // Remove current commit from its lane
++        active_lanes[lane_idx] = None;
++        commit_to_lane.remove(&commit_id);
++
++        // 3. Add parents to lanes
++        let mut parent_columns = Vec::new();
++        for parent_id in &row.parents {
++            let p_lane = if let Some(&idx) = commit_to_lane.get(parent_id) {
++                idx
++            } else {
++                // First time we see this parent (it's the next commit in a branch)
++                // Try to put it in the same lane as the current commit if possible
++                let idx = if active_lanes.get(lane_idx).is_none() {
++                    active_lanes[lane_idx] = Some(parent_id.clone());
++                    lane_idx
++                } else if let Some(empty_idx) = active_lanes.iter().position(|l| l.is_none()) {
++                    active_lanes[empty_idx] = Some(parent_id.clone());
++                    empty_idx
++                } else {
++                    active_lanes.push(Some(parent_id.clone()));
++                    active_lanes.len() - 1
++                };
++                commit_to_lane.insert(parent_id.clone(), idx);
++                idx
++            };
++            parent_columns.push(p_lane);
++        }
++
++        row.visual.parent_columns = parent_columns.clone();
++        if !parent_columns.is_empty() {
++            row.visual.parent_min = *parent_columns.iter().min().unwrap_or(&lane_idx).min(&lane_idx);
++            row.visual.parent_max = *parent_columns.iter().max().unwrap_or(&lane_idx).max(&lane_idx);
++        } else {
++            row.visual.parent_min = lane_idx;
++            row.visual.parent_max = lane_idx;
++        }
++
++        row.visual.connector_lanes = active_lanes.iter().map(|l| l.is_some()).collect();
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::domain::models::{CommitId, GraphRow};
++
++    #[test]
++    fn test_simple_linear_layout() {
++        let mut rows = vec![
++            GraphRow {
++                commit_id: CommitId("c2".to_string()),
++                parents: vec![CommitId("c1".to_string())],
++                ..Default::default()
++            },
++            GraphRow {
++                commit_id: CommitId("c1".to_string()),
++                parents: vec![CommitId("c0".to_string())],
++                ..Default::default()
++            },
++            GraphRow {
++                commit_id: CommitId("c0".to_string()),
++                parents: vec![],
++                ..Default::default()
++            },
++        ];
++
++        calculate_graph_layout(&mut rows);
++
++        assert_eq!(rows[0].visual.column, 0);
++        assert_eq!(rows[0].visual.active_lanes, vec![true]);
++        assert_eq!(rows[0].visual.connector_lanes, vec![true]);
++        assert_eq!(rows[0].visual.parent_columns, vec![0]);
++
++        assert_eq!(rows[1].visual.column, 0);
++        assert_eq!(rows[1].visual.active_lanes, vec![true]);
++        assert_eq!(rows[1].visual.connector_lanes, vec![true]);
++        assert_eq!(rows[1].visual.parent_columns, vec![0]);
++
++        assert_eq!(rows[2].visual.column, 0);
++        assert_eq!(rows[2].visual.active_lanes, vec![true]);
++        assert_eq!(rows[2].visual.connector_lanes, vec![false]);
++        assert_eq!(rows[2].visual.parent_columns, vec![]);
++    }
++
++    #[test]
++    fn test_branch_layout() {
++        // c2 (parent c1)
++        // c3 (parent c1)
++        // c1 (parent c0)
++        let mut rows = vec![
++            GraphRow {
++                commit_id: CommitId("c3".to_string()),
++                parents: vec![CommitId("c1".to_string())],
++                ..Default::default()
++            },
++            GraphRow {
++                commit_id: CommitId("c2".to_string()),
++                parents: vec![CommitId("c1".to_string())],
++                ..Default::default()
++            },
++            GraphRow {
++                commit_id: CommitId("c1".to_string()),
++                parents: vec![CommitId("c0".to_string())],
++                ..Default::default()
++            },
++        ];
++
++        calculate_graph_layout(&mut rows);
++
++        // c3 starts at lane 0
++        assert_eq!(rows[0].visual.column, 0);
++        assert_eq!(rows[0].visual.parent_columns, vec![0]);
++        // c2 starts at lane 1
++        assert_eq!(rows[1].visual.column, 1);
++        // c2's parent c1 is already in lane 0 (from c3), so parent_columns should be [0]
++        assert_eq!(rows[1].visual.parent_columns, vec![0]);
++
++        // c1 is at lane 0
++        assert_eq!(rows[2].visual.column, 0);
++    }
++}
+diff --git a/src/domain/mod.rs b/src/domain/mod.rs
+index 7e83eaa..82d6262 100644
+--- a/src/domain/mod.rs
++++ b/src/domain/mod.rs
+@@ -1,2 +1,3 @@
+ pub mod models;
+ pub mod vcs;
++pub mod graph_layout;
+diff --git a/src/domain/models.rs b/src/domain/models.rs
+index 1aaaf4d..a606a4c 100644
+--- a/src/domain/models.rs
++++ b/src/domain/models.rs
+@@ -47,6 +47,7 @@ pub struct GraphRow {
+     pub timestamp_secs: i64,
+     pub is_working_copy: bool,
+     pub is_immutable: bool,
++    pub has_conflict: bool,
+     pub parents: Vec<CommitId>,
+     pub bookmarks: Vec<String>,
+     pub changed_files: Vec<FileChange>,
+diff --git a/src/infrastructure/jj/bookmarks.rs b/src/infrastructure/jj/bookmarks.rs
+new file mode 100644
+index 0000000..fd8af2b
+--- /dev/null
++++ b/src/infrastructure/jj/bookmarks.rs
+@@ -0,0 +1,42 @@
++use super::JjAdapter;
++use crate::domain::models::CommitId;
++use anyhow::{anyhow, Result};
++
++impl JjAdapter {
++    pub(crate) async fn set_bookmark_impl(&self, commit_id: &CommitId, name: &str) -> Result<()> {
++        self.validate_commit(commit_id).await?;
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("bookmark")
++            .arg("set")
++            .arg(name)
++            .arg("-r")
++            .arg(&commit_id.0)
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj bookmark set failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn delete_bookmark_impl(&self, name: &str) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("bookmark")
++            .arg("delete")
++            .arg(name)
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj bookmark delete failed: {}", stderr.trim()))
++        }
++    }
++}
 diff --git a/src/infrastructure/jj/diff.rs b/src/infrastructure/jj/diff.rs
-index 2f16549..701ff10 100644
---- a/src/infrastructure/jj/diff.rs
+new file mode 100644
+index 0000000..701ff10
+--- /dev/null
 +++ b/src/infrastructure/jj/diff.rs
-@@ -89,7 +89,7 @@ impl JjAdapter {
-                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
-                     let mut reader = repo
-                         .store()
--                        .read_file(&repo_path, &id)
+@@ -0,0 +1,143 @@
++use super::{JjAdapter, MAX_DIFF_SIZE};
++use crate::domain::models::CommitId;
++use anyhow::{anyhow, Result};
++use futures::StreamExt;
++use jj_lib::{
++    backend::{CommitId as JjCommitId, TreeValue},
++    matchers::EverythingMatcher,
++    object_id::ObjectId,
++    repo::Repo,
++};
++use tokio::io::AsyncReadExt;
++
++impl JjAdapter {
++    pub(crate) async fn get_commit_diff_impl(&self, commit_id: &CommitId) -> Result<String> {
++        let (repo, _) = self.get_repo_and_ws().await?;
++
++        let id =
++            JjCommitId::try_from_hex(&commit_id.0).ok_or_else(|| anyhow!("Invalid commit ID"))?;
++        let commit = repo.store().get_commit(&id)?;
++
++        let mut output = String::new();
++        let author = commit.author();
++        let timestamp_sec = author.timestamp.timestamp.0 / 1000;
++        let datetime = chrono::DateTime::from_timestamp(timestamp_sec, 0)
++            .unwrap_or_default()
++            .with_timezone(&chrono::Local);
++        let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
++
++        output.push_str(&format!("Commit ID: {}\n", commit.id().hex()));
++        output.push_str(&format!("Change ID: {}\n", commit.change_id().hex()));
++
++        let bookmarks = repo
++            .view()
++            .local_bookmarks()
++            .filter(|(_, target)| target.added_ids().any(|added_id| *added_id == id))
++            .map(|(name, _)| name.as_str().to_string())
++            .collect::<Vec<_>>();
++        if !bookmarks.is_empty() {
++            output.push_str(&format!("Bookmarks: {}\n", bookmarks.join(", ")));
++        }
++
++        output.push_str(&format!(
++            "Author   : {} <{}> ({})\n",
++            author.name, author.email, timestamp
++        ));
++        output.push_str(&format!(
++            "    {}\n\n",
++            commit.description().replace('\n', "\n    ")
++        ));
++
++        let mut parents = commit.parents();
++        let tree = commit.tree();
++        let parent_tree = if let Some(parent_res) = parents.next() {
++            let parent: jj_lib::commit::Commit = parent_res?;
++            parent.tree()
++        } else {
++            tree.clone()
++        };
++
++        let mut stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
++        while let Some(entry) = stream.next().await {
++            let _permit = self
++                .diff_semaphore
++                .acquire()
++                .await
++                .map_err(|e| anyhow!(e))?;
++            let repo_path = entry.path;
++            let path_str = repo_path.as_internal_file_string();
++            if path_str.contains("..") {
++                continue;
++            }
++            let values = entry.values?;
++
++            output.push_str(&format!("File: {path_str}\n"));
++
++            if !values.after.is_resolved() {
++                output.push_str("Status: Conflicted\n");
++            } else if values.before.is_absent() {
++                output.push_str("Status: Added\n");
++            } else if values.after.is_absent() {
++                output.push_str("Status: Deleted\n");
++            } else {
++                output.push_str("Status: Modified\n");
++            }
++
++            let mut before_content = Vec::new();
++            let mut before_is_binary = false;
++            for value in &values.before {
++                if let Some(TreeValue::File { id, .. }) = value.as_ref() {
++                    let mut reader = repo
++                        .store()
 +                        .read_file(&repo_path, id)
-                         .await?
-                         .take(MAX_DIFF_SIZE);
-                     let mut chunk = vec![0u8; 1024];
-@@ -110,7 +110,7 @@ impl JjAdapter {
-                 if let Some(TreeValue::File { id, .. }) = value.as_ref() {
-                     let mut reader = repo
-                         .store()
--                        .read_file(&repo_path, &id)
++                        .await?
++                        .take(MAX_DIFF_SIZE);
++                    let mut chunk = vec![0u8; 1024];
++                    let n = reader.read(&mut chunk).await?;
++                    chunk.truncate(n);
++                    if super::is_binary(&chunk) {
++                        before_is_binary = true;
++                        break;
++                    }
++                    before_content.extend_from_slice(&chunk);
++                    reader.read_to_end(&mut before_content).await?;
++                }
++            }
++
++            let mut after_content = Vec::new();
++            let mut after_is_binary = false;
++            for value in &values.after {
++                if let Some(TreeValue::File { id, .. }) = value.as_ref() {
++                    let mut reader = repo
++                        .store()
 +                        .read_file(&repo_path, id)
-                         .await?
-                         .take(MAX_DIFF_SIZE);
-                     let mut chunk = vec![0u8; 1024];
++                        .await?
++                        .take(MAX_DIFF_SIZE);
++                    let mut chunk = vec![0u8; 1024];
++                    let n = reader.read(&mut chunk).await?;
++                    chunk.truncate(n);
++                    if super::is_binary(&chunk) {
++                        after_is_binary = true;
++                        break;
++                    }
++                    after_content.extend_from_slice(&chunk);
++                    reader.read_to_end(&mut after_content).await?;
++                }
++            }
++
++            if before_is_binary || after_is_binary {
++                output.push_str("    (binary file)\n\n");
++                continue;
++            }
++
++            let before_str = String::from_utf8_lossy(&before_content);
++            let after_str = String::from_utf8_lossy(&after_content);
++
++            let diff = similar::TextDiff::from_lines(&before_str, &after_str);
++            output.push_str(&diff.unified_diff().context_radius(3).to_string());
++            output.push('\n');
++        }
++
++        Ok(output)
++    }
++}
 diff --git a/src/infrastructure/jj/log.rs b/src/infrastructure/jj/log.rs
-index 7ddc873..9bf9f24 100644
---- a/src/infrastructure/jj/log.rs
+new file mode 100644
+index 0000000..a002603
+--- /dev/null
 +++ b/src/infrastructure/jj/log.rs
-@@ -101,7 +101,7 @@ impl JjAdapter {
-                 visited.insert(id.clone());
-
-                 if let Ok(info) = super::repo::build_commit_info(&repo_arc, &id, &ws_id_clone) {
--                    for parent_id in info.0.parent_ids() {
+@@ -0,0 +1,243 @@
++use super::JjAdapter;
++use crate::domain::models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus};
++use anyhow::{anyhow, Result};
++use futures::StreamExt;
++use jj_lib::{
++    backend::CommitId as JjCommitId, matchers::EverythingMatcher, object_id::ObjectId,
++    ref_name::WorkspaceNameBuf,
++};
++use std::collections::{HashSet, VecDeque};
++
++impl JjAdapter {
++    pub(crate) async fn get_operation_log_impl(
++        &self,
++        heads: Option<Vec<CommitId>>,
++        limit: usize,
++        revset: Option<String>,
++    ) -> Result<RepoStatus> {
++        let (repo, ws_root) = self.get_repo_and_ws().await?;
++        let op_id = repo.operation().id().clone().hex();
++
++        let (workspace_id, _): (&WorkspaceNameBuf, &JjCommitId) = repo
++            .view()
++            .wc_commit_ids()
++            .iter()
++            .next()
++            .ok_or_else(|| anyhow!("No working copy found"))?;
++
++        let workspace_id_buf: WorkspaceNameBuf = workspace_id.clone();
++        let repo_arc = repo.clone();
++        let ws_id_clone = workspace_id_buf.clone();
++        let ws_root_for_closure = ws_root.clone();
++
++        let commit_infos = tokio::task::spawn_blocking(move || {
++            let mut visited = HashSet::<JjCommitId>::new();
++            let mut queue = VecDeque::new();
++            let mut results = Vec::new();
++
++            if let Some(revset_str) = revset {
++                let output = std::process::Command::new("jj")
++                    .arg("--color")
++                    .arg("never")
++                    .arg("--no-pager")
++                    .arg("--repository")
++                    .arg(".")
++                    .arg("log")
++                    .arg("-r")
++                    .arg(&revset_str)
++                    .arg("-T")
++                    .arg("commit_id ++ \"\\n\"")
++                    .arg("--no-graph")
++                    .current_dir(&ws_root_for_closure)
++                    .output();
++
++                match output {
++                    Ok(output) => {
++                        if output.status.success() {
++                            let stdout = String::from_utf8_lossy(&output.stdout);
++                            let ids: Vec<String> = stdout
++                                .lines()
++                                .map(|l| l.trim().to_string())
++                                .filter(|l| !l.is_empty())
++                                .collect();
++
++                            for id_hex in ids.iter().take(limit) {
++                                if let Some(id) = JjCommitId::try_from_hex(id_hex) {
++                                    if let Ok(info) = super::repo::build_commit_info(&repo_arc, &id, &ws_id_clone) {
++                                        results.push(info);
++                                    }
++                                }
++                            }
++                            return Ok(results);
++                        }
++                        let stderr = String::from_utf8_lossy(&output.stderr);
++                        return Err(anyhow!("Jujutsu error: {}", stderr.trim()));
++                    }
++                    Err(e) => {
++                        return Err(anyhow!("Failed to execute 'jj' command: {e}. Is 'jj' installed and in your PATH?"));
++                    }
++                }
++            }
++
++            if let Some(heads) = heads {
++                for head in heads {
++                    if let Some(id) = JjCommitId::try_from_hex(&head.0) {
++                        queue.push_back(id);
++                    }
++                }
++            } else {
++                for head_id in repo_arc.view().heads() {
++                    queue.push_back(head_id.clone());
++                }
++            }
++
++            while let Some(id) = queue.pop_front() {
++                if results.len() >= limit {
++                    break;
++                }
++                if visited.contains(&id) {
++                    continue;
++                }
++                visited.insert(id.clone());
++
++                if let Ok(info) = super::repo::build_commit_info(&repo_arc, &id, &ws_id_clone) {
 +                    for parent_id in info.commit.parent_ids() {
-                         queue.push_back(parent_id.clone());
-                     }
-                     results.push(info);
-@@ -112,77 +112,144 @@ impl JjAdapter {
-         .await??;
-
-         let graph_rows = futures::stream::iter(commit_infos)
--            .map(
--                |(
--                    commit,
--                    _tree,
--                    parent_tree,
--                    parent_ids,
--                    is_working_copy,
--                    is_immutable,
--                    has_conflict,
--                    bookmarks,
--                )| async move {
--                    let description = commit.description().to_string();
--                    let change_id = commit.change_id().hex();
--                    let author = commit.author().email.clone();
--                    let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
--                    let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)
--                        .unwrap_or_default()
--                        .with_timezone(&chrono::Local);
--                    let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
--                    let commit_id_str = commit.id().hex();
--                    let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
--                    let commit_id = CommitId(commit_id_str);
--
--                    let mut changed_files = Vec::new();
--                    if let Some(p_tree) = parent_tree {
--                        let commit_tree = commit.tree();
--                        let mut stream = p_tree.diff_stream(&commit_tree, &EverythingMatcher);
--                        while let Some(entry) = stream.next().await {
--                            let status = if let Ok(values) = entry.values {
--                                if !values.after.is_resolved() {
--                                    FileStatus::Conflicted
--                                } else if values.before.is_absent() {
--                                    FileStatus::Added
--                                } else if values.after.is_absent() {
--                                    FileStatus::Deleted
--                                } else {
--                                    FileStatus::Modified
--                                }
++                        queue.push_back(parent_id.clone());
++                    }
++                    results.push(info);
++                }
++            }
++            Ok::<_, anyhow::Error>(results)
++        })
++        .await??;
++
++        let graph_rows = futures::stream::iter(commit_infos)
 +            .map(|info| async move {
 +                let commit = info.commit;
 +                let parent_tree = info.parent_tree;
 +                let parent_ids = info.parent_ids;
 +                let is_working_copy = info.is_working_copy;
 +                let is_immutable = info.is_immutable;
++                let has_conflict = info.has_conflict;
 +                let bookmarks = info.bookmarks;
 +
 +                let description = commit.description().to_string();
@@ -134,7 +3720,8 @@ index 7ddc873..9bf9f24 100644
 +
 +                let mut changed_files = Vec::new();
 +                if let Some(p_tree) = parent_tree {
-+                    let mut stream = p_tree.diff_stream(&commit.tree(), &EverythingMatcher);
++                    let commit_tree = commit.tree();
++                    let mut stream = p_tree.diff_stream(&commit_tree, &EverythingMatcher);
 +                    while let Some(entry) = stream.next().await {
 +                        let status = if let Ok(values) = entry.values {
 +                            if !values.after.is_resolved() {
@@ -143,15 +3730,9 @@ index 7ddc873..9bf9f24 100644
 +                                FileStatus::Added
 +                            } else if values.after.is_absent() {
 +                                FileStatus::Deleted
-                             } else {
-                                 FileStatus::Modified
--                            };
--
--                            let path = entry.path.as_internal_file_string().to_string();
--                            if path.contains("..") {
--                                continue;
-                             }
--                            changed_files.push(FileChange { path, status });
++                            } else {
++                                FileStatus::Modified
++                            }
 +                        } else {
 +                            FileStatus::Modified
 +                        };
@@ -159,32 +3740,11 @@ index 7ddc873..9bf9f24 100644
 +                        let path = entry.path.as_internal_file_string().to_string();
 +                        if path.contains("..") {
 +                            continue;
-                         }
++                        }
 +                        changed_files.push(FileChange { path, status });
-                     }
++                    }
 +                }
-
--                    let change_id_short = change_id[..8.min(change_id.len())].to_string();
--
--                    GraphRow {
--                        commit_id,
--                        commit_id_short,
--                        change_id,
--                        change_id_short,
--                        description,
--                        author,
--                        timestamp,
--                        timestamp_secs,
--                        is_working_copy,
--                        is_immutable,
--                        has_conflict,
--                        parents: parent_ids,
--                        bookmarks,
--                        changed_files,
--                        visual: crate::domain::models::GraphRowVisual::default(),
--                    }
--                },
--            )
++
 +                let change_id_short = change_id[..8.min(change_id.len())].to_string();
 +
 +                GraphRow {
@@ -198,109 +3758,980 @@ index 7ddc873..9bf9f24 100644
 +                    timestamp_secs,
 +                    is_working_copy,
 +                    is_immutable,
-+<<<<<<< conflict 1 of 2
-+%%%%%%% diff from: omtvnrzw a7826186 "refactor: decompose loop" (parents of rebased revision)
-+\\\\\\\        to: omtvnrzw 410dc399 "refactor: decompose loop" (rebase destination)
-++                    has_conflict,
-++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
++                    has_conflict,
 +                    parents: parent_ids,
-+>>>>>>> conflict 1 of 2 ends
 +                    bookmarks,
-+<<<<<<< conflict 2 of 2
-+%%%%%%% diff from: omtvnrzw a7826186 "refactor: decompose loop" (parents of rebased revision)
-+\\\\\\\        to: omtvnrzw 410dc399 "refactor: decompose loop" (rebase destination)
-+                 )| async move {
-+                     let description = commit.description().to_string();
-+                     let change_id = commit.change_id().hex();
-+                     let author = commit.author().email.clone();
-+                     let timestamp_secs = commit.author().timestamp.timestamp.0 / 1000;
-+                     let datetime = chrono::DateTime::from_timestamp(timestamp_secs, 0)
-+                         .unwrap_or_default()
-+                         .with_timezone(&chrono::Local);
-+                     let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
-+                     let commit_id_str = commit.id().hex();
-+                     let commit_id_short = commit_id_str[..8.min(commit_id_str.len())].to_string();
-+                     let commit_id = CommitId(commit_id_str);
-+
-+                     let mut changed_files = Vec::new();
-+                     if let Some(p_tree) = parent_tree {
-+-                        let mut stream = p_tree.diff_stream(&commit.tree(), &EverythingMatcher);
-++                        let commit_tree = commit.tree();
-++                        let mut stream = p_tree.diff_stream(&commit_tree, &EverythingMatcher);
-+                         while let Some(entry) = stream.next().await {
-+                             let status = if let Ok(values) = entry.values {
-+                                 if !values.after.is_resolved() {
-+                                     FileStatus::Conflicted
-+                                 } else if values.before.is_absent() {
-+                                     FileStatus::Added
-+                                 } else if values.after.is_absent() {
-+                                     FileStatus::Deleted
-+                                 } else {
-+                                     FileStatus::Modified
-+                                 }
-+                             } else {
-+                                 FileStatus::Modified
-+                             };
-+
-+                             let path = entry.path.as_internal_file_string().to_string();
-+                             if path.contains("..") {
-+                                 continue;
-+                             }
-+                             changed_files.push(FileChange { path, status });
-+                         }
-+                     }
-+
-+                     let change_id_short = change_id[..8.min(change_id.len())].to_string();
-+
-+                     GraphRow {
-+                         commit_id,
-+                         commit_id_short,
-+                         change_id,
-+                         change_id_short,
-+                         description,
-+                         author,
-+                         timestamp,
-+                         timestamp_secs,
-+                         is_working_copy,
-+                         is_immutable,
-++                        has_conflict,
-+                         parents: parent_ids,
-+                         bookmarks,
-+                         changed_files,
-+                         visual: crate::domain::models::GraphRowVisual::default(),
-+                     }
-+                 },
-+             )
-++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
 +                    changed_files,
 +                    visual: crate::domain::models::GraphRowVisual::default(),
 +                }
 +            })
-+>>>>>>> conflict 2 of 2 ends
-             .buffered(50)
-             .collect::<Vec<_>>()
-             .await;
++            .buffered(50)
++            .collect::<Vec<_>>()
++            .await;
++
++        let wc_id = match repo.view().get_wc_commit_id(workspace_id) {
++            Some(id) => CommitId(id.hex()),
++            None => CommitId(String::new()),
++        };
++
++        let repo_name = ws_root
++            .file_name()
++            .and_then(|n| n.to_str())
++            .unwrap_or("unknown")
++            .to_string();
++
++        Ok(RepoStatus {
++            repo_name,
++            operation_id: op_id,
++            workspace_id: workspace_id.as_str().to_string(),
++            working_copy_id: wc_id,
++            graph: graph_rows,
++        })
++    }
++
++    pub(crate) async fn evolog_impl(&self, commit_id: &CommitId) -> Result<String> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("evolog")
++            .arg("-r")
++            .arg(&commit_id.0)
++            .arg("--color")
++            .arg("always")
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(String::from_utf8_lossy(&output.stdout).to_string())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj evolog failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn operation_log_impl(&self) -> Result<String> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("op")
++            .arg("log")
++            .arg("--color")
++            .arg("always")
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(String::from_utf8_lossy(&output.stdout).to_string())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj op log failed: {}", stderr.trim()))
++        }
++    }
++}
+diff --git a/src/infrastructure/jj/mod.rs b/src/infrastructure/jj/mod.rs
+new file mode 100644
+index 0000000..b4f1fb1
+--- /dev/null
++++ b/src/infrastructure/jj/mod.rs
+@@ -0,0 +1,292 @@
++use crate::domain::{models::CommitId, vcs::VcsFacade};
++use anyhow::{Context, Result};
++use async_trait::async_trait;
++use jj_lib::{
++    local_working_copy::LocalWorkingCopyFactory, repo::StoreFactories, settings::UserSettings,
++    working_copy::WorkingCopyFactory, workspace::Workspace,
++};
++use std::collections::HashMap;
++use std::path::PathBuf;
++use std::sync::Arc;
++use tokio::sync::{Mutex, Semaphore};
++
++pub mod bookmarks;
++pub mod diff;
++pub mod log;
++pub mod ops;
++pub mod remote;
++pub mod repo;
++
++pub struct JjAdapter {
++    pub(crate) workspace: Arc<Mutex<Option<Workspace>>>,
++    pub(crate) workspace_root: PathBuf,
++    pub(crate) user_settings: UserSettings,
++    pub(crate) diff_semaphore: Arc<Semaphore>,
++}
++
++pub(crate) const MAX_DIFF_SIZE: u64 = 1024 * 1024; // 1MB
++pub(crate) const MAX_CONCURRENT_DIFFS: usize = 4;
++
++impl JjAdapter {
++    pub fn new() -> Result<Self> {
++        let cwd = std::env::current_dir()?;
++        Self::for_path(cwd)
++    }
++
++    pub fn for_path(path: PathBuf) -> Result<Self> {
++        let mut config = jj_lib::config::StackedConfig::with_defaults();
++
++        let layer = jj_lib::config::ConfigLayer::parse(
++            jj_lib::config::ConfigSource::Default,
++            crate::infrastructure::defaults::DEFAULT_FALLBACK_CONFIG,
++        )
++        .context("Failed to parse internal fallback config (this is a Judo bug)")?;
++        config.add_layer(layer);
++
++        let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
++        if let Ok(home_dir) = home {
++            let paths = [
++                PathBuf::from(&home_dir).join(".jjconfig"),
++                PathBuf::from(&home_dir).join(".jj/config.toml"),
++                PathBuf::from(&home_dir).join(".config/jj/config.toml"),
++            ];
++            for config_path in paths {
++                if config_path.exists() {
++                    let text = std::fs::read_to_string(&config_path).with_context(|| {
++                        format!("Failed to read user config at {config_path:?}")
++                    })?;
++                    let layer = jj_lib::config::ConfigLayer::parse(
++                        jj_lib::config::ConfigSource::User,
++                        &text,
++                    )
++                    .with_context(|| format!("Failed to parse user config at {config_path:?}"))?;
++                    config.add_layer(layer);
++                }
++            }
++        }
++
++        let mut current = Some(path.as_path());
++        let mut found_ws_root = None;
++        while let Some(current_path) = current {
++            let jj_repo_config = current_path.join(".jj").join("repo").join("config.toml");
++            if jj_repo_config.is_file() {
++                let text = std::fs::read_to_string(&jj_repo_config)
++                    .with_context(|| format!("Failed to read repo config at {jj_repo_config:?}"))?;
++                let layer =
++                    jj_lib::config::ConfigLayer::parse(jj_lib::config::ConfigSource::User, &text)
++                        .with_context(|| {
++                        format!("Failed to parse user config at {jj_repo_config:?}")
++                    })?;
++                config.add_layer(layer);
++                found_ws_root = Some(current_path.to_path_buf());
++                break;
++            }
++            current = current_path.parent();
++        }
++
++        let user_settings = UserSettings::from_config(config)?;
++        let store_factories = StoreFactories::default();
++        let mut working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>> =
++            HashMap::new();
++        working_copy_factories.insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
++
++        let ws_root = found_ws_root.unwrap_or_else(|| path.clone());
++
++        let workspace = Workspace::load(
++            &user_settings,
++            &ws_root,
++            &store_factories,
++            &working_copy_factories,
++        )
++        .ok();
++
++        let workspace_root = if let Some(ws) = &workspace {
++            ws.workspace_root().to_path_buf()
++        } else {
++            ws_root
++        };
++
++        Ok(Self {
++            workspace: Arc::new(Mutex::new(workspace)),
++            workspace_root,
++            user_settings,
++            diff_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DIFFS)),
++        })
++    }
++
++    pub async fn check_version() -> Result<()> {
++        let output = tokio::process::Command::new("jj")
++            .arg("--version")
++            .output()
++            .await
++            .context("Failed to execute 'jj --version'. Is 'jj' installed and in your PATH?")?;
++
++        if !output.status.success() {
++            return Err(anyhow::anyhow!("'jj --version' failed"));
++        }
++
++        let version_str = String::from_utf8_lossy(&output.stdout);
++        if !version_str.contains("0.38") {
++            return Err(anyhow::anyhow!(
++                "Judo expects jj version 0.38.x, but found: {}. \
++                 Using mismatched versions may lead to repository corruption or crashes.",
++                version_str.trim()
++            ));
++        }
++        Ok(())
++    }
++}
++
++#[async_trait]
++impl VcsFacade for JjAdapter {
++    async fn get_operation_log(
++        &self,
++        heads: Option<Vec<CommitId>>,
++        limit: usize,
++        revset: Option<String>,
++    ) -> Result<crate::domain::models::RepoStatus> {
++        self.get_operation_log_impl(heads, limit, revset).await
++    }
++
++    async fn get_commit_diff(&self, commit_id: &CommitId) -> Result<String> {
++        self.get_commit_diff_impl(commit_id).await
++    }
++
++    async fn describe_revision(&self, commit_id: &str, message: &str) -> Result<()> {
++        self.describe_revision_impl(commit_id, message).await
++    }
++
++    async fn commit(&self, message: &str) -> Result<()> {
++        self.commit_impl(message).await
++    }
++
++    async fn snapshot(&self) -> Result<String> {
++        self.snapshot_impl().await
++    }
++
++    async fn edit(&self, commit_id: &CommitId) -> Result<()> {
++        self.edit_impl(commit_id).await
++    }
++
++    async fn squash(&self, commit_ids: &[CommitId]) -> Result<()> {
++        self.squash_impl(commit_ids).await
++    }
++
++    async fn new_child(&self, commit_id: &CommitId) -> Result<()> {
++        self.new_child_impl(commit_id).await
++    }
++
++    async fn abandon(&self, commit_ids: &[CommitId]) -> Result<()> {
++        self.abandon_impl(commit_ids).await
++    }
++
++    async fn revert(&self, commit_ids: &[CommitId]) -> Result<()> {
++        self.revert_impl(commit_ids).await
++    }
++
++    async fn absorb(&self) -> Result<()> {
++        self.absorb_impl().await
++    }
++
++    async fn duplicate(&self, commit_ids: &[CommitId]) -> Result<()> {
++        self.duplicate_impl(commit_ids).await
++    }
++
++    async fn parallelize(&self, commit_ids: &[CommitId]) -> Result<()> {
++        self.parallelize_impl(commit_ids).await
++    }
++
++    async fn rebase(&self, commit_ids: &[CommitId], destination: &str) -> Result<()> {
++        self.rebase_impl(commit_ids, destination).await
++    }
++
++    async fn set_bookmark(&self, commit_id: &CommitId, name: &str) -> Result<()> {
++        self.set_bookmark_impl(commit_id, name).await
++    }
++
++    async fn delete_bookmark(&self, name: &str) -> Result<()> {
++        self.delete_bookmark_impl(name).await
++    }
++
++    async fn evolog(&self, commit_id: &CommitId) -> Result<String> {
++        self.evolog_impl(commit_id).await
++    }
++
++    async fn operation_log(&self) -> Result<String> {
++        self.operation_log_impl().await
++    }
++
++    async fn undo(&self) -> Result<()> {
++        self.undo_impl().await
++    }
++
++    async fn redo(&self) -> Result<()> {
++        self.redo_impl().await
++    }
++
++    async fn fetch(&self) -> Result<()> {
++        self.fetch_impl().await
++    }
++
++    async fn push(&self, bookmark: Option<String>) -> Result<()> {
++        self.push_impl(bookmark).await
++    }
++
++    async fn init_repo(&self) -> Result<()> {
++        self.init_repo_impl().await
++    }
++
++    async fn is_valid(&self) -> bool {
++        self.is_valid_impl().await
++    }
++
++    fn workspace_root(&self) -> PathBuf {
++        self.workspace_root.clone()
++    }
++}
++
++pub(crate) fn is_binary(chunk: &[u8]) -> bool {
++    if chunk.is_empty() {
++        return false;
++    }
++    if chunk.contains(&0) {
++        return true;
++    }
++    let non_printable = chunk
++        .iter()
++        .filter(|&&b| (b < 32 && !b.is_ascii_whitespace()) || b == 127)
++        .count();
++
++    // If more than 10% are control characters (excluding whitespace), it's likely binary.
++    non_printable * 100 / chunk.len() > 10
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[tokio::test]
++    async fn test_jj_adapter_new() -> Result<()> {
++        let temp_dir = tempfile::tempdir()?;
++        let path = temp_dir.path().to_path_buf();
++        let config = jj_lib::config::StackedConfig::with_defaults();
++        let user_settings = UserSettings::from_config(config)?;
++        Workspace::init_simple(&user_settings, &path)?;
++        let adapter = JjAdapter::for_path(path)?;
++        assert!(adapter.is_valid().await);
++        Ok(())
++    }
++
++    #[test]
++    fn test_is_binary() {
++        assert!(!is_binary(b"this is some text"));
++        assert!(!is_binary(
++            b"this is some text with \n newlines and \t tabs"
++        ));
++        assert!(is_binary(&[0, 1, 2, 3])); // Null byte
++        assert!(is_binary(&[1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 14, 15])); // Many control chars
++
++        // UTF-8 should NOT be binary
++        assert!(!is_binary("🦀 rust is great".as_bytes()));
++    }
++}
+diff --git a/src/infrastructure/jj/ops.rs b/src/infrastructure/jj/ops.rs
+new file mode 100644
+index 0000000..ec1944b
+--- /dev/null
++++ b/src/infrastructure/jj/ops.rs
+@@ -0,0 +1,287 @@
++use super::JjAdapter;
++use crate::domain::models::CommitId;
++use anyhow::{anyhow, Context, Result};
++use jj_lib::{
++    local_working_copy::LocalWorkingCopyFactory, repo::StoreFactories,
++    working_copy::WorkingCopyFactory, workspace::Workspace,
++};
++use std::collections::HashMap;
++
++impl JjAdapter {
++    pub(crate) async fn describe_revision_impl(
++        &self,
++        commit_id: &str,
++        message: &str,
++    ) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("describe")
++            .arg(commit_id)
++            .arg("-m")
++            .arg(message)
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj describe failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn commit_impl(&self, message: &str) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("commit")
++            .arg("-m")
++            .arg(message)
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj commit failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn snapshot_impl(&self) -> Result<String> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("status")
++            .current_dir(&ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok("Snapshot created.".to_string())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj snapshot failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn edit_impl(&self, commit_id: &CommitId) -> Result<()> {
++        self.validate_commit(commit_id).await?;
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("edit")
++            .arg(&commit_id.0)
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj edit failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn squash_impl(&self, commit_ids: &[CommitId]) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("squash");
++        for id in commit_ids {
++            self.validate_commit(id).await?;
++            cmd.arg("-r").arg(&id.0);
++        }
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj squash failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn new_child_impl(&self, commit_id: &CommitId) -> Result<()> {
++        self.validate_commit(commit_id).await?;
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("new")
++            .arg(&commit_id.0)
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj new failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn abandon_impl(&self, commit_ids: &[CommitId]) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("abandon");
++        for id in commit_ids {
++            self.validate_commit(id).await?;
++            cmd.arg("-r").arg(&id.0);
++        }
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj abandon failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn revert_impl(&self, commit_ids: &[CommitId]) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("revert");
++        for id in commit_ids {
++            self.validate_commit(id).await?;
++            cmd.arg("-r").arg(&id.0);
++        }
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj revert failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn absorb_impl(&self) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("absorb");
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj absorb failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn duplicate_impl(&self, commit_ids: &[CommitId]) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("duplicate");
++        for id in commit_ids {
++            self.validate_commit(id).await?;
++            cmd.arg("-r").arg(&id.0);
++        }
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj duplicate failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn parallelize_impl(&self, commit_ids: &[CommitId]) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("parallelize");
++        for id in commit_ids {
++            self.validate_commit(id).await?;
++            cmd.arg("-r").arg(&id.0);
++        }
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj parallelize failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn rebase_impl(
++        &self,
++        commit_ids: &[CommitId],
++        destination: &str,
++    ) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("rebase");
++        for id in commit_ids {
++            self.validate_commit(id).await?;
++            cmd.arg("-r").arg(&id.0);
++        }
++        cmd.arg("-d").arg(destination);
++        let output = cmd.current_dir(ws_root).output().await?;
++
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj rebase failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn undo_impl(&self) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("undo")
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj undo failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn redo_impl(&self) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("redo")
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj redo failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn init_repo_impl(&self) -> Result<()> {
++        let output = tokio::process::Command::new("jj")
++            .arg("git")
++            .arg("init")
++            .arg("--colocate")
++            .current_dir(&self.workspace_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            let mut ws_opt = self.workspace.lock().await;
++
++            let store_factories = StoreFactories::default();
++            let mut working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>> =
++                HashMap::new();
++            working_copy_factories
++                .insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
++
++            let workspace = Workspace::load(
++                &self.user_settings,
++                &self.workspace_root,
++                &store_factories,
++                &working_copy_factories,
++            )
++            .context("Failed to load workspace after init")?;
++            *ws_opt = Some(workspace);
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj git init failed: {}", stderr.trim()))
++        }
++    }
++}
+diff --git a/src/infrastructure/jj/remote.rs b/src/infrastructure/jj/remote.rs
+new file mode 100644
+index 0000000..4222dc1
+--- /dev/null
++++ b/src/infrastructure/jj/remote.rs
+@@ -0,0 +1,36 @@
++use super::JjAdapter;
++use anyhow::{anyhow, Result};
++
++impl JjAdapter {
++    pub(crate) async fn fetch_impl(&self) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let output = tokio::process::Command::new("jj")
++            .arg("git")
++            .arg("fetch")
++            .current_dir(ws_root)
++            .output()
++            .await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj fetch failed: {}", stderr.trim()))
++        }
++    }
++
++    pub(crate) async fn push_impl(&self, bookmark: Option<String>) -> Result<()> {
++        let (_, ws_root) = self.get_repo_and_ws().await?;
++        let mut cmd = tokio::process::Command::new("jj");
++        cmd.arg("git").arg("push");
++        if let Some(bm) = bookmark {
++            cmd.arg("-b").arg(bm);
++        }
++        let output = cmd.current_dir(ws_root).output().await?;
++        if output.status.success() {
++            Ok(())
++        } else {
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            Err(anyhow!("jj push failed: {}", stderr.trim()))
++        }
++    }
++}
 diff --git a/src/infrastructure/jj/repo.rs b/src/infrastructure/jj/repo.rs
-index b7c95ab..55e3497 100644
---- a/src/infrastructure/jj/repo.rs
+new file mode 100644
+index 0000000..e7f37d2
+--- /dev/null
 +++ b/src/infrastructure/jj/repo.rs
-@@ -39,20 +39,35 @@ impl JjAdapter {
-     }
- }
-
+@@ -0,0 +1,87 @@
++use super::JjAdapter;
++use crate::domain::models::CommitId;
++use anyhow::{anyhow, Result};
++use jj_lib::{
++    backend::CommitId as JjCommitId,
++    object_id::ObjectId,
++    ref_name::WorkspaceName,
++    repo::{ReadonlyRepo, Repo},
++};
++use std::path::PathBuf;
++use std::sync::Arc;
++
++impl JjAdapter {
++    pub(crate) async fn validate_commit(&self, commit_id: &CommitId) -> Result<JjCommitId> {
++        let (repo, _): (Arc<ReadonlyRepo>, _) = self.get_repo_and_ws().await?;
++        let id = JjCommitId::try_from_hex(&commit_id.0)
++            .ok_or_else(|| anyhow!("Invalid commit ID format: {}", commit_id.0))?;
++
++        if !repo.index().has_id(&id).map_err(|e| anyhow!(e))? {
++            return Err(anyhow!(
++                "Commit {} is no longer valid or has been rewritten/abandoned.",
++                commit_id.0
++            ));
++        }
++        Ok(id)
++    }
++
++    pub(crate) async fn get_repo_and_ws(&self) -> Result<(Arc<ReadonlyRepo>, PathBuf)> {
++        let ws_opt = self.workspace.lock().await;
++        let ws = ws_opt
++            .as_ref()
++            .ok_or_else(|| anyhow!("No repository found"))?;
++        let repo = ws.repo_loader().load_at_head()?;
++        Ok((repo, ws.workspace_root().to_path_buf()))
++    }
++
++    pub(crate) async fn is_valid_impl(&self) -> bool {
++        self.workspace.lock().await.is_some()
++    }
++}
++
 +pub(crate) struct CommitInfo {
 +    pub commit: jj_lib::commit::Commit,
 +    pub parent_tree: Option<jj_lib::merged_tree::MergedTree>,
 +    pub parent_ids: Vec<CommitId>,
 +    pub is_working_copy: bool,
 +    pub is_immutable: bool,
++    pub has_conflict: bool,
 +    pub bookmarks: Vec<String>,
 +}
 +
- pub(crate) fn build_commit_info(
-     repo: &ReadonlyRepo,
-     id: &JjCommitId,
-     ws_id: &WorkspaceName,
++pub(crate) fn build_commit_info(
++    repo: &ReadonlyRepo,
++    id: &JjCommitId,
++    ws_id: &WorkspaceName,
++) -> Result<CommitInfo> {
++    let commit = repo.store().get_commit(id)?;
++    let mut parent_ids_domain = Vec::new();
++    for parent_id in commit.parent_ids() {
++        parent_ids_domain.push(CommitId(parent_id.hex()));
++    }
++
++    let first_parent: Option<jj_lib::commit::Commit> =
++        commit.parents().next().transpose().unwrap_or_default();
++    let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
++    let is_working_copy = Some(id) == repo.view().get_wc_commit_id(ws_id);
++    // Heuristic: root commit is immutable.
++    let is_immutable = commit.parents().next().is_none();
++    let has_conflict = commit.tree().has_conflict();
++
++    let bookmarks = repo
++        .view()
++        .local_bookmarks()
++        .filter(|(_, target)| target.added_ids().any(|added_id| added_id == id))
++        .map(|(name, _)| name.as_str().to_string())
++        .collect::<Vec<_>>();
++
++    Ok(CommitInfo {
++        commit,
++        parent_tree,
++        parent_ids: parent_ids_domain,
++        is_working_copy,
++        is_immutable,
++        has_conflict,
++        bookmarks,
++    })
++}
+diff --git a/src/infrastructure/jj_adapter.rs b/src/infrastructure/jj_adapter.rs
+deleted file mode 100644
+index 5da0477..0000000
+--- a/src/infrastructure/jj_adapter.rs
++++ /dev/null
+@@ -1,1015 +0,0 @@
+-use crate::domain::{
+-    models::{CommitId, FileChange, FileStatus, GraphRow, RepoStatus},
+-    vcs::VcsFacade,
+-};
+-use anyhow::{anyhow, Context, Result};
+-use async_trait::async_trait;
+-use jj_lib::{
+-    backend::{CommitId as JjCommitId, TreeValue},
+-    local_working_copy::LocalWorkingCopyFactory,
+-    matchers::EverythingMatcher,
+-    object_id::ObjectId,
+-    repo::{ReadonlyRepo, Repo, StoreFactories},
+-    settings::UserSettings,
+-    working_copy::WorkingCopyFactory,
+-    workspace::Workspace,
+-    ref_name::{WorkspaceName, WorkspaceNameBuf},
+-};
+-use std::path::PathBuf;
+-
+-use futures::StreamExt;
+-use std::collections::{HashMap, HashSet, VecDeque};
+-use std::sync::Arc;
+-use tokio::io::AsyncReadExt;
+-use tokio::sync::{Mutex, Semaphore};
+-
+-pub struct JjAdapter {
+-    workspace: Arc<Mutex<Option<Workspace>>>,
+-    workspace_root: std::path::PathBuf,
+-    user_settings: UserSettings,
+-    diff_semaphore: Arc<Semaphore>,
+-}
+-
+-const MAX_DIFF_SIZE: u64 = 1024 * 1024; // 1MB
+-const MAX_CONCURRENT_DIFFS: usize = 4;
+-
+-impl JjAdapter {
+-    pub fn new() -> Result<Self> {
+-        let cwd = std::env::current_dir()?;
+-        Self::for_path(cwd)
+-    }
+-
+-    pub fn for_path(path: std::path::PathBuf) -> Result<Self> {
+-        let mut config = jj_lib::config::StackedConfig::with_defaults();
+-
+-        let layer = jj_lib::config::ConfigLayer::parse(
+-            jj_lib::config::ConfigSource::Default,
+-            crate::infrastructure::defaults::DEFAULT_FALLBACK_CONFIG,
+-        )
+-        .context("Failed to parse internal fallback config (this is a Judo bug)")?;
+-        config.add_layer(layer);
+-
+-        let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
+-        if let Ok(home_dir) = home {
+-            let paths = [
+-                std::path::PathBuf::from(&home_dir).join(".jjconfig"),
+-                std::path::PathBuf::from(&home_dir).join(".jj/config.toml"),
+-                std::path::PathBuf::from(&home_dir).join(".config/jj/config.toml"),
+-            ];
+-            for config_path in paths {
+-                if config_path.exists() {
+-                    let text = std::fs::read_to_string(&config_path).with_context(|| {
+-                        format!("Failed to read user config at {config_path:?}")
+-                    })?;
+-                    let layer = jj_lib::config::ConfigLayer::parse(
+-                        jj_lib::config::ConfigSource::User,
+-                        &text,
+-                    )
+-                    .with_context(|| format!("Failed to parse user config at {config_path:?}"))?;
+-                    config.add_layer(layer);
+-                }
+-            }
+-        }
+-
+-        let mut current = Some(path.as_path());
+-        let mut found_ws_root = None;
+-        while let Some(current_path) = current {
+-            let jj_repo_config = current_path.join(".jj").join("repo").join("config.toml");
+-            if jj_repo_config.is_file() {
+-                let text = std::fs::read_to_string(&jj_repo_config)
+-                    .with_context(|| format!("Failed to read repo config at {jj_repo_config:?}"))?;
+-                let layer =
+-                    jj_lib::config::ConfigLayer::parse(jj_lib::config::ConfigSource::User, &text)
+-                        .with_context(|| {
+-                        format!("Failed to parse user config at {jj_repo_config:?}")
+-                    })?;
+-                config.add_layer(layer);
+-                found_ws_root = Some(current_path.to_path_buf());
+-                break;
+-            }
+-            current = current_path.parent();
+-        }
+-
+-        let user_settings = UserSettings::from_config(config)?;
+-        let store_factories = StoreFactories::default();
+-        let mut working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>> =
+-            HashMap::new();
+-        working_copy_factories.insert("local".to_string(), Box::new(LocalWorkingCopyFactory {}));
+-
+-        let ws_root = found_ws_root.unwrap_or_else(|| path.clone());
+-
+-        let workspace = Workspace::load(
+-            &user_settings,
+-            &ws_root,
+-            &store_factories,
+-            &working_copy_factories,
+-        )
+-        .ok();
+-
+-        let workspace_root = if let Some(ws) = &workspace {
+-            ws.workspace_root().to_path_buf()
+-        } else {
+-            ws_root
+-        };
+-
+-        Ok(Self {
+-            workspace: Arc::new(Mutex::new(workspace)),
+-            workspace_root,
+-            user_settings,
+-            diff_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DIFFS)),
+-        })
+-    }
+-
+-    pub async fn check_version() -> Result<()> {
+-        let output = tokio::process::Command::new("jj")
+-            .arg("--version")
+-            .output()
+-            .await
+-            .context("Failed to execute 'jj --version'. Is 'jj' installed and in your PATH?")?;
+-
+-        if !output.status.success() {
+-            return Err(anyhow!("'jj --version' failed"));
+-        }
+-
+-        let version_str = String::from_utf8_lossy(&output.stdout);
+-        // Judo is built against jj-lib 0.38.0.
+-        // CLI version usually matches lib version (e.g. "jj 0.38.0")
+-        if !version_str.contains("0.38") {
+-            return Err(anyhow!(
+-                "Judo expects jj version 0.38.x, but found: {}. \
+-                 Using mismatched versions may lead to repository corruption or crashes.",
+-                version_str.trim()
+-            ));
+-        }
+-        Ok(())
+-    }
+-
+-    async fn validate_commit(&self, commit_id: &CommitId) -> Result<JjCommitId> {
+-        let (repo, _): (Arc<ReadonlyRepo>, _) = self.get_repo_and_ws().await?;
+-        let id = JjCommitId::try_from_hex(&commit_id.0)
+-            .ok_or_else(|| anyhow!("Invalid commit ID format: {}", commit_id.0))?;
+-
+-        if !repo.index().has_id(&id).map_err(|e| anyhow!(e))? {
+-            return Err(anyhow!(
+-                "Commit {} is no longer valid or has been rewritten/abandoned.",
+-                commit_id.0
+-            ));
+-        }
+-        Ok(id)
+-    }
+-
+-    async fn get_repo_and_ws(&self) -> Result<(Arc<ReadonlyRepo>, PathBuf)> {
+-        let ws_opt = self.workspace.lock().await;
+-        let ws = ws_opt
+-            .as_ref()
+-            .ok_or_else(|| anyhow!("No repository found"))?;
+-        let repo = ws.repo_loader().load_at_head()?;
+-        Ok((repo, ws.workspace_root().to_path_buf()))
+-    }
+-}
+-
+-fn build_commit_info(
+-    repo: &ReadonlyRepo,
+-    id: &JjCommitId,
+-    ws_id: &WorkspaceName,
 -) -> Result<(
 -    jj_lib::commit::Commit,
 -    jj_lib::merged_tree::MergedTree,
@@ -308,51 +4739,90 @@ index b7c95ab..55e3497 100644
 -    Vec<CommitId>,
 -    bool,
 -    bool,
--    bool,
 -    Vec<String>,
 -)> {
-+<<<<<<< conflict 1 of 1
-+%%%%%%% diff from: omtvnrzw 36b6b56c "refactor: decompose loop" (parents of rebased revision)
-+\\\\\\\        to: omtvnrzw a7826186 "refactor: decompose loop" (rebase destination)
-+ ) -> Result<(
-+     jj_lib::commit::Commit,
-+     jj_lib::merged_tree::MergedTree,
-+     Option<jj_lib::merged_tree::MergedTree>,
-+     Vec<CommitId>,
-+     bool,
-+     bool,
-++    bool,
-+     Vec<String>,
-+ )> {
-++++++++ kmztloqy e3ee37e0 "choir: lint and format code" (rebased revision)
-+) -> Result<CommitInfo> {
-+>>>>>>> conflict 1 of 1 ends
-     let commit = repo.store().get_commit(id)?;
-     let mut parent_ids_domain = Vec::new();
-     for parent_id in commit.parent_ids() {
-@@ -61,7 +76,6 @@ pub(crate) fn build_commit_info(
-
-     let first_parent: Option<jj_lib::commit::Commit> =
-         commit.parents().next().transpose().unwrap_or_default();
+-    let commit = repo.store().get_commit(id)?;
+-    let mut parent_ids_domain = Vec::new();
+-    for parent_id in commit.parent_ids() {
+-        parent_ids_domain.push(CommitId(parent_id.hex()));
+-    }
+-
+-    let first_parent: Option<jj_lib::commit::Commit> =
+-        commit.parents().next().transpose().unwrap_or_default();
 -    let tree = commit.tree();
-     let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
-     let is_working_copy = Some(id) == repo.view().get_wc_commit_id(ws_id);
-     // Heuristic: root commit is immutable.
-@@ -75,14 +89,13 @@ pub(crate) fn build_commit_info(
-         .map(|(name, _)| name.as_str().to_string())
-         .collect::<Vec<_>>();
-
+-    let parent_tree = first_parent.as_ref().map(jj_lib::commit::Commit::tree);
+-    let is_working_copy = Some(id) == repo.view().get_wc_commit_id(ws_id);
+-    // Heuristic: root commit is immutable.
+-    // Heads are definitely NOT necessarily immutable.
+-    let is_immutable = commit.parents().next().is_none();
+-
+-    let bookmarks = repo
+-        .view()
+-        .local_bookmarks()
+-        .filter(|(_, target)| target.added_ids().any(|added_id| added_id == id))
+-        .map(|(name, _)| name.as_str().to_string())
+-        .collect::<Vec<_>>();
+-
 -    Ok((
-+    Ok(CommitInfo {
-         commit,
+-        commit,
 -        tree,
-         parent_tree,
+-        parent_tree,
 -        parent_ids_domain,
-+        parent_ids: parent_ids_domain,
-         is_working_copy,
-         is_immutable,
-         has_conflict,
-         bookmarks,
+-        is_working_copy,
+-        is_immutable,
+-        bookmarks,
 -    ))
-+    })
- }
+-}
+-
+-#[async_trait]
+-impl VcsFacade for JjAdapter {
+-    async fn get_operation_log(
+-        &self,
+-        heads: Option<Vec<CommitId>>,
+-        limit: usize,
+-        revset: Option<String>,
+-    ) -> Result<RepoStatus> {
+-        let (repo, ws_root): (Arc<ReadonlyRepo>, PathBuf) = self.get_repo_and_ws().await?;
+-        let op_id = repo.operation().id().clone().hex();
+-
+-        let (workspace_id, _): (&WorkspaceNameBuf, &JjCommitId) = repo
+-            .view()
+-            .wc_commit_ids()
+-            .iter()
+-            .next()
+-            .ok_or_else(|| anyhow!("No working copy found"))?;
+-
+-        let workspace_id: WorkspaceNameBuf = workspace_id.clone();
+-        let repo_arc = repo.clone();
+-        let ws_id_clone = workspace_id.clone();
+-        let ws_root_for_closure = ws_root.clone();
+-
+-        // Phase 1: Blocking Graph Traversal (Pre-loading objects)
+-        let commit_infos = tokio::task::spawn_blocking(move || {
+-            let mut visited = HashSet::<jj_lib::backend::CommitId>::new();
+-            let mut queue = VecDeque::new();
+-            let mut results = Vec::new();
+-
+-            if let Some(revset_str) = revset {
+-                let output = std::process::Command::new("jj")
+-                    .arg("--color")
+-                    .arg("never")
+-                    .arg("--no-pager")
+-                    .arg("--repository")
+-                    .arg(".")
+-                    .arg("log")
+-                    .arg("-r")
+-                    .arg(&revset_str)
+-                    .arg("-T")
+-                    .arg("commit_id ++ \"\\n\"")
+-                    .arg("--no-graph")
+-                    .current_dir(&ws_root_for_closure)
+-                    .output();
+-
+-                match output {
+-                    Ok(output) => {
+-                        if output.status.success() {
+-                            let stdout = String::from_utf8_lossy(&output.stdout);
+-                            let ids: Vec<String> = stdout
+-                                .lines()
+LINE LIMIT EXCEEDED

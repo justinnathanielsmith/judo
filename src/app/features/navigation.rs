@@ -120,6 +120,29 @@ pub fn update(state: &mut AppState, action: &Action) -> UpdateResult {
             state.focused_panel = Panel::Graph;
             UpdateResult::Handled(None)
         }
+        Action::ToggleSelection(commit_id_opt) => {
+            let id = commit_id_opt.clone().or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
+
+            if let Some(id) = id {
+                if !state.log.selected_ids.remove(&id) {
+                    state.log.selected_ids.insert(id);
+                }
+            }
+            // Move selection down automatically if possible
+            if state.mode == AppMode::Normal {
+                UpdateResult::Handled(move_selection(state, 1))
+            } else {
+                UpdateResult::Handled(None)
+            }
+        }
+        Action::ClearSelection => {
+            state.log.selected_ids.clear();
+            UpdateResult::Handled(None)
+        }
         _ => UpdateResult::NotHandled,
     }
 }

@@ -2,8 +2,8 @@ use crate::domain::{models::CommitId, vcs::VcsFacade};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use jj_lib::{
-    local_working_copy::LocalWorkingCopyFactory, repo::StoreFactories, settings::UserSettings,
-    working_copy::WorkingCopyFactory, workspace::Workspace,
+    local_working_copy::LocalWorkingCopyFactory, object_id::ObjectId, repo::StoreFactories,
+    settings::UserSettings, working_copy::WorkingCopyFactory, workspace::Workspace,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -261,6 +261,16 @@ pub(crate) fn is_binary(chunk: &[u8]) -> bool {
     non_printable * 100 / chunk.len() > 10
 }
 
+pub(crate) fn format_change_id(id: &dyn ObjectId) -> String {
+    id.hex()
+        .chars()
+        .map(|c: char| {
+            let v = c.to_digit(16).unwrap_or(0);
+            (b'k' + v as u8) as char
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,5 +298,17 @@ mod tests {
 
         // UTF-8 should NOT be binary
         assert!(!is_binary("🦀 rust is great".as_bytes()));
+    }
+
+    #[test]
+    fn test_format_change_id() {
+        use jj_lib::backend::CommitId;
+        // 52fb4284e4449c413fe5f8a952b1a2f8e1d48d2b
+        let id = CommitId::try_from_hex("52fb4284e4449c413fe5f8a952b1a2f8e1d48d2b").unwrap();
+        let formatted = format_change_id(&id);
+        // 5->p, 2->m, f->z, b->v, 4->o, 2->m, 8->s, 4->o, e->y, 4->o, 4->o, 4->o, 9->t, c->w, 4->o, 1->l, 3->n, f->z, e->y, 5->p, f->z, 8->s, a->u, 9->t, 5->p, 2->m, b->v, 1->l, a->u, 2->m, f->z, 8->s, e->y, 1->l, d->x, 4->o, 8->s, d->x, 2->m, b->v
+        // Wait, it's 40 characters for 20 bytes.
+        assert_eq!(formatted.len(), 40);
+        assert!(formatted.chars().all(|c| c >= 'k' && c <= 'z'));
     }
 }

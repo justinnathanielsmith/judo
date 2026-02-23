@@ -152,6 +152,47 @@ pub fn update(state: &mut AppState, action: &Action) -> UpdateResult {
             });
             UpdateResult::Handled(None)
         }
+        Action::DeleteBookmarkIntent => {
+            if let (Some(repo), Some(idx)) = (&state.repo, state.log.list_state.selected()) {
+                if let Some(row) = repo.graph.get(idx) {
+                    let mut removable_bookmarks: Vec<String> = row
+                        .bookmarks
+                        .iter()
+                        .filter(|b| !b.ends_with('*'))
+                        .cloned()
+                        .collect();
+
+                    if removable_bookmarks.is_empty() {
+                        return UpdateResult::Handled(None);
+                    } else if removable_bookmarks.len() == 1 {
+                        return UpdateResult::Handled(Some(Command::DeleteBookmark(
+                            removable_bookmarks[0].clone(),
+                        )));
+                    }
+
+                    // Multiple bookmarks: open context menu for selection
+                    let mut actions = Vec::new();
+                    removable_bookmarks.sort();
+                    for bookmark in removable_bookmarks {
+                        actions.push((
+                            format!("Delete bookmark: {bookmark}"),
+                            Action::DeleteBookmark(bookmark),
+                        ));
+                    }
+
+                    state.mode = AppMode::ContextMenu;
+                    state.context_menu = Some(crate::app::state::ContextMenuState {
+                        commit_id: row.commit_id.clone(),
+                        x: 20,
+                        y: 8,
+                        selected_index: 0,
+                        actions,
+                    });
+                    return UpdateResult::Handled(None);
+                }
+            }
+            UpdateResult::Handled(None)
+        }
         Action::SetBookmark(commit_id, name) => {
             state.mode = AppMode::Normal;
             UpdateResult::Handled(Some(Command::SetBookmark(commit_id.clone(), name.clone())))
@@ -194,8 +235,8 @@ pub fn update(state: &mut AppState, action: &Action) -> UpdateResult {
                     state.mode = AppMode::ContextMenu;
                     state.context_menu = Some(crate::app::state::ContextMenuState {
                         commit_id: row.commit_id.clone(),
-                        x: 10,
-                        y: 10,
+                        x: 20,
+                        y: 8,
                         selected_index: 0,
                         actions,
                     });
@@ -208,6 +249,15 @@ pub fn update(state: &mut AppState, action: &Action) -> UpdateResult {
             UpdateResult::Handled(Some(Command::ResolveConflict(path.clone())))
         }
         Action::InitRepo => UpdateResult::Handled(Some(Command::InitRepo)),
+        Action::EvologRevision(commit_id_opt) => {
+            let id = commit_id_opt.clone().or_else(|| {
+                let repo = state.repo.as_ref()?;
+                let idx = state.log.list_state.selected()?;
+                repo.graph.get(idx).map(|r| r.commit_id.clone())
+            });
+            UpdateResult::Handled(id.map(Command::Evolog))
+        }
+        Action::OperationLog => UpdateResult::Handled(Some(Command::OperationLog)),
         _ => UpdateResult::NotHandled,
     }
 }

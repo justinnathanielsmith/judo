@@ -27,7 +27,10 @@ impl JjAdapter {
         let timestamp = datetime.format("%Y-%m-%d %H:%M").to_string();
 
         output.push_str(&format!("Commit ID: {}\n", commit.id().hex()));
-        output.push_str(&format!("Change ID: {}\n", commit.change_id().hex()));
+        output.push_str(&format!(
+            "Change ID: {}\n",
+            super::format_change_id(commit.change_id())
+        ));
 
         let bookmarks = repo
             .view()

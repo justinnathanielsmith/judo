@@ -222,6 +222,17 @@ impl KeyMap {
                 KeyCode::PageUp => Some(Action::ScrollOperationLogUp(10)),
                 _ => None,
             };
+        } else if mode == super::state::AppMode::ContextMenu {
+            return match event.code {
+                KeyCode::Esc => Some(Action::CloseContextMenu),
+                KeyCode::Char('j') | KeyCode::Down => Some(Action::SelectContextMenuNext),
+                KeyCode::Char('k') | KeyCode::Up => Some(Action::SelectContextMenuPrev),
+                KeyCode::Enter => {
+                    let idx = state.context_menu.as_ref()?.selected_index;
+                    Some(Action::SelectContextMenuAction(idx))
+                }
+                _ => None,
+            };
         }
         self.global.get(&event).cloned()
     }
